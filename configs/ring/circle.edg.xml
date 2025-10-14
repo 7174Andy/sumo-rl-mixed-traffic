@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-10-13 22:58:13 by Eclipse SUMO netconvert Version 1.24.0
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <sumo-net-file value="circle.net.xml"/>
+    </input>
+
+    <output>
+        <plain-output-prefix value="circle"/>
+    </output>
+
+    <processing>
+        <geometry.min-radius.fix.railways value="false"/>
+        <geometry.avoid-overlap value="false"/>
+        <geometry.max-grade.fix value="false"/>
+        <offset.disable-normalization value="true"/>
+        <lefthand value="0"/>
+    </processing>
+
+    <junctions>
+        <no-internal-links value="true"/>
+        <no-turnarounds value="true"/>
+        <junctions.corner-detail value="5"/>
+        <junctions.limit-turn-speed value="5.50"/>
+        <rectangular-lane-cut value="0"/>
+    </junctions>
+
+    <pedestrian>
+        <walkingareas value="0"/>
+    </pedestrian>
+
+</netconvertConfiguration>
+-->
+
+<edges version="1.20" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+    <edge id="B8B7" from="B8" to="B9" priority="-1" numLanes="1" speed="13.89" shape="59.75,99.04 69.13,96.19 77.78,91.57 85.36,85.36 91.57,77.78 96.19,69.13 99.04,59.75 100.00,50.00 99.04,40.25 96.19,30.87 91.57,22.22 85.36,14.64 77.78,8.43 69.13,3.81 59.75,0.96 50.00,0.00 40.25,0.96 30.87,3.81 22.22,8.43 14.64,14.64 8.43,22.22 3.81,30.87 0.96,40.25 0.00,50.00 0.96,59.75 3.81,69.13 8.43,77.78 14.64,85.36 22.22,91.57 30.87,96.19 40.25,99.04 50.00,100.00"/>
+    <edge id="B8B9" from="B8" to="B9" priority="-1" numLanes="1" speed="13.89"/>
+    <edge id="B9B10" from="B9" to="B8" priority="-1" numLanes="1" speed="13.89" shape="50.00,100.00 40.25,99.04 30.87,96.19 22.22,91.57 14.64,85.36 8.43,77.78 3.81,69.13 0.96,59.75 0.00,50.00 0.96,40.25 3.81,30.87 8.43,22.22 14.64,14.64 22.22,8.43 30.87,3.81 40.25,0.96 50.00,0.00 59.75,0.96 69.13,3.81 77.78,8.43 85.36,14.64 91.57,22.22 96.19,30.87 99.04,40.25 100.00,50.00 99.04,59.75 96.19,69.13 91.57,77.78 85.36,85.36 77.78,91.57 69.13,96.19 59.75,99.04"/>
+    <edge id="B9B8" from="B9" to="B8" priority="-1" numLanes="1" speed="13.89"/>
+</edges>

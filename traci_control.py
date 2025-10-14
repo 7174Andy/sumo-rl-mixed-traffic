@@ -4,7 +4,7 @@ from pathlib import Path
 
 # If SUMO is installed, SUMO_HOME should point to its root (where tools/ lives).
 if "SUMO_HOME" in os.environ:
-    tools = Path(os.environ["SUMO_HOME"]) / "tools"
+    tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
     sys.path.append(str(tools))
 else:
     raise EnvironmentError(
@@ -16,10 +16,10 @@ import traci
 from utils import pretty_time, start_traci
 from config import SumoConfig
 
-CFG = "configs/simulation.sumocfg"
+CFG = "configs/ring/simulation.sumocfg"
 
 def main():
-    start_traci(SumoConfig(sumocfg_path=CFG, use_gui=True, delay_ms=70))
+    start_traci(SumoConfig(sumocfg_path=CFG, use_gui=True, delay_ms=100))
 
     # Target free-flow speeds for each car (m/s). SUMO car-following will override if unsafe.
     desired_speeds = {"car0": 12.0, "car1": 10.0, "car2": 14.0}
