@@ -17,7 +17,6 @@ from utils import pretty_time, start_traci
 from config import SumoConfig
 
 CFG = "configs/simulation.sumocfg"
-STEP_LENGTH = 0.1  # must match <step-length> in the .sumocfg
 
 def main():
     start_traci(SumoConfig(sumocfg_path=CFG, use_gui=True, delay_ms=70))
@@ -29,7 +28,7 @@ def main():
     seen = set()
 
     sim_time = 0.0
-    MAX_STEPS = int(120 / STEP_LENGTH)
+    MAX_STEPS = int(120 / SumoConfig.step_length)
 
     for k in range(MAX_STEPS):
         # New departures this step
@@ -73,7 +72,7 @@ def main():
             traci.vehicle.setSpeed(vid, v_cmd) # setSpeed sets the desired speed for the next step
 
         # Log status once per second
-        if k % int(1.0 / STEP_LENGTH) == 0:
+        if k % int(1.0 / SumoConfig.step_length) == 0:
             ids = traci.vehicle.getIDList()
             prints = []
             for vid in sorted(ids):
@@ -84,7 +83,7 @@ def main():
             print(pretty_time(sim_time), " | ".join(prints))
 
         traci.simulationStep()
-        sim_time += STEP_LENGTH
+        sim_time += SumoConfig.step_length
 
         # Stop early if everyone arrived
         if traci.simulation.getMinExpectedNumber() == 0:
