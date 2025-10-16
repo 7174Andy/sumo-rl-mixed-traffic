@@ -16,7 +16,7 @@ import traci
 from utils import pretty_time, start_traci
 from config import SumoConfig
 
-CFG = "configs/ring/simulation.sumocfg"
+CFG = "configs/simulation.sumocfg"
 
 def main():
     start_traci(SumoConfig(sumocfg_path=CFG, use_gui=True, delay_ms=100))
@@ -91,3 +91,8 @@ def main():
 
     traci.close()
     print("Simulation finished.")
+
+# TODO: Simple RL algorithm -> for pipeline
+# - learn policy offline in a simplified environment
+# - simple algorithm: Q-learning with discretized state/action spaces
+# - env: ring road with head vehicle with 1 CAV and 1-2 HDVs
