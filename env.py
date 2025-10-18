@@ -5,10 +5,10 @@ from pathlib import Path
 import os
 import sys
 from typing import Tuple
+from dataclasses import dataclass
 
 from utils import start_traci
 from config import SumoConfig
-
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
@@ -17,6 +17,22 @@ else:
     raise EnvironmentError("Please set the SUMO_HOME environment variable to your SUMO install path.")
 
 import traci
+
+@dataclass
+class Discretizer:
+    """Uniform binning for a scalar."""
+    low: float
+    high: float
+    step: float
+
+    @property
+    def bins(self) -> np.ndarray:
+        # rightmost included by adding +1e-9
+        return np.arange(self.low, self.high + 1e-9, self.step)
+
+    def index(self, x: float) -> int:
+        x_clipped = np.clip(x, self.low, self.high)
+        return int(np.digitize(x_clipped, self.bins) - 1)  # 0-based bin index
 
 class RingRoadEnv(gym.Env):
     """
@@ -50,6 +66,11 @@ class RingRoadEnv(gym.Env):
 
         self.cmd_speed = 0.0
         self.v_max = 20.0
+
+        # Discretizers
+        self.gap_disc = Discretizer(low=0.0, high=60.0, step=5.0)
+        self.v_disc = Discretizer(low=0.0, high=20.0, step=2.0)
+        self.dV_disc = Discretizer(low=-10.0, high=10.0, step=2.0)
 
     def open_traci(self):
         if not traci.isLoaded():
@@ -149,12 +170,12 @@ class RingRoadEnv(gym.Env):
         gap, v, _ = self._get_continuous_state()
 
         # normalize speed reward
-        speed_term = (v / max(1e-6, self._v_max))
+        speed_term = (v / max(1e-6, self.v_max))
 
         # "jerk" ~ delta command speed this step (approx)
         # we don't store previous cmd explicitly; approximate with how much we nudged
         # keep it simple: penalize big |target - actual|
-        target_diff = abs(self._cmd_speed - v)
+        target_diff = abs(self.cmd_speed - v)
 
         penalty_close = 1.0 if gap < 5.0 else 0.0
 
