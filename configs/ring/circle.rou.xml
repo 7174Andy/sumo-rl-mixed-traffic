@@ -5,7 +5,7 @@
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
     <!-- Routes -->
-    <route id="r_0" edges="B9B8 B8B7"/>
+    <route id="r_0" edges="B9B8 B8B7" repeat="5"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
     <vehicle id="car0" depart="0.00" route="r_0"/>
     <vehicle id="car1" depart="0.00" route="r_0"/>
