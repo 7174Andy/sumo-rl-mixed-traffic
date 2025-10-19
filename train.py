@@ -6,21 +6,19 @@ from agent import QLearningAgent
 from config import SumoConfig
 
 AGENT_ID = "car0"
-CFG = "configs/simulation.sumocfg"
+CFG = "configs/ring/simulation.sumocfg"
 
 
-def snapshot_q(Q_defaultdict):
+def snapshot_q(q_defaultdict):
     """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
-    return {k: np.array(v, dtype=np.float32) for k, v in Q_defaultdict.items()}
+    return {k: np.array(v, dtype=np.float32) for k, v in q_defaultdict.items()}
 
 def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.pkl"):
     env = RingRoadEnv(
         sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
         agent_id=AGENT_ID,
         gui=gui,
-        episode_length=5000.0,
         dv=0.5,
-        action_k=2,
     )
 
     agent = QLearningAgent(

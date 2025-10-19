@@ -3,7 +3,7 @@ import numpy as np
 from config import SumoConfig
 from env import RingRoadEnv
 
-CFG = "configs/simulation.sumocfg"
+CFG = "configs/ring/simulation.sumocfg"
 AGENT_ID = "car0"
 
 def greedy_action(Q, s, n_actions):
@@ -15,9 +15,8 @@ def eval_policy(q_table_path: str, gui: bool = True):
         sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
         agent_id=AGENT_ID,
         gui=gui,
-        episode_length=120.0,
+        episode_length=500.0,
         dv=0.5,
-        action_k=2,
     )
 
     with open(q_table_path, "rb") as f:
@@ -35,10 +34,9 @@ def eval_policy(q_table_path: str, gui: bool = True):
             s = s_next
             G += r
             steps += 1
-
         print(f"Evaluation Return: {G:.2f}, Steps: {steps}")
     finally:
         env.close()
 
 if __name__ == "__main__":
-    eval_policy("trained_agents/q_table.pkl")
+    eval_policy("output/q_table.pkl")

@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import gymnasium as gym
 
@@ -81,6 +82,33 @@ class RingRoadEnv(gym.Env):
     def close_traci(self):
         if traci.isLoaded():
             traci.close(False)
+
+    def get_followers_chain(self, leader_id: str, depth: int = 5):
+        """
+        Return [(follower_id, gap_back), ...] up to `depth` behind `leader_id`.
+        Safe against missing IDs and arrival events.
+        """
+        chain = []
+        if not leader_id or leader_id not in traci.vehicle.getIDList():
+            return chain
+
+        current = leader_id
+        for _ in range(depth):
+            try:
+                info = traci.vehicle.getFollower(current)  # -> (vehID, gap) or None
+            except traci.TraCIException:
+                break
+
+            if not info:
+                break
+
+            fid, gap = info
+            if not fid or fid not in traci.vehicle.getIDList():
+                break
+
+            chain.append((fid, gap))
+            current = fid
+        return chain
     
     def _get_continuous_state(self) -> Tuple[float, float, float]:
         """
@@ -154,6 +182,7 @@ class RingRoadEnv(gym.Env):
             traci.vehicle.setSpeed(self.agent_id, self.cmd_speed)
         
         traci.simulationStep()
+        time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
 
@@ -165,24 +194,61 @@ class RingRoadEnv(gym.Env):
 
     def compute_reward(self) -> float:
         """
-        Encourage high speeds with smoothness and safety:
-        r = +w1 * (v_ego / v_max)  - w2 * jerk^2  - w3 * penalty_close
-        where 'jerk' ~ change in command speed, 'penalty_close' if gap < threshold.
+        Network-speed heavy reward:
+        + Main: mean speed of first K followers (fallback to ego speed if none)
+        - Small comfort penalty (command mismatch)
+        - Light safety penalty (very small gaps or low TTC behind leader)
         """
-        gap, v, _ = self._get_continuous_state()
+        if self.agent_id not in traci.vehicle.getIDList():
+            return 0.0
 
-        # normalize speed reward
-        speed_term = (v / max(1e-6, self.v_max))
+        # configurable depth (followers considered)
+        followers_depth = 5
 
-        # "jerk" ~ delta command speed this step (approx)
-        # we don't store previous cmd explicitly; approximate with how much we nudged
-        # keep it simple: penalize big |target - actual|
-        target_diff = abs(self.cmd_speed - v)
+        # ---- platoon speed term (dominant) ----
+        chain = self.get_followers_chain(leader_id=self.agent_id, depth=followers_depth)
+        f_ids = [fid for fid, _ in chain]
 
-        penalty_close = 1.0 if gap < self.safety_distance else 0.0
+        v0 = traci.vehicle.getSpeed(self.agent_id)
+        vmax0 = max(1e-6, self.v_max)
 
-        w1, w2, w3 = 1.0, 0.03, 0.3
-        r = +w1 * speed_term - w2 * (target_diff ** 2) - w3 * penalty_close
+        if f_ids:
+            speeds = [traci.vehicle.getSpeed(i) for i in f_ids]
+            mean_v = float(np.mean(speeds))
+        else:
+            # no followers yet -> fall back to ego speed
+            mean_v = v0
+
+        platoon_speed_term = mean_v / vmax0  # ~[0,1]
+
+        # ---- comfort penalty (very light) ----
+        target_diff = abs(self.cmd_speed - v0)  # proxy for jerk
+        comfort_pen = (target_diff ** 2)
+
+        # ---- light safety penalty wrt direct follower ----
+        safety_pen = 0.0
+        try:
+            info = traci.vehicle.getFollower(self.agent_id)  # (fid, gap_back) or None
+        except traci.TraCIException:
+            info = None
+
+        if info:
+            fid, gap_back = info
+            if fid and fid in traci.vehicle.getIDList():
+                v_f = traci.vehicle.getSpeed(fid)
+                rel_close = v_f - v0  # follower closing (+) onto leader
+                # small-gap penalty (soft)
+                if gap_back < 5.0:
+                    safety_pen += 0.3
+                # TTC penalty if the follower is rapidly closing
+                if rel_close > 0.1:
+                    ttc = gap_back / max(1e-6, rel_close)
+                    if ttc < 1.5:
+                        safety_pen += 0.3
+
+        # ---- weights: SPEED >> comfort & safety ----
+        w_speed, w_comfort, w_safety = 1.0, 0.02, 0.10
+        r = (w_speed * platoon_speed_term) - (w_comfort * comfort_pen) - (w_safety * safety_pen)
         return float(r)
 
 
