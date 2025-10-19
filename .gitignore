@@ -11,3 +11,6 @@ wheels/
 
 # uv related
 uv.lock
+
+# results and logs
+output/
