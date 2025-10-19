@@ -51,7 +51,8 @@ class RingRoadEnv(gym.Env):
             gui: bool=False,
             dv: float = 0.4,
             action_k: int = 3,
-            episode_length: float = 120.0
+            episode_length: float = 120.0,
+            safety_distance: float = 100.0
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
@@ -59,6 +60,7 @@ class RingRoadEnv(gym.Env):
         self.dv = dv
         self.action_k = action_k
         self.actions = np.arange(-action_k, action_k + 1) * self.dv
+        self.safety_distance = safety_distance
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
@@ -160,7 +162,7 @@ class RingRoadEnv(gym.Env):
         done = self.terminal()
 
         return discrete_state, reward, done, {}
-    
+
     def compute_reward(self) -> float:
         """
         Encourage high speeds with smoothness and safety:
@@ -177,11 +179,12 @@ class RingRoadEnv(gym.Env):
         # keep it simple: penalize big |target - actual|
         target_diff = abs(self.cmd_speed - v)
 
-        penalty_close = 1.0 if gap < 5.0 else 0.0
+        penalty_close = 1.0 if gap < self.safety_distance else 0.0
 
         w1, w2, w3 = 1.0, 0.03, 0.3
         r = +w1 * speed_term - w2 * (target_diff ** 2) - w3 * penalty_close
         return float(r)
+
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:
