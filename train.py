@@ -6,14 +6,19 @@ from agent import QLearningAgent
 from config import SumoConfig
 
 AGENT_ID = "car0"
-CFG = "configs/ring/simulation.sumocfg"
+CFG = "configs/simulation.sumocfg"
+
+
+def snapshot_q(Q_defaultdict):
+    """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
+    return {k: np.array(v, dtype=np.float32) for k, v in Q_defaultdict.items()}
 
 def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.pkl"):
     env = RingRoadEnv(
         sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
         agent_id=AGENT_ID,
         gui=gui,
-        episode_length=120.0,
+        episode_length=5000.0,
         dv=0.5,
         action_k=2,
     )
@@ -56,8 +61,9 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
         env.close()
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
     with open(out_path, "wb") as f:
-        pickle.dump(best_Q, f)
+        pickle.dump(snapshot_q(best_Q), f)
     print(f"Training completed. Best return: {best_return:.2f}. Q-table saved to {out_path}.")
 
     return returns
