@@ -13,4 +13,5 @@ wheels/
 uv.lock
 
 # results and logs
-output/
+output/*.pkl
+output/*.csv

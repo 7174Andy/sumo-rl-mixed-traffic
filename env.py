@@ -193,7 +193,7 @@ class RingRoadEnv(gym.Env):
             traci.vehicle.setSpeed(self.agent_id, self.cmd_speed)
         
         traci.simulationStep()
-        # time.sleep(0.01)  # to avoid busy waiting
+        time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
 
