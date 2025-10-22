@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import gymnasium as gym
+from gymnasium import spaces
 
 from pathlib import Path
 import os
@@ -8,7 +9,7 @@ import sys
 from typing import Tuple
 from dataclasses import dataclass
 
-from utils import start_traci
+from utils.sumo_utils import start_traci
 from config import SumoConfig
 
 if "SUMO_HOME" in os.environ:
@@ -52,7 +53,7 @@ class RingRoadEnv(gym.Env):
             gui: bool=False,
             dv: float = 0.4,
             action_k: int = 3,
-            episode_length: float = 120.0,
+            episode_length: float = 200.0,
             safety_distance: float = 100.0
     ):
         self.sumo_config = sumo_config
@@ -67,13 +68,20 @@ class RingRoadEnv(gym.Env):
         self.step_length = sumo_config.step_length
         self.max_steps = int(episode_length / self.step_length)
 
-        self.cmd_speed = 0.0
-        self.v_max = 20.0
-
         # Discretizers
         self.gap_disc = Discretizer(low=0.0, high=60.0, step=5.0)
         self.v_disc = Discretizer(low=0.0, high=20.0, step=2.0)
         self.dV_disc = Discretizer(low=-10.0, high=10.0, step=2.0)
+
+        self.action_space = spaces.Discrete(len(self.actions))
+
+        n_gap = len(self.gap_disc.bins) - 1
+        n_v   = len(self.v_disc.bins)   - 1
+        n_dv  = len(self.dV_disc.bins)  - 1
+        self.observation_space = spaces.MultiDiscrete([n_gap, n_v, n_dv])
+
+        self.cmd_speed = 0.0
+        self.v_max = 20.0
 
     def open_traci(self):
         if not traci.isLoaded():
@@ -174,6 +182,9 @@ class RingRoadEnv(gym.Env):
         Returns:
             Tuple[int, float, bool]: The new state, reward, and done flag.
         """
+        # Sanity check
+        assert self.action_space.contains(action), f"Invalid action: {action}"
+
         # Apply action
         delta_v = self.actions[action]
         self.cmd_speed = float(np.clip(self.cmd_speed + delta_v, 0.0, self.v_max))
@@ -182,7 +193,7 @@ class RingRoadEnv(gym.Env):
             traci.vehicle.setSpeed(self.agent_id, self.cmd_speed)
         
         traci.simulationStep()
-        time.sleep(0.01)  # to avoid busy waiting
+        # time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
 
