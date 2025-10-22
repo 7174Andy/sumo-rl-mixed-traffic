@@ -45,7 +45,7 @@ This repository contains a traffic simulation environment using SUMO (Simulation
 3.  **Install Python Dependencies:**
     This project requires Python 3.8+ and the following libraries. You can install them using pip:
     ```bash
-    pip install numpy gymnasium matplotlib
+    uv sync
     ```
 
 ## How to Use
@@ -55,7 +55,7 @@ This repository contains a traffic simulation environment using SUMO (Simulation
 To train the reinforcement learning agent, run the `train.py` script. You can specify the number of episodes and whether to render the GUI.
 
 ```bash
-python rl_mixed_traffic/train.py
+uv run rl_mixed_traffic/train.py
 ```
 
 By default, this will run for 250 episodes with the GUI enabled. The script will save the best Q-table to `rl_mixed_traffic/output/q_table.pkl`, the episode returns to `rl_mixed_traffic/output/returns.csv`, and a plot of the returns to `rl_mixed_traffic/output/returns.png`.
@@ -65,7 +65,7 @@ By default, this will run for 250 episodes with the GUI enabled. The script will
 Once you have a trained Q-table, you can evaluate its performance using the `eval_policy.py` script.
 
 ```bash
-python rl_mixed_traffic/eval_policy.py
+uv run rl_mixed_traffic/eval_policy.py
 ```
 
 This script loads the Q-table from `rl_mixed_traffic/output/q_table.pkl` and runs the simulation with the learned policy, rendering the GUI so you can observe the agent's behavior.
