@@ -3,7 +3,7 @@ import numpy as np
 from config import SumoConfig
 from env import RingRoadEnv
 
-CFG = "configs/ring/simulation.sumocfg"
+CFG = "../configs/ring/simulation.sumocfg"
 AGENT_ID = "car0"
 
 def greedy_action(Q, s, n_actions):
