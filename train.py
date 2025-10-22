@@ -5,9 +5,11 @@ from env import RingRoadEnv
 from agent import QLearningAgent
 from config import SumoConfig
 
+from utils.plot_utils import plot_returns
+from utils.sumo_utils import save_returns_csv
+
 AGENT_ID = "car0"
 CFG = "configs/ring/simulation.sumocfg"
-
 
 def snapshot_q(q_defaultdict):
     """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
@@ -67,4 +69,6 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
     return returns
 
 if __name__ == "__main__":
-    train(num_episodes=200, gui=True, out_path="output/q_table.pkl")
+    returns = train(num_episodes=250, gui=True, out_path="output/q_table.pkl")
+    save_returns_csv(returns, out_path="output/returns.csv")
+    plot_returns(returns, out_path="output/returns.png", smooth_window=10, title="Episode Returns")
