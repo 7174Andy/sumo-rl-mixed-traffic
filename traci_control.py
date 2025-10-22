@@ -13,7 +13,7 @@ else:
 
 import traci
 
-from utils import pretty_time, start_traci
+from utils.sumo_utils import pretty_time, start_traci
 from config import SumoConfig
 
 CFG = "configs/simulation.sumocfg"
