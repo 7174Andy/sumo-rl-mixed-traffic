@@ -59,8 +59,8 @@ class RingRoadEnv(gym.Env):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
         self.gui = gui or sumo_config.use_gui
-        self.dv = dv
-        self.action_k = action_k
+        self.dv = dv # delta speed per action step
+        self.action_k = action_k # action space = 2*k + 1
         self.actions = np.arange(-action_k, action_k + 1) * self.dv
         self.safety_distance = safety_distance
 
@@ -70,18 +70,20 @@ class RingRoadEnv(gym.Env):
 
         # Discretizers
         self.gap_disc = Discretizer(low=0.0, high=60.0, step=5.0)
-        self.v_disc = Discretizer(low=0.0, high=20.0, step=2.0)
+        self.v_disc = Discretizer(low=0.0, high=30.0, step=2.0)
         self.dV_disc = Discretizer(low=-10.0, high=10.0, step=2.0)
 
         self.action_space = spaces.Discrete(len(self.actions))
 
+        # TODO: Deep Q Network implementation
+        # What should be the good scenario for the controlling vehicle?
         n_gap = len(self.gap_disc.bins) - 1
         n_v   = len(self.v_disc.bins)   - 1
         n_dv  = len(self.dV_disc.bins)  - 1
         self.observation_space = spaces.MultiDiscrete([n_gap, n_v, n_dv])
 
         self.cmd_speed = 0.0
-        self.v_max = 20.0
+        self.v_max = 30.0
 
     def open_traci(self):
         if not traci.isLoaded():
@@ -155,7 +157,7 @@ class RingRoadEnv(gym.Env):
         self.open_traci()
         self.step_count = 0
         self.cmd_speed = 0.0
-        self.v_max = 20.0
+        self.v_max = 30.0
 
         # Warm up the simulation
         warmup = 0
@@ -220,8 +222,8 @@ class RingRoadEnv(gym.Env):
         chain = self.get_followers_chain(leader_id=self.agent_id, depth=followers_depth)
         f_ids = [fid for fid, _ in chain]
 
-        v0 = traci.vehicle.getSpeed(self.agent_id)
-        vmax0 = max(1e-6, self.v_max)
+        v0 = traci.vehicle.getSpeed(self.agent_id) # ego speed
+        vmax0 = max(1e-6, self.v_max) # avoid div0
 
         if f_ids:
             speeds = [traci.vehicle.getSpeed(i) for i in f_ids]
@@ -257,9 +259,14 @@ class RingRoadEnv(gym.Env):
                     if ttc < 1.5:
                         safety_pen += 0.3
 
+        # ---- ego speed term ----
+        ego_speed_term = v0 / vmax0
+        beta = 0.8  # weight on platoon speed; (1 - beta) on ego speed
+        speed_term = beta * platoon_speed_term + (1.0 - beta) * ego_speed_term
+
         # ---- weights: SPEED >> comfort & safety ----
         w_speed, w_comfort, w_safety = 1.0, 0.02, 0.10
-        r = (w_speed * platoon_speed_term) - (w_comfort * comfort_pen) - (w_safety * safety_pen)
+        r = (w_speed * speed_term) - (w_comfort * comfort_pen) - (w_safety * safety_pen)
         return float(r)
 
 
