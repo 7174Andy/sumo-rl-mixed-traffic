@@ -9,7 +9,7 @@ from utils.plot_utils import plot_returns
 from utils.sumo_utils import save_returns_csv
 
 AGENT_ID = "car0"
-CFG = "configs/ring/simulation.sumocfg"
+CFG = "../configs/ring/simulation.sumocfg"
 
 def snapshot_q(q_defaultdict):
     """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
