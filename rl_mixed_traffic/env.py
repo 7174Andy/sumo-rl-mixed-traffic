@@ -54,15 +54,13 @@ class RingRoadEnv(gym.Env):
             dv: float = 0.4,
             action_k: int = 3,
             episode_length: float = 200.0,
-            safety_distance: float = 100.0
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
         self.gui = gui or sumo_config.use_gui
         self.dv = dv # delta speed per action step
         self.action_k = action_k # action space = 2*k + 1
-        self.actions = np.arange(-action_k, action_k + 1) * self.dv
-        self.safety_distance = safety_distance
+        self.actions = np.arange(-action_k, action_k + 1) * self.dv # discrete actions
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
