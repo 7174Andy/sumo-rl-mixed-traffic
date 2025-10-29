@@ -7,7 +7,7 @@
     <!-- Routes -->
     <route id="r_0" edges="B9B8 B8B7" repeat="10"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
-    <vehicle id="car0" depart="0.00" route="r_0" color="255,0,0"/>
-    <vehicle id="car1" depart="0.00" route="r_0"/>
-    <vehicle id="car2" depart="0.00" route="r_0"/>
+    <vehicle id="car0" depart="0.00" route="r_0" color="255,0,0" departSpeed="random"/>
+    <vehicle id="car1" depart="0.00" route="r_0" departSpeed="random"/>
+    <vehicle id="car2" depart="0.00" route="r_0" departSpeed="random"/>
 </routes>
