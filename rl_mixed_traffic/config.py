@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class SumoConfig:
     sumocfg_path: str = "configs/ring/simulation.sumocfg"

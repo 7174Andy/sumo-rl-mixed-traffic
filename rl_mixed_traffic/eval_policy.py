@@ -6,9 +6,11 @@ from env import RingRoadEnv
 CFG = "../configs/ring/simulation.sumocfg"
 AGENT_ID = "car0"
 
+
 def greedy_action(Q, s, n_actions):
     q = Q.get(s, np.zeros(n_actions, dtype=np.float32))
     return int(np.argmax(q))
+
 
 def eval_policy(q_table_path: str, gui: bool = True):
     env = RingRoadEnv(
@@ -37,6 +39,7 @@ def eval_policy(q_table_path: str, gui: bool = True):
         print(f"Evaluation Return: {G:.2f}, Steps: {steps}")
     finally:
         env.close()
+
 
 if __name__ == "__main__":
     eval_policy("output/q_table.pkl")

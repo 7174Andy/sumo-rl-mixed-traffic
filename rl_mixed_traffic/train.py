@@ -11,9 +11,11 @@ from utils.sumo_utils import save_returns_csv
 AGENT_ID = "car0"
 CFG = "../configs/ring/simulation.sumocfg"
 
+
 def snapshot_q(q_defaultdict):
     """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
     return {k: np.array(v, dtype=np.float32) for k, v in q_defaultdict.items()}
+
 
 def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.pkl"):
     env = RingRoadEnv(
@@ -29,11 +31,11 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
         gamma=0.98,
         eps_start=1.0,
         eps_end=0.05,
-        eps_decay_steps=num_episodes*env.max_steps,
+        eps_decay_steps=num_episodes * env.max_steps,
     )
 
     returns = []
-    best_return = -float('inf')
+    best_return = -float("inf")
     best_Q = None
 
     try:
@@ -52,7 +54,9 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
                 steps += 1
 
             returns.append(G)
-            print(f"Episode {episode+1}/{num_episodes}, Return: {G:.2f}, Steps: {steps}, Epsilon: {agent.epsilon():.4f}")
+            print(
+                f"Episode {episode + 1}/{num_episodes}, Return: {G:.2f}, Steps: {steps}, Epsilon: {agent.epsilon():.4f}"
+            )
 
             if G > best_return:
                 best_return = G
@@ -64,11 +68,19 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
 
     with open(out_path, "wb") as f:
         pickle.dump(snapshot_q(best_Q), f)
-    print(f"Training completed. Best return: {best_return:.2f}. Q-table saved to {out_path}.")
+    print(
+        f"Training completed. Best return: {best_return:.2f}. Q-table saved to {out_path}."
+    )
 
     return returns
+
 
 if __name__ == "__main__":
     returns = train(num_episodes=250, gui=True, out_path="output/q_table.pkl")
     save_returns_csv(returns, out_path="output/returns.csv")
-    plot_returns(returns, out_path="output/returns.png", smooth_window=10, title="Episode Returns")
+    plot_returns(
+        returns,
+        out_path="output/returns.png",
+        smooth_window=10,
+        title="Episode Returns",
+    )
