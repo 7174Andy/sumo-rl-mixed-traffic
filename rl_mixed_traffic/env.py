@@ -1,155 +1,146 @@
 import time
 import numpy as np
 import gymnasium as gym
-from gymnasium import spaces
+from gymnasium.spaces import Box
 
 from pathlib import Path
 import os
 import sys
-from typing import Tuple
-from dataclasses import dataclass
 
-from utils.sumo_utils import start_traci
+from utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
 from config import SumoConfig
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
     sys.path.append(str(tools))
 else:
-    raise EnvironmentError("Please set the SUMO_HOME environment variable to your SUMO install path.")
+    raise EnvironmentError(
+        "Please set the SUMO_HOME environment variable to your SUMO install path."
+    )
 
 import traci
 
-@dataclass
-class Discretizer:
-    """Uniform binning for a scalar."""
-    low: float
-    high: float
-    step: float
-
-    @property
-    def bins(self) -> np.ndarray:
-        # rightmost included by adding +1e-9
-        return np.arange(self.low, self.high + 1e-9, self.step)
-
-    def index(self, x: float) -> int:
-        x_clipped = np.clip(x, self.low, self.high)
-        return int(np.digitize(x_clipped, self.bins) - 1)  # 0-based bin index
 
 class RingRoadEnv(gym.Env):
     """
     Minimal RL env that controls one agent vehicle's speed on a ring via setSpeed().
-    State = (gap_to_leader, ego_speed, rel_speed) all discretized.
-    Action = delta to commanded speed in { -dv*k, ..., 0, ..., +dv*k }.
+    state = concat([v_norm...N], [p_norm...N]) of all vehicles in the network, normalized.
+    action = acceleration command (m/s²)
 
     Notes:
     - The episode runs for a fixed number of SUMO steps or until SUMO finishes.
     - We assume 'car0' exists in routes and departs early.
     """
+
     def __init__(
-            self,
-            sumo_config: SumoConfig,
-            agent_id: str='car0',
-            gui: bool=False,
-            dv: float = 0.4,
-            action_k: int = 3,
-            episode_length: float = 200.0,
+        self,
+        sumo_config: SumoConfig,
+        agent_id: str = "car1",
+        gui: bool = False,
+        max_accel: float = 3.0,
+        min_accel: float = -3.0,
+        episode_length: float = 200.0,
+        num_vehicles: int = 3,
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
         self.gui = gui or sumo_config.use_gui
-        self.dv = dv # delta speed per action step
-        self.action_k = action_k # action space = 2*k + 1
-        self.actions = np.arange(-action_k, action_k + 1) * self.dv # discrete actions
+        self.max_accel = max_accel
+        self.min_accel = min_accel
+        self.num_vehicles = num_vehicles
+
+        # TODO: Linear interpolation?
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
         self.max_steps = int(episode_length / self.step_length)
 
-        # Discretizers
-        self.gap_disc = Discretizer(low=0.0, high=60.0, step=5.0)
-        self.v_disc = Discretizer(low=0.0, high=30.0, step=2.0)
-        self.dV_disc = Discretizer(low=-10.0, high=10.0, step=2.0)
+        self.ring_length = None
 
-        self.action_space = spaces.Discrete(len(self.actions))
+        # Meeting notes 10/29
+        # TODO: acceleration as action
+        # - penalize large gap
+        # - HDV being the leader and CAV follower behind it
+        # - Reward function design
+        #   - speed of the platoon (mean speed of first K followers)
+        #   - comfort penalty (acceleration changes)
+        #   - safety penalty (time-to-collision with follower)
+        #   - fuel consumption?
+        # - traditional control methods comparison is good
 
         # TODO: Deep Q Network implementation
         # What should be the good scenario for the controlling vehicle?
-        n_gap = len(self.gap_disc.bins) - 1
-        n_v   = len(self.v_disc.bins)   - 1
-        n_dv  = len(self.dV_disc.bins)  - 1
-        self.observation_space = spaces.MultiDiscrete([n_gap, n_v, n_dv])
 
         self.cmd_speed = 0.0
         self.v_max = 30.0
 
+    @property
+    def action_space(self):
+        # [v1..vN, p1..pN] (both normalized into [0,1]), padded/truncated to max_vehicles
+        return Box(
+            low=-self.max_accel, high=self.max_accel, shape=(1,), dtype=np.float32
+        )
+
+    @property
+    def observation_space(self):
+        # Three vehicles, each with (velocity, absolute_pos)
+        self.obs_var_labels = ["Velocity", "Absolute_pos"]
+        return Box(low=0.0, high=1.0, shape=(2 * self.num_vehicles,), dtype=np.float32)
+
     def open_traci(self):
         if not traci.isLoaded():
-            start_traci(SumoConfig(sumocfg_path=self.sumo_config.sumocfg_path, use_gui=self.gui, delay_ms=0))
+            start_traci(
+                SumoConfig(
+                    sumocfg_path=self.sumo_config.sumocfg_path,
+                    use_gui=self.gui,
+                    delay_ms=0,
+                )
+            )
+
+        if self.ring_length is None:
+            self.ring_length = compute_ring_length(self.agent_id)
 
     def close_traci(self):
         if traci.isLoaded():
             traci.close(False)
 
-    def get_followers_chain(self, leader_id: str, depth: int = 5):
+    def get_state(self) -> np.ndarray:
+        """Observation = concat([v_norm...N], [p_norm...N]) padded/truncated to max_vehicles.
+        v_norm = speed / v_max
+        p_norm = position / ring_length
         """
-        Return [(follower_id, gap_back), ...] up to `depth` behind `leader_id`.
-        Safe against missing IDs and arrival events.
-        """
-        chain = []
-        if not leader_id or leader_id not in traci.vehicle.getIDList():
-            return chain
-
-        current = leader_id
-        for _ in range(depth):
-            try:
-                info = traci.vehicle.getFollower(current)  # -> (vehID, gap) or None
-            except traci.TraCIException:
-                break
-
-            if not info:
-                break
-
-            fid, gap = info
-            if not fid or fid not in traci.vehicle.getIDList():
-                break
-
-            chain.append((fid, gap))
-            current = fid
-        return chain
-    
-    def _get_continuous_state(self) -> Tuple[float, float, float]:
-        """
-        Returns (gap_to_leader, v_ego, dV) in continuous values.
-        If no leader: use a large gap and zero rel speed.
-        """
-        if self.agent_id not in traci.vehicle.getIDList():
-            return 0.0, 0.0, 0.0
-
-        v_ego = traci.vehicle.getSpeed(self.agent_id)
-        leader = traci.vehicle.getLeader(self.agent_id)
-
-        if leader is None:
-            gap = 60.0
-            dV = 0.0
-        else:
-            leader_id, gap = leader
-            v_lead = traci.vehicle.getSpeed(leader_id) if leader_id in traci.vehicle.getIDList() else v_ego
-            dV = v_ego - v_lead  # positive if faster than leader
-
-            # clamp unreasonable gaps
-            gap = float(np.clip(gap, 0.0, 60.0))
-
-        return gap, v_ego, dV
-
-    def get_discrete_state(self) -> Tuple[int, int, int]:
-        gap, v, dV = self._get_continuous_state()
-        return (
-            self.gap_disc.index(gap),
-            self.v_disc.index(v),
-            self.dV_disc.index(dV),
+        ids_sorted, speeds_mps_sorted, positions_m_sorted_mod = get_vehicles_pos_speed(
+            self.ring_length
         )
-    
+        L = float(max(1e-6, self.ring_length or 0.0))
+        vmax = max(1e-6, self.v_max)
+
+        # Normalize
+        v_norm = np.clip(np.array(speeds_mps_sorted, dtype=np.float32) / vmax, 0.0, 1.0)
+        p_norm = np.clip(
+            np.array(positions_m_sorted_mod, dtype=np.float32) / L, 0.0, 1.0
+        )
+
+        # pad or truncate to the fixed size
+        max_vehicles = self.num_vehicles
+
+        def pad_trunc(arr, k=max_vehicles):
+            arr = np.asarray(arr, dtype=np.float32)
+            if arr.size >= k:
+                return arr[:k]
+            out = np.zeros((k,), dtype=np.float32)
+            out[: arr.size] = arr
+            return out
+
+        v_final = pad_trunc(v_norm)
+        p_final = pad_trunc(p_norm)
+
+        obs = np.concatenate([v_final, p_final], axis=0).astype(np.float32)
+
+        # Sanity check
+        assert self.observation_space.contains(obs), f"Invalid observation: {obs}"
+        return obs
+
     def reset(self):
         self.close_traci()
         self.open_traci()
@@ -168,8 +159,8 @@ class RingRoadEnv(gym.Env):
             v_now = traci.vehicle.getSpeed(self.agent_id)
             self.cmd_speed = max(0.5, min(v_now, self.v_max))
 
-        return self.get_discrete_state()
-    
+        return self.get_state(), {}
+
     def render(self):
         return None
 
@@ -182,96 +173,96 @@ class RingRoadEnv(gym.Env):
         Returns:
             Tuple[int, float, bool]: The new state, reward, and done flag.
         """
-        # Sanity check
         assert self.action_space.contains(action), f"Invalid action: {action}"
 
         # Apply action
-        delta_v = self.actions[action]
-        self.cmd_speed = float(np.clip(self.cmd_speed + delta_v, 0.0, self.v_max))
+        if isinstance(action, (list, list, np.ndarray)):
+            a = float(np.array(action, dtype=np.float32).reshape(-1)[0])
+        else:
+            a = float(action)
+        a = float(np.clip(a, self.min_accel, self.max_accel))
 
         if self.agent_id in traci.vehicle.getIDList():
-            traci.vehicle.setSpeed(self.agent_id, self.cmd_speed)
-        
+            traci.vehicle.setAcceleration(self.agent_id, a)
+
         traci.simulationStep()
         time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
-
-        discrete_state = self.get_discrete_state()
-        reward = self.compute_reward()
+        obs = self.get_state()
+        reward = self.compute_reward(obs=obs, action=a)
         done = self.terminal()
+        info = {}
 
-        return discrete_state, reward, done, {}
+        return obs, reward, done, info
 
-    def compute_reward(self) -> float:
+    def compute_reward(self, obs: np.ndarray, action: float | None = None) -> float:
         """
         Network-speed heavy reward:
-        + Main: mean speed of first K followers (fallback to ego speed if none)
-        - Small comfort penalty (command mismatch)
-        - Light safety penalty (very small gaps or low TTC behind leader)
+        Platton speed = mean speed of all vehicles
+        Car Tracking =
         """
-        if self.agent_id not in traci.vehicle.getIDList():
-            return 0.0
+        n = obs.size // 2
+        v_norm = obs[:n].astype(np.float32)
+        p_norm = obs[n:].astype(np.float32)
 
-        # configurable depth (followers considered)
-        followers_depth = 5
+        # Platoon speed
+        platoon_speed = float(np.clip(np.mean(v_norm), 0.0, 1.0))
 
-        # ---- platoon speed term (dominant) ----
-        chain = self.get_followers_chain(leader_id=self.agent_id, depth=followers_depth)
-        f_ids = [fid for fid, _ in chain]
+        # CAV -> Leader Tracking
+        v0 = float(v_norm[1])  # CAV Speed
+        v_leader = float(v_norm[0])  # Leader Speed
+        s_star_m = 2.0 + v0 * 1.2  # desired gap (m)
+        s_star_norm = s_star_m / max(1e-6, self.ring_length)
 
-        v0 = traci.vehicle.getSpeed(self.agent_id) # ego speed
-        vmax0 = max(1e-6, self.v_max) # avoid div0
+        g0_norm = float((p_norm[0] - p_norm[1]) % 1.0)  # gap to leader (normalized)
 
-        if f_ids:
-            speeds = [traci.vehicle.getSpeed(i) for i in f_ids]
-            mean_v = float(np.mean(speeds))
+        e_g = float(g0_norm - s_star_norm) / max(1e-6, s_star_norm)
+        S_gap = float(np.exp(-e_g * e_g))
+
+        dv = (v_leader - v0) / max(1e-6, self.v_max)
+        S_dv = float(np.exp(-dv * dv))
+
+        track = 0.5 * S_gap + 0.5 * S_dv
+
+        # backward safety penalty: protect follower
+        v1 = float(v_norm[2]) * self.v_max  # follower speed
+        v0 = float(v_norm[1]) * self.v_max  # CAV speed
+
+        # back gap
+        g1_norm = float(p_norm[1] - p_norm[2]) % 1.0
+        g1 = g1_norm * self.ring_length
+
+        # TTC with follower
+        if v1 > v0 + 1e-6:
+            ttc1 = g1 / (v1 - v0 + 1e-6)
         else:
-            # no followers yet -> fall back to ego speed
-            mean_v = v0
+            ttc1 = np.inf
 
-        platoon_speed_term = mean_v / vmax0  # ~[0,1]
+        ttc_ref = 2.0  # seconds (can adjust)
+        g_min_back = 5.0  # meters (can adjust)
+        S_ttc = float(
+            np.clip(0.0 if not np.isfinite(ttc1) else ttc1 / ttc_ref, 0.0, 1.0)
+        )
+        S_gap_back = float(np.clip(g1 / max(1e-6, g_min_back), 0.0, 1.0))
+        S_back = 0.5 * S_ttc + 0.5 * S_gap_back
 
-        # ---- comfort penalty (very light) ----
-        target_diff = abs(self.cmd_speed - v0)  # proxy for jerk
-        comfort_pen = (target_diff ** 2)
+        # Comfort penalty
+        a_norm = float((action / max(1e-6, self.max_accel)) ** 2)
+        comfort_penalty = a_norm
 
-        # ---- light safety penalty wrt direct follower ----
-        safety_pen = 0.0
-        try:
-            info = traci.vehicle.getFollower(self.agent_id)  # (fid, gap_back) or None
-        except traci.TraCIException:
-            info = None
-
-        if info:
-            fid, gap_back = info
-            if fid and fid in traci.vehicle.getIDList():
-                v_f = traci.vehicle.getSpeed(fid)
-                rel_close = v_f - v0  # follower closing (+) onto leader
-                # small-gap penalty (soft)
-                if gap_back < 5.0:
-                    safety_pen += 0.3
-                # TTC penalty if the follower is rapidly closing
-                if rel_close > 0.1:
-                    ttc = gap_back / max(1e-6, rel_close)
-                    if ttc < 1.5:
-                        safety_pen += 0.3
-
-        # ---- ego speed term ----
-        ego_speed_term = v0 / vmax0
-        beta = 0.8  # weight on platoon speed; (1 - beta) on ego speed
-        speed_term = beta * platoon_speed_term + (1.0 - beta) * ego_speed_term
-
-        # ---- weights: SPEED >> comfort & safety ----
-        w_speed, w_comfort, w_safety = 1.0, 0.02, 0.10
-        r = (w_speed * speed_term) - (w_comfort * comfort_pen) - (w_safety * safety_pen)
-        return float(r)
-
+        reward = (
+            1.5 * platoon_speed + 0.5 * track - 0.2 * comfort_penalty + 0.6 * S_back
+        )
+        return float(reward)
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:
             return True
         if traci.simulation.getMinExpectedNumber() == 0:
+            return True
+        # When the two vehicles collide, SUMO ends the simulation
+        if traci.simulation.getCollidingVehiclesNumber() > 0:
             return True
         return False
 
