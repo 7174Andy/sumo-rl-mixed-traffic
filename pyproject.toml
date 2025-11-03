@@ -3,6 +3,7 @@ dependencies = [
   "numpy>=1.24.0",
   "gymnasium>=0.29.0",
   "matplotlib>=3.10.7",
+  "torch>=2.9.0",
 ]
 description = "Add your description here"
 name = "sumo-rl-mixed-traffic"

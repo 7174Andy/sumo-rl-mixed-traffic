@@ -4,10 +4,12 @@
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="idm" carFollowModel="IDM" accel="1.5" decel="3.0" tau="1.0" sigma="0.5" minGap="2.5" length="5.0" maxSpeed="50"/>
     <!-- Routes -->
     <route id="r_0" edges="E0"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
-    <trip id="car0" depart="0.00" from="E0" to="E0"/>
-    <trip id="car1" depart="0.00" from="E0" to="E0"/>
-    <trip id="car2" depart="0.00" from="E0" to="E0"/>
+    <trip id="car0" type="idm" depart="0.00" from="E0" to="E0"/>
+    <trip id="car1" type="idm" depart="0.00" from="E0" to="E0"/>
+    <trip id="car2" type="idm" depart="0.00" from="E0" to="E0"/>
+    <trip id="car3" type="idm" depart="0.00" from="E0" to="E0"/>
 </routes>

@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import sys
 
+from rl_mixed_traffic.utils.reward import average_velocity_state, desired_velocity_state, penalize_standstill_state
 from utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
 from config import SumoConfig
 
@@ -141,7 +142,12 @@ class RingRoadEnv(gym.Env):
         assert self.observation_space.contains(obs), f"Invalid observation: {obs}"
         return obs
 
-    def reset(self):
+    def reset(self, seed: int | None = None, options: dict = None):
+        """Reset the environment and return the initial observation.
+        Returns:
+            np.ndarray: The initial observation.
+            dict: An empty info dictionary.
+        """
         self.close_traci()
         self.open_traci()
         self.step_count = 0
@@ -163,6 +169,44 @@ class RingRoadEnv(gym.Env):
 
     def render(self):
         return None
+    
+    def apply_acceleration(self, veh_ids, acc, smooth: bool = True):
+        """
+        Apply acceleration a over one sim step: v_next = clip(v + a*dt, 0, v_max).
+        If smooth=True, use slowDown (ramps over ~dt); else setSpeed instantly.
+
+        Args:
+            veh_ids: str or list[str]
+            acc: float or list[float] (m/s^2), aligned with veh_ids
+            smooth: use vehicle.slowDown (True) or setSpeed (False)
+        """
+        # normalize to lists
+        if isinstance(veh_ids, str):
+            veh_ids = [veh_ids]
+        if isinstance(acc, (int, float, np.floating)):
+            acc = [float(acc)]
+        assert len(veh_ids) == len(acc), "veh_ids and acc must have same length"
+
+        # duration for slowDown ~ one control tick (TraCI expects ms)
+        duration_ms = max(1, int(round(self.step_length * 1000.0)))
+
+        for vid, a in zip(veh_ids, acc):
+            if vid not in traci.vehicle.getIDList():
+                continue
+            if a is None:
+                continue
+
+            # clip accel and integrate next speed
+            a = float(np.clip(a, self.min_accel, self.max_accel))
+            v_now = float(traci.vehicle.getSpeed(vid))
+            v_next = float(np.clip(v_now + a * self.step_length, 0.0, self.v_max))
+
+            if smooth:
+                # ramp to v_next over ~dt
+                traci.vehicle.slowDown(vid, v_next, duration_ms)
+            else:
+                # jump to v_next immediately
+                traci.vehicle.setSpeed(vid, v_next)
 
     def step(self, action: int):
         """Apply the given action and return the new state, reward, and done flag.
@@ -183,7 +227,7 @@ class RingRoadEnv(gym.Env):
         a = float(np.clip(a, self.min_accel, self.max_accel))
 
         if self.agent_id in traci.vehicle.getIDList():
-            traci.vehicle.setAcceleration(self.agent_id, a)
+            self.apply_acceleration(self.agent_id, a)
 
         traci.simulationStep()
         time.sleep(0.01)  # to avoid busy waiting
@@ -207,11 +251,17 @@ class RingRoadEnv(gym.Env):
         p_norm = obs[n:].astype(np.float32)
 
         # Platoon speed
-        platoon_speed = float(np.clip(np.mean(v_norm), 0.0, 1.0))
+        platoon_speed = average_velocity_state(obs, v_max=self.v_max)
+        S_avg = platoon_speed / max(1e-6, self.v_max * 0.9)
+
+        # Penalize if standing still
+        standstill_penalty = penalize_standstill_state(obs, v_max=self.v_max, thresh=10.0, gain=1.0)
+
+        desired_velocity = desired_velocity_state(obs, v_max=self.v_max, target_v=self.v_max * 0.9)
 
         # CAV -> Leader Tracking
-        v0 = float(v_norm[1])  # CAV Speed
-        v_leader = float(v_norm[0])  # Leader Speed
+        v0 = float(v_norm[1] * self.v_max)  # CAV Speed
+        v_leader = float(v_norm[0] * self.v_max)  # Leader Speed
         s_star_m = 2.0 + v0 * 1.2  # desired gap (m)
         s_star_norm = s_star_m / max(1e-6, self.ring_length)
 
@@ -220,8 +270,8 @@ class RingRoadEnv(gym.Env):
         e_g = float(g0_norm - s_star_norm) / max(1e-6, s_star_norm)
         S_gap = float(np.exp(-e_g * e_g))
 
-        dv = (v_leader - v0) / max(1e-6, self.v_max)
-        S_dv = float(np.exp(-dv * dv))
+        dv_norm = (v_leader - v0) / max(1e-6, self.v_max)
+        S_dv = float(np.exp(-(dv_norm ** 2)))
 
         track = 0.5 * S_gap + 0.5 * S_dv
 
@@ -248,11 +298,10 @@ class RingRoadEnv(gym.Env):
         S_back = 0.5 * S_ttc + 0.5 * S_gap_back
 
         # Comfort penalty
-        a_norm = float((action / max(1e-6, self.max_accel)) ** 2)
-        comfort_penalty = a_norm
+        comfort_penalty = float((action / max(1e-6, self.max_accel)) ** 2) if action is not None else 0.0
 
         reward = (
-            1.5 * platoon_speed + 0.5 * track - 0.2 * comfort_penalty + 0.6 * S_back
+            1.0 * S_avg + 0.6 * desired_velocity + 0.1 * standstill_penalty + 0.5 * track - 0.05 * comfort_penalty + 0.8 * S_back
         )
         return float(reward)
 

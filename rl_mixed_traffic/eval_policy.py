@@ -1,10 +1,10 @@
 import pickle
 import numpy as np
 from config import SumoConfig
-from env import RingRoadEnv
+from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper, DiscretizerConfig, StateDiscretizer
+from rl_mixed_traffic.env.ring_env import RingRoadEnv
 
-CFG = "../configs/ring/simulation.sumocfg"
-AGENT_ID = "car0"
+CFG = "./configs/ring/simulation.sumocfg"
 
 
 def greedy_action(Q, s, n_actions):
@@ -13,26 +13,32 @@ def greedy_action(Q, s, n_actions):
 
 
 def eval_policy(q_table_path: str, gui: bool = True):
-    env = RingRoadEnv(
+    base_env = RingRoadEnv(
         sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
-        agent_id=AGENT_ID,
         gui=gui,
         episode_length=500.0,
-        dv=0.5,
+        num_vehicles=4,
     )
+
+    env = DiscretizeActionWrapper(base_env, n_bins=11)
+
+    obs_dim = env.observation_space.shape[0]
+    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=11))
 
     with open(q_table_path, "rb") as f:
         Q = pickle.load(f)
 
     try:
-        s = env.reset()
+        s, _ = env.reset()
+        s = state_discretizer(s)
         done = False
         G = 0.0
         steps = 0
 
         while not done:
-            a = greedy_action(Q, s, len(env.actions))
+            a = greedy_action(Q, s, env.action_space.n)
             s_next, r, done, _ = env.step(a)
+            s_next = state_discretizer(s_next)
             s = s_next
             G += r
             steps += 1
@@ -42,4 +48,4 @@ def eval_policy(q_table_path: str, gui: bool = True):
 
 
 if __name__ == "__main__":
-    eval_policy("output/q_table.pkl")
+    eval_policy("./output/q_table.pkl")

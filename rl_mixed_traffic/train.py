@@ -1,15 +1,15 @@
 import pickle
 import numpy as np
 from pathlib import Path
-from env import RingRoadEnv
+from rl_mixed_traffic.env.ring_env import RingRoadEnv
+from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper, DiscretizerConfig, StateDiscretizer
 from agent import QLearningAgent
 from config import SumoConfig
 
 from utils.plot_utils import plot_returns
 from utils.sumo_utils import save_returns_csv
 
-AGENT_ID = "car0"
-CFG = "../configs/ring/simulation.sumocfg"
+CFG = "./configs/ring/simulation.sumocfg"
 
 
 def snapshot_q(q_defaultdict):
@@ -18,15 +18,19 @@ def snapshot_q(q_defaultdict):
 
 
 def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.pkl"):
-    env = RingRoadEnv(
+    base_env = RingRoadEnv(
         sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
-        agent_id=AGENT_ID,
         gui=gui,
-        dv=0.5,
+        num_vehicles=4,
     )
 
+    env = DiscretizeActionWrapper(base_env, n_bins=11)
+
+    obs_dim = env.observation_space.shape[0]
+    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=11))
+
     agent = QLearningAgent(
-        action_space=len(env.actions),
+        action_space=env.action_space.n,
         alpha=0.2,
         gamma=0.98,
         eps_start=1.0,
@@ -40,7 +44,8 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
 
     try:
         for episode in range(num_episodes):
-            s = env.reset()
+            s, _ = env.reset()
+            s = state_discretizer(s)
             done = False
             G = 0.0
             steps = 0
@@ -48,6 +53,7 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
             while not done:
                 a = agent.act(s)
                 s_next, r, done, _ = env.step(a)
+                s_next = state_discretizer(s_next)
                 agent.update(s, a, r, s_next, done)
                 s = s_next
                 G += r

@@ -133,3 +133,4 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
     speeds_sorted = [speeds[i] for i in order]
     positions_sorted = [positions[i] for i in order]
     return ids_sorted, speeds_sorted, positions_sorted
+
