@@ -7,8 +7,8 @@ from rl_mixed_traffic.env.ring_env import RingRoadEnv
 CFG = "./configs/ring/simulation.sumocfg"
 
 
-def greedy_action(Q, s, n_actions):
-    q = Q.get(s, np.zeros(n_actions, dtype=np.float32))
+def greedy_action(q: dict, s, n_actions):
+    q = q.get(s, np.zeros(n_actions, dtype=np.float32))
     return int(np.argmax(q))
 
 
@@ -20,10 +20,10 @@ def eval_policy(q_table_path: str, gui: bool = True):
         num_vehicles=4,
     )
 
-    env = DiscretizeActionWrapper(base_env, n_bins=11)
+    env = DiscretizeActionWrapper(base_env, n_bins=20)
 
     obs_dim = env.observation_space.shape[0]
-    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=11))
+    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=20))
 
     with open(q_table_path, "rb") as f:
         Q = pickle.load(f)

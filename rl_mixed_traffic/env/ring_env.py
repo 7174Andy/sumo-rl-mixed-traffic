@@ -7,7 +7,6 @@ from pathlib import Path
 import os
 import sys
 
-from rl_mixed_traffic.utils.reward import average_velocity_state, desired_velocity_state, penalize_standstill_state
 from utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
 from config import SumoConfig
 
@@ -40,7 +39,7 @@ class RingRoadEnv(gym.Env):
         gui: bool = False,
         max_accel: float = 3.0,
         min_accel: float = -3.0,
-        episode_length: float = 200.0,
+        episode_length: float = 500.0,
         num_vehicles: int = 3,
     ):
         self.sumo_config = sumo_config
@@ -227,83 +226,132 @@ class RingRoadEnv(gym.Env):
         a = float(np.clip(a, self.min_accel, self.max_accel))
 
         if self.agent_id in traci.vehicle.getIDList():
-            self.apply_acceleration(self.agent_id, a)
+            self.apply_acceleration(self.agent_id, a, smooth=False)
 
         traci.simulationStep()
         time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
         obs = self.get_state()
-        reward = self.compute_reward(obs=obs, action=a)
+        reward = self.compute_reward()
         done = self.terminal()
         info = {}
 
         return obs, reward, done, info
+    
 
-    def compute_reward(self, obs: np.ndarray, action: float | None = None) -> float:
+    def get_followers_chain(self, leader_id: str, depth: int = 5):
         """
-        Network-speed heavy reward:
-        Platton speed = mean speed of all vehicles
-        Car Tracking =
+        Returns a list of (veh_id, gap_meters) for up to `depth` followers
+        directly behind `leader_id`, ordered nearest-first.
+
+        - Uses traci.vehicle.getFollower() iteratively.
+        - If a follower is missing (e.g., lane change or no vehicle), the chain stops.
+        - On a ring with a single lane, this will walk the platoon behind your agent.
+
+        Parameters
+        ----------
+        leader_id : str
+            The vehicle ID to start from (typically the ego agent).
+        depth : int
+            Max number of followers to return.
+
+        Returns
+        -------
+        List[Tuple[str, float]]
+            [(follower_id, gap_to_front_in_meters), ...]
         """
-        n = obs.size // 2
-        v_norm = obs[:n].astype(np.float32)
-        p_norm = obs[n:].astype(np.float32)
+        chain = []
+        current = leader_id
+        seen = set([leader_id])  # avoid weird loops if SUMO returns something odd
 
-        # Platoon speed
-        platoon_speed = average_velocity_state(obs, v_max=self.v_max)
-        S_avg = platoon_speed / max(1e-6, self.v_max * 0.9)
+        for _ in range(max(0, depth)):
+            try:
+                # SUMO TraCI: returns (vehID, gap) or None/('', -1) when no follower
+                nxt = traci.vehicle.getFollower(current)
+            except Exception:
+                break
 
-        # Penalize if standing still
-        standstill_penalty = penalize_standstill_state(obs, v_max=self.v_max, thresh=10.0, gain=1.0)
+            if not nxt:
+                break
 
-        desired_velocity = desired_velocity_state(obs, v_max=self.v_max, target_v=self.v_max * 0.9)
+            follower_id, gap = nxt  # follower directly behind `current`
+            if follower_id in (None, "", current) or follower_id in seen:
+                break
 
-        # CAV -> Leader Tracking
-        v0 = float(v_norm[1] * self.v_max)  # CAV Speed
-        v_leader = float(v_norm[0] * self.v_max)  # Leader Speed
-        s_star_m = 2.0 + v0 * 1.2  # desired gap (m)
-        s_star_norm = s_star_m / max(1e-6, self.ring_length)
+            # gap can be -1 in edge cases; sanitize
+            gap = float(gap) if gap is not None else -1.0
+            chain.append((follower_id, gap))
+            seen.add(follower_id)
+            current = follower_id
 
-        g0_norm = float((p_norm[0] - p_norm[1]) % 1.0)  # gap to leader (normalized)
+        return chain
 
-        e_g = float(g0_norm - s_star_norm) / max(1e-6, s_star_norm)
-        S_gap = float(np.exp(-e_g * e_g))
 
-        dv_norm = (v_leader - v0) / max(1e-6, self.v_max)
-        S_dv = float(np.exp(-(dv_norm ** 2)))
+    def compute_reward(self) -> float:
+        if self.agent_id not in traci.vehicle.getIDList():
+            return 0.0
 
-        track = 0.5 * S_gap + 0.5 * S_dv
+        V_MAX = max(1e-6, self.v_max)
 
-        # backward safety penalty: protect follower
-        v1 = float(v_norm[2]) * self.v_max  # follower speed
-        v0 = float(v_norm[1]) * self.v_max  # CAV speed
-
-        # back gap
-        g1_norm = float(p_norm[1] - p_norm[2]) % 1.0
-        g1 = g1_norm * self.ring_length
-
-        # TTC with follower
-        if v1 > v0 + 1e-6:
-            ttc1 = g1 / (v1 - v0 + 1e-6)
+        # Followers info (light touch)
+        K = 5
+        chain = self.get_followers_chain(leader_id=self.agent_id, depth=K)
+        f_ids = [fid for fid, _ in chain]
+        if f_ids:
+            v_followers = [traci.vehicle.getSpeed(i) for i in f_ids]
+            mean_v = float(sum(v_followers)) / len(v_followers)
         else:
-            ttc1 = np.inf
+            mean_v = traci.vehicle.getSpeed(self.agent_id)
 
-        ttc_ref = 2.0  # seconds (can adjust)
-        g_min_back = 5.0  # meters (can adjust)
-        S_ttc = float(
-            np.clip(0.0 if not np.isfinite(ttc1) else ttc1 / ttc_ref, 0.0, 1.0)
+        # Ego + leader
+        v_ego = traci.vehicle.getSpeed(self.agent_id)
+        v_lead = 0.0
+        d_gap = 1e9
+        lead = traci.vehicle.getLeader(self.agent_id)
+        if lead:
+            lead_id, d_gap = lead
+            v_lead = traci.vehicle.getSpeed(lead_id)
+
+        # -------- Efficiency-forward terms --------
+        # 1) progress (pay per distance)
+        R_prog = v_ego / V_MAX
+
+        # 2) target-speed tracking (prefer fast cruise but don't ignore leader)
+        # v_star = min(0.9 * V_MAX, v_lead + 3.0)
+        # R_target = 1.0 - ((v_ego - v_star) / V_MAX) ** 2  # peaks at 1 when v≈v_star
+
+        # 3) platoon mean (small nudge upward)
+        R_mean = (mean_v / V_MAX)
+
+        # 4) stronger penalty for lingering at low speed
+        v_thresh = 0.5 * V_MAX
+        R_low = - max(0.0, (v_thresh - v_ego) / max(1e-6, v_thresh))
+
+        # Safety guardrail (small)
+        d_min = 2.0
+        rel = max(v_ego - v_lead, 1e-3)
+        free_gap = max(d_gap - d_min, 0.0)
+        ttc = free_gap / rel if rel > 0 else 1e6
+        tau_safe = 0.6  # aggressive but nonzero
+        R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
+
+        # Fuel consumption penalty
+        # mpg = miles_per_gallen()
+        # R_fuel = -0.1 * (1.0 / max(mpg, 1e-6))
+
+        # print(f"Step {self.step_count}: R_prog={R_prog:.3f}, R_mean={R_mean:.3f}, R_low={R_low:.3f}, R_ttc={R_ttc:.3f}")
+
+        # Combine (weights emphasize efficiency)
+        R = (
+            1.0 * R_prog +
+            # 1.0 * R_target +
+            0.5 * R_mean +
+            0.7 * R_low +
+            0.15 * R_ttc
+            # 0.1 * R_fuel
         )
-        S_gap_back = float(np.clip(g1 / max(1e-6, g_min_back), 0.0, 1.0))
-        S_back = 0.5 * S_ttc + 0.5 * S_gap_back
-
-        # Comfort penalty
-        comfort_penalty = float((action / max(1e-6, self.max_accel)) ** 2) if action is not None else 0.0
-
-        reward = (
-            1.0 * S_avg + 0.6 * desired_velocity + 0.1 * standstill_penalty + 0.5 * track - 0.05 * comfort_penalty + 0.8 * S_back
-        )
-        return float(reward)
+        return float(np.clip(R, -2.0, 2.0))
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:

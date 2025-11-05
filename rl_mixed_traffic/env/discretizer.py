@@ -33,7 +33,7 @@ class DiscretizerConfig:
     clip_min: float = 0.0
     clip_max: float = 1.0
     # optional nonuniform binning: e.g., more resolution near low gaps/speeds
-    use_position_heavy_tail: bool = True
+    use_position_heavy_tail: bool = False
 
 class StateDiscretizer:
     """

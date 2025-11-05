@@ -15,3 +15,4 @@ uv.lock
 # results and logs
 /output/*.pkl
 /output/*.csv
+*.pth

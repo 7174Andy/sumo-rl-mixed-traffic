@@ -24,10 +24,10 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
         num_vehicles=4,
     )
 
-    env = DiscretizeActionWrapper(base_env, n_bins=11)
+    env = DiscretizeActionWrapper(base_env, n_bins=20)
 
     obs_dim = env.observation_space.shape[0]
-    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=11))
+    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=20))
 
     agent = QLearningAgent(
         action_space=env.action_space.n,

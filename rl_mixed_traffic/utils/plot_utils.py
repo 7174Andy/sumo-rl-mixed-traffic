@@ -31,3 +31,19 @@ def plot_returns(
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"[OK] Saved plot: {out_path}")
+
+def plot_losses(
+    losses, out_path: str, title: str = "Training Losses"
+):
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    plt.figure(figsize=(7, 4))
+    # raw
+    plt.plot(range(1, len(losses) + 1), losses, label="Loss")
+    plt.xlabel("Training Step")
+    plt.ylabel("Loss")
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"[OK] Saved plot: {out_path}")
