@@ -30,7 +30,6 @@ def eval_policy(q_table_path: str, gui: bool = True):
 
     try:
         s, _ = env.reset()
-        s = state_discretizer(s)
         done = False
         G = 0.0
         steps = 0

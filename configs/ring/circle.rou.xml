@@ -5,10 +5,11 @@
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
     <!-- Routes -->
-    <route id="r_0" edges="B9B8 B8B7" repeat="10"/>
+    <route id="r_0" edges="B9B8 B8B7" repeat="15"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
-    <vehicle id="car0" depart="0.00" route="r_0" departSpeed="random"/>
-    <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="random"/>
-    <vehicle id="car2" depart="0.00" route="r_0" departSpeed="random"/>
-    <vehicle id="car3" depart="0.00" route="r_0" departSpeed="random"/>
+    <vType id="idm" carFollowModel="IDM" accel="2.0" decel="3.0" tau="1.0" sigma="0.5" minGap="2.5" length="5.0" maxSpeed="50"/>
+    <vehicle id="car0" depart="0.00" route="r_0" color="0,0,255" type="idm" departSpeed="5"/>
+    <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="10"/>
+    <vehicle id="car2" depart="0.00" route="r_0" type="idm" departSpeed="random"/>
+    <vehicle id="car3" depart="0.00" route="r_0" type="idm" departSpeed="random"/>
 </routes>

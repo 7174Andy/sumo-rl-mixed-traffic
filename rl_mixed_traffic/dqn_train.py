@@ -20,7 +20,7 @@ def make_env(gui: bool=False, num_bins=21):
     env = DiscretizeActionWrapper(base_env, num_bins)
     return env
 
-def train(total_steps: int = 500_000, num_bins=21):
+def train(total_steps: int = 350_000, num_bins=21):
     env = make_env(gui=False, num_bins=num_bins)
 
     returns = []
@@ -44,25 +44,26 @@ def train(total_steps: int = 500_000, num_bins=21):
         s_next, r, done, _ = env.step(a)
         agent.buffer.append((s, a, r, s_next, done))
         loss = agent.learn()
-        losses.append(loss)
 
         s = s_next
         ep_ret += r
         ep_len += 1
 
         if done:
-            print(f"Step: {t}, Episode Return: {ep_ret}, Episode Length: {ep_len}")
+            print(f"Step: {t}, Episode Return: {ep_ret}, Episode Length: {ep_len}, Epsilon: {agent.epsilon():.3f}")
             returns.append(ep_ret)
+            if loss is not None:
+                losses.append(float(loss))
             s, _ = env.reset()
             ep_ret, ep_len = 0.0, 0
 
-    agent.save("dqn_agent.pth")
+    agent.save("dqn_results/dqn_agent.pth")
     env.close()
 
     # Plot training losses
     plot_losses(
         losses,
-        out_path="dqn_training_losses.png",
+        out_path="dqn_results/dqn_training_losses.png",
         title="DQN Training Losses"
     )
     return returns

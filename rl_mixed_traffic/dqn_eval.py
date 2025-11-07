@@ -50,4 +50,4 @@ def evaluate(agent_path: str, gui: bool = True, num_bins: int = 21):
         env.close()
 
 if __name__ == "__main__":
-    evaluate(agent_path="dqn_agent.pth", gui=True, num_bins=21)
+    evaluate(agent_path="dqn_results/dqn_agent.pth", gui=True, num_bins=21)

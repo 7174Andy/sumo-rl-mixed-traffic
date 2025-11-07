@@ -37,7 +37,7 @@ class RingRoadEnv(gym.Env):
         sumo_config: SumoConfig,
         agent_id: str = "car1",
         gui: bool = False,
-        max_accel: float = 3.0,
+        max_accel: float = 8.0,
         min_accel: float = -3.0,
         episode_length: float = 500.0,
         num_vehicles: int = 3,
@@ -72,7 +72,7 @@ class RingRoadEnv(gym.Env):
         # What should be the good scenario for the controlling vehicle?
 
         self.cmd_speed = 0.0
-        self.v_max = 30.0
+        self.v_max = 50.0
 
     @property
     def action_space(self):
@@ -151,7 +151,6 @@ class RingRoadEnv(gym.Env):
         self.open_traci()
         self.step_count = 0
         self.cmd_speed = 0.0
-        self.v_max = 30.0
 
         # Warm up the simulation
         warmup = 0
@@ -160,7 +159,8 @@ class RingRoadEnv(gym.Env):
             warmup += 1
 
         if self.agent_id in traci.vehicle.getIDList():
-            self.v_max = traci.vehicle.getMaxSpeed(self.agent_id)
+            traci.vehicle.setSpeedMode(self.agent_id, 95)   # 0b1011111
+            traci.vehicle.setMaxSpeed(self.agent_id, self.v_max)
             v_now = traci.vehicle.getSpeed(self.agent_id)
             self.cmd_speed = max(0.5, min(v_now, self.v_max))
 
@@ -223,7 +223,7 @@ class RingRoadEnv(gym.Env):
             a = float(np.array(action, dtype=np.float32).reshape(-1)[0])
         else:
             a = float(action)
-        a = float(np.clip(a, self.min_accel, self.max_accel))
+            a = float(np.clip(a, self.min_accel, self.max_accel))
 
         if self.agent_id in traci.vehicle.getIDList():
             self.apply_acceleration(self.agent_id, a, smooth=False)
@@ -304,7 +304,6 @@ class RingRoadEnv(gym.Env):
         else:
             mean_v = traci.vehicle.getSpeed(self.agent_id)
 
-        # Ego + leader
         v_ego = traci.vehicle.getSpeed(self.agent_id)
         v_lead = 0.0
         d_gap = 1e9
@@ -312,20 +311,30 @@ class RingRoadEnv(gym.Env):
         if lead:
             lead_id, d_gap = lead
             v_lead = traci.vehicle.getSpeed(lead_id)
+        else:
+            try:
+                ids = list(traci.vehicle.getIDList())
+                pos = {vid: traci.vehicle.getDistance(vid) for vid in ids}
+                pos_ego = pos[self.agent_id]
+                deltas = [(vid, (pos[vid] - pos_ego)) for vid in ids if vid != self.agent_id]
+                ahead = [(vid, d) for vid, d in deltas if d > 0]
+                if ahead:
+                    lead_id, d_gap = min(ahead, key=lambda x: x[1])
+                else:
+                    lead_id, d_gap = min(deltas, key=lambda x: abs(x[1]))
+            except traci.TraCIException:
+                pass
 
-        # -------- Efficiency-forward terms --------
+        # print(f"Lead ID: {lead_id}, Gap: {d_gap}")
+
         # 1) progress (pay per distance)
         R_prog = v_ego / V_MAX
 
-        # 2) target-speed tracking (prefer fast cruise but don't ignore leader)
-        # v_star = min(0.9 * V_MAX, v_lead + 3.0)
-        # R_target = 1.0 - ((v_ego - v_star) / V_MAX) ** 2  # peaks at 1 when v≈v_star
-
-        # 3) platoon mean (small nudge upward)
+        # 2) platoon mean (small nudge upward)
         R_mean = (mean_v / V_MAX)
 
-        # 4) stronger penalty for lingering at low speed
-        v_thresh = 0.5 * V_MAX
+        # 3) stronger penalty for lingering at low speed
+        v_thresh = 0.7 * V_MAX
         R_low = - max(0.0, (v_thresh - v_ego) / max(1e-6, v_thresh))
 
         # Safety guardrail (small)
@@ -336,22 +345,53 @@ class RingRoadEnv(gym.Env):
         tau_safe = 0.6  # aggressive but nonzero
         R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
 
+        # 3) Tracking head vehicle (within the range)
+        gap_des = 7.5
+        gap_scale = max(1e-6, gap_des)
+        w_gap = 1.0 / (1.0 + (free_gap / gap_scale))
+
+        dv = v_ego - v_lead
+
+        # Speed match penalty
+        w_track = 0.6
+        R_track = - w_track * min(1.0, dv) * w_gap if lead_id is not None else 0.0
+
+        # Time headway -> penalize being too far
+        v_eps = 1e-6
+        TH = d_gap / max(v_ego, v_eps)
+
+        # Threshold for inefficiency (seconds)
+        TH_threshold = 2.5
+        r_th = -1.0 if TH >= TH_threshold else 0.0
+
+        # Penalize collisions
+        ego_collided = False
+        try:
+            collided_ids = set(traci.simulation.getCollidingVehiclesIDList())
+            ego_collided = (self.agent_id in collided_ids)
+        except Exception:
+            pass
+
+        R_collide = -100.0 if ego_collided else 0.0
+
         # Fuel consumption penalty
         # mpg = miles_per_gallen()
         # R_fuel = -0.1 * (1.0 / max(mpg, 1e-6))
 
-        # print(f"Step {self.step_count}: R_prog={R_prog:.3f}, R_mean={R_mean:.3f}, R_low={R_low:.3f}, R_ttc={R_ttc:.3f}")
+        # print(f"Step {self.step_count}: R_prog={R_prog:.3f}, R_mean={R_mean:.3f}, R_low={R_low:.3f}, R_ttc={R_ttc:.3f}, R_track={R_track:.3f}")
 
-        # Combine (weights emphasize efficiency)
         R = (
             1.0 * R_prog +
-            # 1.0 * R_target +
             0.5 * R_mean +
             0.7 * R_low +
-            0.15 * R_ttc
+            0.15 * R_ttc +
+            0.7 * R_track +
+            R_collide +
+            0.7 * r_th
             # 0.1 * R_fuel
         )
-        return float(np.clip(R, -2.0, 2.0))
+        return float(R)
+
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:
