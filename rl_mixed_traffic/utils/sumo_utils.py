@@ -1,9 +1,10 @@
 import os
 import sys
 from pathlib import Path
-from config import SumoConfig
+from rl_mixed_traffic.config import SumoConfig
 import numpy as np
 from typing import Tuple
+import time
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "tools"
@@ -134,3 +135,11 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
     positions_sorted = [positions[i] for i in order]
     return ids_sorted, speeds_sorted, positions_sorted
 
+def run_simulation(sim: SumoConfig, num_steps: int):
+    """Run a SUMO simulation for a given number of steps."""
+    start_traci(sim)
+    for step in range(num_steps):
+        traci.simulationStep()
+        time.sleep(0.01)
+    print(f"Simulation finished after {num_steps} steps.")
+    traci.close()

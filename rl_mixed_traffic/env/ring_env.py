@@ -290,6 +290,7 @@ class RingRoadEnv(gym.Env):
 
         V_MAX = max(1e-6, self.v_max)
 
+        # Compute average speed of followers (if any) to encourage platooning behavior
         # Followers info (light touch)
         K = 5
         chain = self.get_followers_chain(leader_id=self.agent_id, depth=K)
@@ -300,6 +301,7 @@ class RingRoadEnv(gym.Env):
         else:
             mean_v = traci.vehicle.getSpeed(self.agent_id)
 
+        # Ego and lead info
         v_ego = traci.vehicle.getSpeed(self.agent_id)
         v_lead = 0.0
         d_gap = 1e9
@@ -321,12 +323,11 @@ class RingRoadEnv(gym.Env):
             except traci.TraCIException:
                 pass
 
-        # print(f"Lead ID: {lead_id}, Gap: {d_gap}")
-
         # platoon mean (small nudge upward)
         R_mean = (mean_v / V_MAX)
 
         # Safety guardrail (small)
+        # TTC -> penalize being too close to the lead vehicle
         d_min = 2.0
         rel = max(v_ego - v_lead, 1e-3)
         free_gap = max(d_gap - d_min, 0.0)
@@ -341,7 +342,6 @@ class RingRoadEnv(gym.Env):
         # Penalize jerk (acceleration changes): Comfort penalty
         jerk = getattr(self, "last_jerk", 0.0)
         jerk_max = (self.max_accel - self.min_accel) / self.step_length
-
         norm_jerk = jerk / max(1e-6, jerk_max)
         R_jerk = - (norm_jerk ** 2)
 
@@ -362,8 +362,6 @@ class RingRoadEnv(gym.Env):
         # Fuel consumption penalty
         # mpg = miles_per_gallen()
         # R_fuel = -0.1 * (1.0 / max(mpg, 1e-6))
-
-        # print(f"Step {self.step_count}: R_prog={R_prog:.3f}, R_mean={R_mean:.3f}, R_low={R_low:.3f}, R_ttc={R_ttc:.3f}, R_track={R_track:.3f}")
 
         R = (
             0.7 * R_mean +
