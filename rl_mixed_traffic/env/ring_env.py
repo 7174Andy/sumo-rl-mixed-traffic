@@ -37,7 +37,7 @@ class RingRoadEnv(gym.Env):
         sumo_config: SumoConfig,
         agent_id: str = "car1",
         gui: bool = False,
-        max_accel: float = 8.0,
+        max_accel: float = 3.0,
         min_accel: float = -3.0,
         episode_length: float = 500.0,
         num_vehicles: int = 3,
@@ -48,6 +48,8 @@ class RingRoadEnv(gym.Env):
         self.max_accel = max_accel
         self.min_accel = min_accel
         self.num_vehicles = num_vehicles
+        self.prev_accel = 0.0
+        self.last_jerk = 0.0
 
         # TODO: Linear interpolation?
 
@@ -57,22 +59,8 @@ class RingRoadEnv(gym.Env):
 
         self.ring_length = None
 
-        # Meeting notes 10/29
-        # TODO: acceleration as action
-        # - penalize large gap
-        # - HDV being the leader and CAV follower behind it
-        # - Reward function design
-        #   - speed of the platoon (mean speed of first K followers)
-        #   - comfort penalty (acceleration changes)
-        #   - safety penalty (time-to-collision with follower)
-        #   - fuel consumption?
-        # - traditional control methods comparison is good
-
-        # TODO: Deep Q Network implementation
-        # What should be the good scenario for the controlling vehicle?
-
         self.cmd_speed = 0.0
-        self.v_max = 50.0
+        self.v_max = 30.0
 
     @property
     def action_space(self):
@@ -151,6 +139,8 @@ class RingRoadEnv(gym.Env):
         self.open_traci()
         self.step_count = 0
         self.cmd_speed = 0.0
+        self.prev_accel = 0.0
+        self.last_jerk = 0.0
 
         # Warm up the simulation
         warmup = 0
@@ -224,6 +214,12 @@ class RingRoadEnv(gym.Env):
         else:
             a = float(action)
             a = float(np.clip(a, self.min_accel, self.max_accel))
+
+        # Jerk calculation
+        dt = self.step_length
+        jerk = (a - self.prev_accel) / dt if dt > 0 else 0.0
+        self.last_jerk = jerk
+        self.prev_accel = a
 
         if self.agent_id in traci.vehicle.getIDList():
             self.apply_acceleration(self.agent_id, a, smooth=False)
@@ -327,15 +323,8 @@ class RingRoadEnv(gym.Env):
 
         # print(f"Lead ID: {lead_id}, Gap: {d_gap}")
 
-        # 1) progress (pay per distance)
-        R_prog = v_ego / V_MAX
-
-        # 2) platoon mean (small nudge upward)
+        # platoon mean (small nudge upward)
         R_mean = (mean_v / V_MAX)
-
-        # 3) stronger penalty for lingering at low speed
-        v_thresh = 0.7 * V_MAX
-        R_low = - max(0.0, (v_thresh - v_ego) / max(1e-6, v_thresh))
 
         # Safety guardrail (small)
         d_min = 2.0
@@ -345,20 +334,16 @@ class RingRoadEnv(gym.Env):
         tau_safe = 0.6  # aggressive but nonzero
         R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
 
-        # 3) Tracking head vehicle (within the range)
-        gap_des = 7.5
-        gap_scale = max(1e-6, gap_des)
-        w_gap = 1.0 / (1.0 + (free_gap / gap_scale))
-
-        dv = v_ego - v_lead
-
-        # Speed match penalty
-        w_track = 0.6
-        R_track = - w_track * min(1.0, dv) * w_gap if lead_id is not None else 0.0
-
         # Time headway -> penalize being too far
         v_eps = 1e-6
         TH = d_gap / max(v_ego, v_eps)
+
+        # Penalize jerk (acceleration changes): Comfort penalty
+        jerk = getattr(self, "last_jerk", 0.0)
+        jerk_max = (self.max_accel - self.min_accel) / self.step_length
+
+        norm_jerk = jerk / max(1e-6, jerk_max)
+        R_jerk = - (norm_jerk ** 2)
 
         # Threshold for inefficiency (seconds)
         TH_threshold = 2.5
@@ -381,13 +366,11 @@ class RingRoadEnv(gym.Env):
         # print(f"Step {self.step_count}: R_prog={R_prog:.3f}, R_mean={R_mean:.3f}, R_low={R_low:.3f}, R_ttc={R_ttc:.3f}, R_track={R_track:.3f}")
 
         R = (
-            1.0 * R_prog +
-            0.5 * R_mean +
-            0.7 * R_low +
+            0.7 * R_mean +
             0.15 * R_ttc +
-            0.7 * R_track +
             R_collide +
-            0.7 * r_th
+            1.0 * r_th +
+            0.2 * R_jerk
             # 0.1 * R_fuel
         )
         return float(R)
