@@ -41,6 +41,10 @@ class RingRoadEnv(gym.Env):
         min_accel: float = -3.0,
         episode_length: float = 500.0,
         num_vehicles: int = 3,
+        head_speed_change_interval: float = 5.0,
+        head_speed_min: float = 5.0,
+        head_speed_max: float = 20.0,
+        head_id: str = "car0",
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
@@ -61,6 +65,15 @@ class RingRoadEnv(gym.Env):
 
         self.cmd_speed = 0.0
         self.v_max = 30.0
+
+        self.head_speed_change_interval = head_speed_change_interval
+        self.head_speed_change_interval_steps = max(
+            1, int(round(head_speed_change_interval / self.step_length))
+        )
+        self.head_speed_min = head_speed_min
+        self.head_speed_max = head_speed_max
+        self.head_id = head_id
+        self._last_head_update_step = 0
 
     @property
     def action_space(self):
@@ -87,6 +100,25 @@ class RingRoadEnv(gym.Env):
 
         if self.ring_length is None:
             self.ring_length = compute_ring_length(self.agent_id)
+
+    
+    def _update_head_speed(self):
+        if self.head_id not in traci.vehicle.getIDList():
+            return
+        
+        if (self.step_count - self._last_head_update_step) < self.head_speed_change_interval_steps:
+            return
+        
+        self._last_head_update_step = self.step_count
+
+        # sample a new random cruising speed
+        v_target = float(
+            np.random.uniform(self.head_speed_min, self.head_speed_max)
+        )
+        v_target = float(np.clip(v_target, 0.0, self.v_max))
+
+        duration_ms = max(1, int(round(self.step_length * 1000.0)))
+        traci.vehicle.slowDown(self.head_id, v_target, duration_ms)
 
     def close_traci(self):
         if traci.isLoaded():
@@ -141,6 +173,7 @@ class RingRoadEnv(gym.Env):
         self.cmd_speed = 0.0
         self.prev_accel = 0.0
         self.last_jerk = 0.0
+        self._last_head_update_step = 0
 
         # Warm up the simulation
         warmup = 0
@@ -153,6 +186,9 @@ class RingRoadEnv(gym.Env):
             traci.vehicle.setMaxSpeed(self.agent_id, self.v_max)
             v_now = traci.vehicle.getSpeed(self.agent_id)
             self.cmd_speed = max(0.5, min(v_now, self.v_max))
+        
+        if self.head_id in traci.vehicle.getIDList():
+            traci.vehicle.setMaxSpeed(self.head_id, self.v_max)
 
         return self.get_state(), {}
 
@@ -224,6 +260,8 @@ class RingRoadEnv(gym.Env):
         if self.agent_id in traci.vehicle.getIDList():
             self.apply_acceleration(self.agent_id, a, smooth=False)
 
+        self._update_head_speed()
+
         traci.simulationStep()
         time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
@@ -234,72 +272,11 @@ class RingRoadEnv(gym.Env):
         info = {}
 
         return obs, reward, done, info
-    
-
-    def get_followers_chain(self, leader_id: str, depth: int = 5):
-        """
-        Returns a list of (veh_id, gap_meters) for up to `depth` followers
-        directly behind `leader_id`, ordered nearest-first.
-
-        - Uses traci.vehicle.getFollower() iteratively.
-        - If a follower is missing (e.g., lane change or no vehicle), the chain stops.
-        - On a ring with a single lane, this will walk the platoon behind your agent.
-
-        Parameters
-        ----------
-        leader_id : str
-            The vehicle ID to start from (typically the ego agent).
-        depth : int
-            Max number of followers to return.
-
-        Returns
-        -------
-        List[Tuple[str, float]]
-            [(follower_id, gap_to_front_in_meters), ...]
-        """
-        chain = []
-        current = leader_id
-        seen = set([leader_id])  # avoid weird loops if SUMO returns something odd
-
-        for _ in range(max(0, depth)):
-            try:
-                # SUMO TraCI: returns (vehID, gap) or None/('', -1) when no follower
-                nxt = traci.vehicle.getFollower(current)
-            except Exception:
-                break
-
-            if not nxt:
-                break
-
-            follower_id, gap = nxt  # follower directly behind `current`
-            if follower_id in (None, "", current) or follower_id in seen:
-                break
-
-            # gap can be -1 in edge cases; sanitize
-            gap = float(gap) if gap is not None else -1.0
-            chain.append((follower_id, gap))
-            seen.add(follower_id)
-            current = follower_id
-
-        return chain
 
 
     def compute_reward(self) -> float:
         if self.agent_id not in traci.vehicle.getIDList():
             return 0.0
-
-        V_MAX = max(1e-6, self.v_max)
-
-        # Compute average speed of followers (if any) to encourage platooning behavior
-        # Followers info (light touch)
-        K = 5
-        chain = self.get_followers_chain(leader_id=self.agent_id, depth=K)
-        f_ids = [fid for fid, _ in chain]
-        if f_ids:
-            v_followers = [traci.vehicle.getSpeed(i) for i in f_ids]
-            mean_v = float(sum(v_followers)) / len(v_followers)
-        else:
-            mean_v = traci.vehicle.getSpeed(self.agent_id)
 
         # Ego and lead info
         v_ego = traci.vehicle.getSpeed(self.agent_id)
@@ -322,9 +299,6 @@ class RingRoadEnv(gym.Env):
                     lead_id, d_gap = min(deltas, key=lambda x: abs(x[1]))
             except traci.TraCIException:
                 pass
-
-        # platoon mean (small nudge upward)
-        R_mean = (mean_v / V_MAX)
 
         # Safety guardrail (small)
         # TTC -> penalize being too close to the lead vehicle
@@ -363,8 +337,13 @@ class RingRoadEnv(gym.Env):
         # mpg = miles_per_gallen()
         # R_fuel = -0.1 * (1.0 / max(mpg, 1e-6))
 
+        # Meeting 11/12
+        # - first reward: same speed
+        # - second reward: 10~15m distance to the lead vehicle
+        # - Metrics for comparison
+        # - Actor-critic method
+
         R = (
-            0.7 * R_mean +
             0.15 * R_ttc +
             R_collide +
             1.0 * r_th +
