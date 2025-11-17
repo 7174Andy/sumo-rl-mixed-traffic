@@ -2,7 +2,7 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from configs.dqn_config import DQNConfig
+from rl_mixed_traffic.configs.dqn_config import DQNConfig
 from rl_mixed_traffic.dqn.reply_mem import ReplayMemory
 from rl_mixed_traffic.dqn.network import DQNNetwork
 

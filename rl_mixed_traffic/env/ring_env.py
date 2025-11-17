@@ -7,8 +7,8 @@ from pathlib import Path
 import os
 import sys
 
-from utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
-from config import SumoConfig
+from rl_mixed_traffic.utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
+from rl_mixed_traffic.config import SumoConfig
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
