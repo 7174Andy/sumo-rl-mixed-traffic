@@ -16,3 +16,6 @@ uv.lock
 /output/*.pkl
 /output/*.csv
 *.pth
+
+# VS Code settings
+.vscode/
