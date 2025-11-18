@@ -9,5 +9,5 @@
     <!-- Vehicles, persons and containers (sorted by depart) -->
     <vType id="idm" carFollowModel="IDM" accel="2.0" decel="3.0" tau="1.0" sigma="0.5" minGap="2.5" length="5.0" maxSpeed="30"/>
     <vehicle id="car0" depart="0.00" route="r_0" color="0,0,255" type="idm" departSpeed="10"/>
-    <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="random"/>
+    <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="10"/>
 </routes>

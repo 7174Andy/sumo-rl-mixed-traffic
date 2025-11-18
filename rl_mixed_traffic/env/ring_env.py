@@ -41,7 +41,7 @@ class RingRoadEnv(gym.Env):
         min_accel: float = -3.0,
         episode_length: float = 500.0,
         num_vehicles: int = 3,
-        head_speed_change_interval: float = 5.0,
+        head_speed_change_interval: float = 15.0,
         head_speed_min: float = 5.0,
         head_speed_max: float = 20.0,
         head_id: str = "car0",
@@ -118,6 +118,7 @@ class RingRoadEnv(gym.Env):
         v_target = float(np.clip(v_target, 0.0, self.v_max))
 
         duration_ms = max(1, int(round(self.step_length * 1000.0)))
+        print(f"Updated head vehicle {self.head_id} speed to {v_target:.2f} m/s")
         traci.vehicle.slowDown(self.head_id, v_target, duration_ms)
 
     def close_traci(self):
@@ -295,10 +296,25 @@ class RingRoadEnv(gym.Env):
                 ahead = [(vid, d) for vid, d in deltas if d > 0]
                 if ahead:
                     lead_id, d_gap = min(ahead, key=lambda x: x[1])
-                else:
+                elif deltas:
                     lead_id, d_gap = min(deltas, key=lambda x: abs(x[1]))
+                else:
+                    lead_id = None
+
+                if lead_id is not None:
+                    v_lead = float(traci.vehicle.getSpeed(lead_id))
+                else:
+                    if self.head_id in traci.vehicle.getIDList():
+                        lead_id = self.head_id
+                        v_lead = float(traci.vehicle.getSpeed(lead_id))
+                        d_gap = float(traci.vehicle.getDistance(lead_id) - traci.vehicle.getDistance(self.agent_id))
             except traci.TraCIException:
-                pass
+                lead_id = None
+                d_gap = 1e3
+                v_lead = 0.0
+
+        # print(f"Ego speed: {v_ego:.2f} m/s, Lead speed: {v_lead:.2f} m/s, Gap: {d_gap:.2f} m")
+        # print(f"Lead ID: {lead_id}")
 
         # Safety guardrail (small)
         # TTC -> penalize being too close to the lead vehicle

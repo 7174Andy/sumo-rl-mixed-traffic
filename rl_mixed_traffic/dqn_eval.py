@@ -40,7 +40,7 @@ def evaluate(agent_path: str, gui: bool = True, num_bins: int = 21):
     try:
         while not done:
             a = agent.act(state=s, eval_mode=True)
-            print(f"Step: {steps}, State: {s}, Action: {a}")
+            # print(f"Step: {steps}, State: {s}, Action: {a}")
             s_next, r, done, _ = env.step(a)
             s = s_next
             G += r
