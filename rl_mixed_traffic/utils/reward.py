@@ -79,3 +79,13 @@ def miles_per_gallen():
     # convert from meters per gallon to miles per gallon
     mpg /= 1609.0
     return mpg
+
+def collision_penalty(agent_id: str) -> float:
+    ego_collided = False
+    try:
+        collided_ids = traci.simulation.getCollidingVehiclesIDList()
+        ego_collided = agent_id in collided_ids
+    except traci.TraCIException:
+        pass
+    
+    return -100.0 if ego_collided else 0.0

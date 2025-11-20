@@ -40,7 +40,7 @@ class RingRoadEnv(gym.Env):
         max_accel: float = 3.0,
         min_accel: float = -3.0,
         episode_length: float = 500.0,
-        num_vehicles: int = 3,
+        num_vehicles: int = 2,
         head_speed_change_interval: float = 15.0,
         head_speed_min: float = 5.0,
         head_speed_max: float = 20.0,
@@ -275,7 +275,7 @@ class RingRoadEnv(gym.Env):
         return obs, reward, done, info
 
 
-    def compute_reward(self) -> float:
+    def compute_reward(self) -> float:        
         if self.agent_id not in traci.vehicle.getIDList():
             return 0.0
 
@@ -325,9 +325,9 @@ class RingRoadEnv(gym.Env):
         tau_safe = 0.6  # aggressive but nonzero
         R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
 
-        # Time headway -> penalize being too far
-        v_eps = 1e-6
-        TH = d_gap / max(v_ego, v_eps)
+        # headway distance -> penalize being too far
+        gap_threshold = 10.0  # desired headway distance (m)
+        r_d = -1.0 if d_gap > gap_threshold else 0.0
 
         # Penalize jerk (acceleration changes): Comfort penalty
         jerk = getattr(self, "last_jerk", 0.0)
@@ -336,35 +336,19 @@ class RingRoadEnv(gym.Env):
         R_jerk = - (norm_jerk ** 2)
 
         # Threshold for inefficiency (seconds)
-        TH_threshold = 2.5
-        r_th = -1.0 if TH >= TH_threshold else 0.0
-
-        # Penalize collisions
-        ego_collided = False
-        try:
-            collided_ids = set(traci.simulation.getCollidingVehiclesIDList())
-            ego_collided = (self.agent_id in collided_ids)
-        except Exception:
-            pass
-
-        R_collide = -100.0 if ego_collided else 0.0
-
-        # Fuel consumption penalty
-        # mpg = miles_per_gallen()
-        # R_fuel = -0.1 * (1.0 / max(mpg, 1e-6))
+        # TH = d_gap / max(v_ego, v_eps)
+        # TH_threshold = 2.5
+        # r_th = -1.0 if TH >= TH_threshold else 0.0
 
         # Meeting 11/12
-        # - first reward: same speed
         # - second reward: 10~15m distance to the lead vehicle
         # - Metrics for comparison
         # - Actor-critic method
 
         R = (
             0.15 * R_ttc +
-            R_collide +
-            1.0 * r_th +
+            1.0 * r_d +
             0.2 * R_jerk
-            # 0.1 * R_fuel
         )
         return float(R)
 
