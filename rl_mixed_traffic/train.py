@@ -4,7 +4,7 @@ from pathlib import Path
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper, DiscretizerConfig, StateDiscretizer
 from agent import QLearningAgent
-from config import SumoConfig
+from rl_mixed_traffic.configs.sumo_config import SumoConfig
 
 from utils.plot_utils import plot_returns
 from utils.sumo_utils import save_returns_csv

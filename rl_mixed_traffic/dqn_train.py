@@ -1,6 +1,6 @@
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper
-from rl_mixed_traffic.config import SumoConfig
+from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.dqn_config import DQNConfig
 from rl_mixed_traffic.dqn.dqn_agent import DQNAgent
 

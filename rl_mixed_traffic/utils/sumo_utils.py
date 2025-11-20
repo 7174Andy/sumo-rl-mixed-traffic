@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from rl_mixed_traffic.config import SumoConfig
+from rl_mixed_traffic.configs.sumo_config import SumoConfig
 import numpy as np
 from typing import Tuple
 import time
