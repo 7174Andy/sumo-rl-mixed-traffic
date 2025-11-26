@@ -326,7 +326,8 @@ class RingRoadEnv(gym.Env):
         R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
 
         # headway distance -> penalize being too far
-        gap_threshold = 10.0  # desired headway distance (m)
+        print(f"Distance to lead vehicle: {d_gap:.2f} m")
+        gap_threshold = 15.0  # desired headway distance (m)
         r_d = -1.0 if d_gap > gap_threshold else 0.0
 
         # Penalize jerk (acceleration changes): Comfort penalty
