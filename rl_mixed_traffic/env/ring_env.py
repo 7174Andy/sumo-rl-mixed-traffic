@@ -117,9 +117,8 @@ class RingRoadEnv(gym.Env):
         )
         v_target = float(np.clip(v_target, 0.0, self.v_max))
 
-        duration_ms = max(1, int(round(self.step_length * 1000.0)))
         print(f"Updated head vehicle {self.head_id} speed to {v_target:.2f} m/s")
-        traci.vehicle.slowDown(self.head_id, v_target, duration_ms)
+        traci.vehicle.setSpeed(self.head_id, v_target)
 
     def close_traci(self):
         if traci.isLoaded():
