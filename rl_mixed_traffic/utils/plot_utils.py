@@ -47,3 +47,32 @@ def plot_losses(
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"[OK] Saved plot: {out_path}")
+
+
+def plot_vehicle_speeds(
+    head_speeds, cav_speeds, out_path: str, title: str = "Vehicle Speeds Over Time"
+):
+    """Plot the speeds of the head vehicle and CAV over evaluation steps.
+
+    Args:
+        head_speeds: List of head vehicle speeds (m/s) at each step
+        cav_speeds: List of CAV (agent) vehicle speeds (m/s) at each step
+        out_path: Path to save the plot
+        title: Title for the plot
+    """
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+    steps = range(len(cav_speeds))
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(steps, head_speeds, label="Head Vehicle", linewidth=1.5, alpha=0.8)
+    plt.plot(steps, cav_speeds, label="CAV (Agent)", linewidth=1.5, alpha=0.8)
+    plt.xlabel("Step")
+    plt.ylabel("Speed (m/s)")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"[OK] Saved plot: {out_path}")
