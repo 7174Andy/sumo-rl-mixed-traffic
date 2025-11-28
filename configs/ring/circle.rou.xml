@@ -12,5 +12,4 @@
     <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="10"/>
     <vehicle id="car2" depart="2.00" route="r_0" color="0,255,0" departSpeed="10"/>
     <vehicle id="car3" depart="4.00" route="r_0" color="0,255,0" departSpeed="10"/>
-    <vehicle id="car
 </routes>
