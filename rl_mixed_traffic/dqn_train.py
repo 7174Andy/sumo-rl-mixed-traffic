@@ -2,7 +2,7 @@ from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.dqn_config import DQNConfig
-from rl_mixed_traffic.dqn.dqn_agent import DQNAgent
+from rl_mixed_traffic.agents.dqn_agent import DQNAgent
 
 from rl_mixed_traffic.utils.plot_utils import plot_returns, plot_losses
 
@@ -42,8 +42,7 @@ def train(total_steps: int = 350_000, num_bins=21):
         a  = agent.act(state=s)
         # print(f"Step: {t}, Action: {env.actions[a]}")
         s_next, r, done, _ = env.step(a)
-        agent.buffer.append((s, a, r, s_next, done))
-        loss = agent.learn()
+        loss = agent.update(state=s, action=a, reward=r, next_state=s_next, done=done)
 
         s = s_next
         ep_ret += r
