@@ -75,3 +75,43 @@ def plot_vehicle_speeds(
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"[OK] Saved plot: {out_path}")
+
+def plot_ppo_metrics(metrics_history: dict, out_dir: str = "ppo_results"):
+    """Plot PPO training metrics.
+
+    Args:
+        metrics_history: Dictionary of metric names to lists of values
+        out_dir: Output directory for plots
+    """
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig.suptitle("PPO Training Metrics", fontsize=16)
+
+    # Policy Loss
+    if "policy_loss" in metrics_history and len(metrics_history["policy_loss"]) > 0:
+        axes[0, 0].plot(metrics_history["policy_loss"])
+        axes[0, 0].set_title("Policy Loss")
+        axes[0, 0].set_xlabel("Update")
+        axes[0, 0].set_ylabel("Loss")
+        axes[0, 0].grid(True)
+
+    # Value Loss
+    if "value_loss" in metrics_history and len(metrics_history["value_loss"]) > 0:
+        axes[0, 1].plot(metrics_history["value_loss"])
+        axes[0, 1].set_title("Value Loss")
+        axes[0, 1].set_xlabel("Update")
+        axes[0, 1].set_ylabel("Loss")
+        axes[0, 1].grid(True)
+
+    # Entropy
+    if "entropy" in metrics_history and len(metrics_history["entropy"]) > 0:
+        axes[1, 0].plot(metrics_history["entropy"])
+        axes[1, 0].set_title("Policy Entropy")
+        axes[1, 0].set_xlabel("Update")
+        axes[1, 0].set_ylabel("Entropy")
+        axes[1, 0].grid(True)
+
+    plt.tight_layout()
+    plt.savefig(f"{out_dir}/ppo_training_metrics.png", dpi=150)
+    plt.close()
