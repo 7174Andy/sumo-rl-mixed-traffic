@@ -99,14 +99,14 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
                 print(f"Step: {steps}, Return so far: {G:.2f}")
 
         print("-" * 80)
-        print(f"Evaluation completed!")
+        print("Evaluation completed!")
         print(f"Total Return: {G:.2f}")
         print(f"Total Steps: {steps}")
         print(f"Average Reward per Step: {G/steps:.4f}")
 
         # Plot vehicle speeds
         if plot_speeds and len(cav_speeds) > 0:
-            print(f"Plotting vehicle speeds to: ppo_results/vehicle_speeds.png")
+            print("Plotting vehicle speeds to: ppo_results/vehicle_speeds.png")
             plot_vehicle_speeds(
                 head_speeds=head_speeds,
                 cav_speeds=cav_speeds,
