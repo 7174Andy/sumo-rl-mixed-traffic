@@ -28,6 +28,8 @@ class QLearningConfig:
         if not 0.0 <= self.eps_end <= 1.0:
             raise ValueError(f"eps_end must be in [0, 1], got {self.eps_end}")
         if self.eps_decay_steps <= 0:
-            raise ValueError(f"eps_decay_steps must be positive, got {self.eps_decay_steps}")
+            raise ValueError(
+                f"eps_decay_steps must be positive, got {self.eps_decay_steps}"
+            )
         if self.action_space <= 0:
             raise ValueError(f"action_space must be positive, got {self.action_space}")

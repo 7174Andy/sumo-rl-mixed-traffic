@@ -13,6 +13,7 @@ else:
 
 import traci
 
+
 def desired_velocity_state(obs: np.ndarray, *, v_max: float, target_v: float) -> float:
     """
     State-only version of Flow's desired_velocity.
@@ -30,6 +31,7 @@ def desired_velocity_state(obs: np.ndarray, *, v_max: float, target_v: float) ->
     eps = np.finfo(np.float32).eps
     return float(max(max_cost - cost, 0.0) / (max_cost + eps))
 
+
 def average_velocity_state(obs: np.ndarray, *, v_max: float) -> float:
     """
     State-only average velocity (m/s).
@@ -38,7 +40,10 @@ def average_velocity_state(obs: np.ndarray, *, v_max: float) -> float:
     v = obs[:n].astype(np.float32) * v_max
     return float(v.mean()) if n > 0 else 0.0
 
-def penalize_standstill_state(obs: np.ndarray, *, v_max: float, thresh: float = 0.0, gain: float = 1.0) -> float:
+
+def penalize_standstill_state(
+    obs: np.ndarray, *, v_max: float, thresh: float = 0.0, gain: float = 1.0
+) -> float:
     """
     Penalize vehicles with speed <= thresh (m/s). Returns negative penalty.
     """
@@ -46,6 +51,7 @@ def penalize_standstill_state(obs: np.ndarray, *, v_max: float, thresh: float = 
     v = obs[:n].astype(np.float32) * v_max
     num = int((v <= thresh).sum())
     return -gain * num
+
 
 def min_delay_state(obs: np.ndarray, *, v_top: float, dt: float) -> float:
     """
@@ -61,6 +67,7 @@ def min_delay_state(obs: np.ndarray, *, v_top: float, dt: float) -> float:
     cost = dt * np.sum((v_top - v) / v_top)
     return float(max((max_cost - cost) / (max_cost + eps), 0.0))
 
+
 def miles_per_gallen():
     mpg = 0
     counter = 0
@@ -72,13 +79,14 @@ def miles_per_gallen():
         if gallons_per_s > 0 and speed >= 0:
             counter += 1
             mpg += speed / gallons_per_s
-        
+
     if counter > 0:
         mpg /= counter
-    
+
     # convert from meters per gallon to miles per gallon
     mpg /= 1609.0
     return mpg
+
 
 def collision_penalty(agent_id: str) -> float:
     ego_collided = False
@@ -87,5 +95,5 @@ def collision_penalty(agent_id: str) -> float:
         ego_collided = agent_id in collided_ids
     except traci.TraCIException:
         pass
-    
+
     return -100.0 if ego_collided else 0.0

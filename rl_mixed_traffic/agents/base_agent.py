@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
+
 
 class BaseAgent(ABC):
     """Abstract base class for all RL agents."""
 
     @abstractmethod
-    def act(self, state:np.ndarray, eval_mode: bool = False) -> int:
+    def act(self, state: np.ndarray, eval_mode: bool = False) -> int:
         """Select an action given current state."""
         pass
 

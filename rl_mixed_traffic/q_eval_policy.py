@@ -1,7 +1,11 @@
 import pickle
 import numpy as np
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
-from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper, DiscretizerConfig, StateDiscretizer
+from rl_mixed_traffic.env.discretizer import (
+    DiscretizeActionWrapper,
+    DiscretizerConfig,
+    StateDiscretizer,
+)
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 
 CFG = "./configs/ring/simulation.sumocfg"

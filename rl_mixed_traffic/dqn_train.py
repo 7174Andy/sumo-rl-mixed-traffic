@@ -7,7 +7,7 @@ from rl_mixed_traffic.agents.dqn_agent import DQNAgent
 from rl_mixed_traffic.utils.plot_utils import plot_returns, plot_losses
 
 
-def make_env(gui: bool=False, num_bins=21):
+def make_env(gui: bool = False, num_bins=21):
     sumo_config = SumoConfig(
         sumocfg_path="configs/ring/simulation.sumocfg",
         use_gui=gui,
@@ -19,6 +19,7 @@ def make_env(gui: bool=False, num_bins=21):
     )
     env = DiscretizeActionWrapper(base_env, num_bins)
     return env
+
 
 def train(total_steps: int = 350_000, num_bins=21):
     env = make_env(gui=False, num_bins=num_bins)
@@ -39,7 +40,7 @@ def train(total_steps: int = 350_000, num_bins=21):
     losses = []
 
     for t in range(1, total_steps + 1):
-        a  = agent.act(state=s)
+        a = agent.act(state=s)
         # print(f"Step: {t}, Action: {env.actions[a]}")
         s_next, r, done, _ = env.step(a)
         loss = agent.update(state=s, action=a, reward=r, next_state=s_next, done=done)
@@ -49,7 +50,9 @@ def train(total_steps: int = 350_000, num_bins=21):
         ep_len += 1
 
         if done:
-            print(f"Step: {t}, Episode Return: {ep_ret}, Episode Length: {ep_len}, Epsilon: {agent.epsilon():.3f}")
+            print(
+                f"Step: {t}, Episode Return: {ep_ret}, Episode Length: {ep_len}, Epsilon: {agent.epsilon():.3f}"
+            )
             returns.append(ep_ret)
             if loss is not None:
                 losses.append(float(loss))
@@ -63,14 +66,15 @@ def train(total_steps: int = 350_000, num_bins=21):
     plot_losses(
         losses,
         out_path="dqn_results/dqn_training_losses.png",
-        title="DQN Training Losses"
+        title="DQN Training Losses",
     )
     return returns
+
 
 if __name__ == "__main__":
     returns = train()
     plot_returns(
         returns,
         out_path="dqn_results/dqn_training_returns.png",
-        title="DQN Training Returns"
+        title="DQN Training Returns",
     )

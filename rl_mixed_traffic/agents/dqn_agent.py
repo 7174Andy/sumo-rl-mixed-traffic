@@ -136,7 +136,7 @@ class DQNAgent(BaseAgent):
         action: int,
         reward: float,
         next_state: np.ndarray,
-        done: bool
+        done: bool,
     ) -> None:
         """Store a transition in the replay buffer.
 
@@ -174,10 +174,18 @@ class DQNAgent(BaseAgent):
 
         # Convert to tensors
         states = torch.as_tensor(states, dtype=torch.float32, device=self.device)
-        actions = torch.as_tensor(actions, dtype=torch.int64, device=self.device).unsqueeze(1)
-        rewards = torch.as_tensor(rewards, dtype=torch.float32, device=self.device).unsqueeze(1)
-        next_states = torch.as_tensor(next_states, dtype=torch.float32, device=self.device)
-        dones = torch.as_tensor(dones, dtype=torch.float32, device=self.device).unsqueeze(1)
+        actions = torch.as_tensor(
+            actions, dtype=torch.int64, device=self.device
+        ).unsqueeze(1)
+        rewards = torch.as_tensor(
+            rewards, dtype=torch.float32, device=self.device
+        ).unsqueeze(1)
+        next_states = torch.as_tensor(
+            next_states, dtype=torch.float32, device=self.device
+        )
+        dones = torch.as_tensor(
+            dones, dtype=torch.float32, device=self.device
+        ).unsqueeze(1)
 
         # Compute current Q values
         q_values = self.q(states).gather(1, actions)  # [batch_size, 1]
@@ -186,7 +194,9 @@ class DQNAgent(BaseAgent):
         with torch.no_grad():
             a_star = self.q(next_states).argmax(dim=1, keepdim=True)  # [batch_size, 1]
             q_next = self.q_target(next_states).gather(1, a_star)  # [batch_size, 1]
-            targets = rewards + self.config.gamma * (1 - dones) * q_next  # [batch_size, 1]
+            targets = (
+                rewards + self.config.gamma * (1 - dones) * q_next
+            )  # [batch_size, 1]
 
         # Compute loss
         loss = self.loss_fn(q_values, targets)
@@ -206,7 +216,9 @@ class DQNAgent(BaseAgent):
                 # Soft update: θ_target = (1-τ)θ_target + τθ_online
                 with torch.no_grad():
                     for p_t, p in zip(self.q_target.parameters(), self.q.parameters()):
-                        p_t.data.mul_(1.0 - self.config.tau).add_(self.config.tau * p.data)
+                        p_t.data.mul_(1.0 - self.config.tau).add_(
+                            self.config.tau * p.data
+                        )
 
         return loss.item()
 

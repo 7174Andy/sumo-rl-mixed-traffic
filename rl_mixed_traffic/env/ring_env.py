@@ -7,7 +7,11 @@ from pathlib import Path
 import os
 import sys
 
-from rl_mixed_traffic.utils.sumo_utils import get_vehicles_pos_speed, start_traci, compute_ring_length
+from rl_mixed_traffic.utils.sumo_utils import (
+    get_vehicles_pos_speed,
+    start_traci,
+    compute_ring_length,
+)
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 
 if "SUMO_HOME" in os.environ:
@@ -101,20 +105,19 @@ class RingRoadEnv(gym.Env):
         if self.ring_length is None:
             self.ring_length = compute_ring_length(self.agent_id)
 
-    
     def _update_head_speed(self):
         if self.head_id not in traci.vehicle.getIDList():
             return
-        
-        if (self.step_count - self._last_head_update_step) < self.head_speed_change_interval_steps:
+
+        if (
+            self.step_count - self._last_head_update_step
+        ) < self.head_speed_change_interval_steps:
             return
-        
+
         self._last_head_update_step = self.step_count
 
         # sample a new random cruising speed
-        v_target = float(
-            np.random.uniform(self.head_speed_min, self.head_speed_max)
-        )
+        v_target = float(np.random.uniform(self.head_speed_min, self.head_speed_max))
         v_target = float(np.clip(v_target, 0.0, self.v_max))
 
         print(f"Updated head vehicle {self.head_id} speed to {v_target:.2f} m/s")
@@ -182,11 +185,11 @@ class RingRoadEnv(gym.Env):
             warmup += 1
 
         if self.agent_id in traci.vehicle.getIDList():
-            traci.vehicle.setSpeedMode(self.agent_id, 95)   # 0b1011111
+            traci.vehicle.setSpeedMode(self.agent_id, 95)  # 0b1011111
             traci.vehicle.setMaxSpeed(self.agent_id, self.v_max)
             v_now = traci.vehicle.getSpeed(self.agent_id)
             self.cmd_speed = max(0.5, min(v_now, self.v_max))
-        
+
         if self.head_id in traci.vehicle.getIDList():
             traci.vehicle.setMaxSpeed(self.head_id, self.v_max)
 
@@ -194,7 +197,7 @@ class RingRoadEnv(gym.Env):
 
     def render(self):
         return None
-    
+
     def apply_acceleration(self, veh_ids, acc, smooth: bool = True):
         """
         Apply acceleration a over one sim step: v_next = clip(v + a*dt, 0, v_max).
@@ -273,8 +276,7 @@ class RingRoadEnv(gym.Env):
 
         return obs, reward, done, info
 
-
-    def compute_reward(self) -> float:        
+    def compute_reward(self) -> float:
         if self.agent_id not in traci.vehicle.getIDList():
             return 0.0
 
@@ -291,7 +293,9 @@ class RingRoadEnv(gym.Env):
                 ids = list(traci.vehicle.getIDList())
                 pos = {vid: traci.vehicle.getDistance(vid) for vid in ids}
                 pos_ego = pos[self.agent_id]
-                deltas = [(vid, (pos[vid] - pos_ego)) for vid in ids if vid != self.agent_id]
+                deltas = [
+                    (vid, (pos[vid] - pos_ego)) for vid in ids if vid != self.agent_id
+                ]
                 ahead = [(vid, d) for vid, d in deltas if d > 0]
                 if ahead:
                     lead_id, d_gap = min(ahead, key=lambda x: x[1])
@@ -306,7 +310,10 @@ class RingRoadEnv(gym.Env):
                     if self.head_id in traci.vehicle.getIDList():
                         lead_id = self.head_id
                         v_lead = float(traci.vehicle.getSpeed(lead_id))
-                        d_gap = float(traci.vehicle.getDistance(lead_id) - traci.vehicle.getDistance(self.agent_id))
+                        d_gap = float(
+                            traci.vehicle.getDistance(lead_id)
+                            - traci.vehicle.getDistance(self.agent_id)
+                        )
             except traci.TraCIException:
                 lead_id = None
                 d_gap = 1e3
@@ -333,7 +340,7 @@ class RingRoadEnv(gym.Env):
         jerk = getattr(self, "last_jerk", 0.0)
         jerk_max = (self.max_accel - self.min_accel) / self.step_length
         norm_jerk = jerk / max(1e-6, jerk_max)
-        R_jerk = - (norm_jerk ** 2)
+        R_jerk = -(norm_jerk**2)
 
         # Threshold for inefficiency (seconds)
         # TH = d_gap / max(v_ego, v_eps)
@@ -345,13 +352,8 @@ class RingRoadEnv(gym.Env):
         # - Metrics for comparison
         # - Actor-critic method
 
-        R = (
-            0.15 * R_ttc +
-            1.0 * r_d +
-            0.2 * R_jerk
-        )
+        R = 0.15 * R_ttc + 1.0 * r_d + 0.2 * R_jerk
         return float(R)
-
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:

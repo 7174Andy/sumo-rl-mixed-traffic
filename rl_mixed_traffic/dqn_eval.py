@@ -1,13 +1,18 @@
 from rl_mixed_traffic.agents.dqn_agent import DQNAgent
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
-from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper, StateDiscretizer, DiscretizerConfig
+from rl_mixed_traffic.env.discretizer import (
+    DiscretizeActionWrapper,
+    StateDiscretizer,
+    DiscretizerConfig,
+)
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.dqn_config import DQNConfig
 from rl_mixed_traffic.utils.plot_utils import plot_vehicle_speeds
 
 import traci
 
-def make_env(gui: bool=False, num_bins=21):
+
+def make_env(gui: bool = False, num_bins=21):
     sumo_config = SumoConfig(
         sumocfg_path="configs/ring/simulation.sumocfg",
         use_gui=gui,
@@ -21,9 +26,13 @@ def make_env(gui: bool=False, num_bins=21):
     return env
 
 
-def evaluate(agent_path: str, gui: bool = True, num_bins: int = 21, plot_speeds: bool = True):
+def evaluate(
+    agent_path: str, gui: bool = True, num_bins: int = 21, plot_speeds: bool = True
+):
     env = make_env(gui=gui, num_bins=num_bins)
-    state_discretizer = StateDiscretizer(env.observation_space.shape[0], DiscretizerConfig(bins_per_dim=num_bins))
+    state_discretizer = StateDiscretizer(
+        env.observation_space.shape[0], DiscretizerConfig(bins_per_dim=num_bins)
+    )
 
     obs_dim = env.observation_space.shape[0]
 
@@ -73,11 +82,12 @@ def evaluate(agent_path: str, gui: bool = True, num_bins: int = 21, plot_speeds:
                 head_speeds=head_speeds,
                 cav_speeds=cav_speeds,
                 out_path="dqn_results/vehicle_speeds.png",
-                title="DQN Evaluation: Vehicle Speeds"
+                title="DQN Evaluation: Vehicle Speeds",
             )
 
     finally:
         env.close()
+
 
 if __name__ == "__main__":
     evaluate(agent_path="dqn_results/dqn_agent.pth", gui=True, num_bins=21)

@@ -135,6 +135,7 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
     positions_sorted = [positions[i] for i in order]
     return ids_sorted, speeds_sorted, positions_sorted
 
+
 def run_simulation(sim: SumoConfig, num_steps: int):
     """Run a SUMO simulation for a given number of steps."""
     start_traci(sim)

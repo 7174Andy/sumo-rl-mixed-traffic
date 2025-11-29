@@ -128,7 +128,9 @@ class QLearningAgent(BaseAgent):
             state = tuple(state)
 
         if isinstance(next_state, np.ndarray):
-            next_state = tuple(next_state.tolist() if next_state.ndim > 0 else [int(next_state)])
+            next_state = tuple(
+                next_state.tolist() if next_state.ndim > 0 else [int(next_state)]
+            )
         elif not isinstance(next_state, tuple):
             next_state = tuple(next_state)
 
@@ -143,7 +145,9 @@ class QLearningAgent(BaseAgent):
             td_target = reward + self.gamma * np.max(self.q_table[next_state])
 
         # Q-learning update: Q(s,a) ← (1-α)Q(s,a) + α * td_target
-        self.q_table[state][action] = (1 - self.alpha) * current_q + self.alpha * td_target
+        self.q_table[state][action] = (
+            1 - self.alpha
+        ) * current_q + self.alpha * td_target
 
     def save(self, path: str) -> None:
         """Save the Q-table and agent state to a pickle file.
@@ -157,7 +161,9 @@ class QLearningAgent(BaseAgent):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
 
         # Convert defaultdict to plain dict for pickling
-        q_table_dict = {k: np.array(v, dtype=np.float32) for k, v in self.q_table.items()}
+        q_table_dict = {
+            k: np.array(v, dtype=np.float32) for k, v in self.q_table.items()
+        }
 
         state_dict = {
             "q_table": q_table_dict,
