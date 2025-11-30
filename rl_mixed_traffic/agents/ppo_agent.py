@@ -238,6 +238,9 @@ class PPOAgent(BaseAgent):
                 mb_advantages = advantages[mb_indices]
                 mb_returns = returns[mb_indices]
 
+                if not self.continuous:
+                    mb_actions = mb_actions.long().squeeze(-1)
+
                 # Forward pass through network
                 _, new_log_probs, entropy, values = self.network.get_action_and_value(
                     mb_states, mb_actions

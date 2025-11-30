@@ -33,7 +33,7 @@ class RolloutBuffer:
     def clear(self) -> None:
         """Reset the buffer to empty state."""
         self.states: List[np.ndarray] = []
-        self.actions: List[int] = []
+        self.actions: List[np.ndarray] = []
         self.rewards: List[float] = []
         self.values: List[float] = []
         self.log_probs: List[float] = []
@@ -43,7 +43,7 @@ class RolloutBuffer:
     def add(
         self,
         state: np.ndarray,
-        action: int,
+        action: np.ndarray,
         reward: float,
         value: float,
         log_prob: float,
@@ -134,8 +134,9 @@ class RolloutBuffer:
         states = torch.as_tensor(
             np.array(self.states), dtype=torch.float32, device=self.device
         )
+        actions_np = np.array(self.actions)
         actions = torch.as_tensor(
-            np.array(self.actions), dtype=torch.int64, device=self.device
+            actions_np, dtype=torch.float32, device=self.device
         )
         log_probs = torch.as_tensor(
             np.array(self.log_probs), dtype=torch.float32, device=self.device
