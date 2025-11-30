@@ -19,6 +19,10 @@ from sumolib import checkBinary  # finds sumo / sumo-gui binary
 
 SUMO_BINARY = checkBinary("sumo-gui")
 
+def close_traci():
+    if traci.isLoaded():
+        traci.close(False)
+
 
 def start_traci(sim: SumoConfig):
     traci.start(

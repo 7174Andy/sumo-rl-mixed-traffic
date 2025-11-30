@@ -11,8 +11,10 @@ from rl_mixed_traffic.utils.sumo_utils import (
     get_vehicles_pos_speed,
     start_traci,
     compute_ring_length,
+    close_traci,
 )
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
+from rl_mixed_traffic.env.head_vehicle_controller import HeadVehicleController
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
@@ -49,6 +51,7 @@ class RingRoadEnv(gym.Env):
         head_speed_min: float = 5.0,
         head_speed_max: float = 20.0,
         head_id: str = "car0",
+        head_vehicle_controller: HeadVehicleController = None,
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
@@ -58,8 +61,6 @@ class RingRoadEnv(gym.Env):
         self.num_vehicles = num_vehicles
         self.prev_accel = 0.0
         self.last_jerk = 0.0
-
-        # TODO: Linear interpolation?
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
@@ -78,6 +79,15 @@ class RingRoadEnv(gym.Env):
         self.head_speed_max = head_speed_max
         self.head_id = head_id
         self._last_head_update_step = 0
+
+        if head_vehicle_controller is not None:
+            self.head_vehicle_controller = head_vehicle_controller
+        else:
+            self.head_vehicle_controller = HeadVehicleController(
+                head_id=self.head_id,
+                head_speed_min=self.head_speed_min,
+                head_speed_max=self.head_speed_max,
+            )
 
     @property
     def action_space(self):
@@ -106,9 +116,6 @@ class RingRoadEnv(gym.Env):
             self.ring_length = compute_ring_length(self.agent_id)
 
     def _update_head_speed(self):
-        if self.head_id not in traci.vehicle.getIDList():
-            return
-
         if (
             self.step_count - self._last_head_update_step
         ) < self.head_speed_change_interval_steps:
@@ -117,15 +124,7 @@ class RingRoadEnv(gym.Env):
         self._last_head_update_step = self.step_count
 
         # sample a new random cruising speed
-        v_target = float(np.random.uniform(self.head_speed_min, self.head_speed_max))
-        v_target = float(np.clip(v_target, 0.0, self.v_max))
-
-        print(f"Updated head vehicle {self.head_id} speed to {v_target:.2f} m/s")
-        traci.vehicle.setSpeed(self.head_id, v_target)
-
-    def close_traci(self):
-        if traci.isLoaded():
-            traci.close(False)
+        self.head_vehicle_controller.set_random_head_speed()
 
     def get_state(self) -> np.ndarray:
         """Observation = concat([v_norm...N], [p_norm...N]) padded/truncated to max_vehicles.
@@ -170,7 +169,7 @@ class RingRoadEnv(gym.Env):
             np.ndarray: The initial observation.
             dict: An empty info dictionary.
         """
-        self.close_traci()
+        close_traci()
         self.open_traci()
         self.step_count = 0
         self.cmd_speed = 0.0
@@ -332,7 +331,7 @@ class RingRoadEnv(gym.Env):
         R_ttc = -0.02 * ((tau_safe - ttc) / tau_safe) if ttc < tau_safe else 0.0
 
         # headway distance -> penalize being too far
-        print(f"Distance to lead vehicle: {d_gap:.2f} m")
+        # print(f"Distance to lead vehicle: {d_gap:.2f} m")
         gap_threshold = 15.0  # desired headway distance (m)
         r_d = -1.0 if d_gap > gap_threshold else 0.0
 
@@ -366,4 +365,4 @@ class RingRoadEnv(gym.Env):
         return False
 
     def close(self):
-        self.close_traci()
+        close_traci()
