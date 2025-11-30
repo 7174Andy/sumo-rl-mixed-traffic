@@ -4,7 +4,7 @@ import torch
 
 @dataclass
 class PPOConfig:
-    lr: float = 3e-4
+    lr: float = 1e-4
     gamma: float = 0.99
     lam: float = 0.95
     clip_epsilon: float = 0.2
