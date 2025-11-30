@@ -92,7 +92,7 @@ def train(
             )
 
             # Step environment
-            s_next, r, done, truncated, _ = env.step(action)
+            s_next, r, done, _ = env.step(action)
 
             # Store transition
             agent.store_transition(s, action, r, value, log_prob, done)
@@ -102,7 +102,7 @@ def train(
             ep_len += 1
             step_count += 1
 
-            if done or truncated:
+            if done:
                 print(
                     f"Step: {step_count:>7d} | Episode Return: {ep_ret:>8.2f} | "
                     f"Episode Length: {ep_len:>4d} | Updates: {agent.update_count}"

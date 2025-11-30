@@ -88,7 +88,7 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
             a = np.clip(a, env.action_space.low, env.action_space.high)
 
             # Step environment
-            s_next, r, done, truncated, _ = env.step(a)
+            s_next, r, done, _ = env.step(a)
 
             s = s_next
             G += r
