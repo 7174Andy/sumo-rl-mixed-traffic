@@ -156,7 +156,7 @@ class PPOAgent(BaseAgent):
     def store_transition(
         self,
         state: np.ndarray,
-        action: int,
+        action: np.ndarray | int,
         reward: float,
         value: float,
         log_prob: float,

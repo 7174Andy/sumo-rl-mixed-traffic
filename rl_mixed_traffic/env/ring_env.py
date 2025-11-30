@@ -235,24 +235,26 @@ class RingRoadEnv(gym.Env):
                 # jump to v_next immediately
                 traci.vehicle.setSpeed(vid, v_next)
 
-    def step(self, action: int):
+    def step(self, action: np.ndarray | int):
         """Apply the given action and return the new state, reward, and done flag.
 
         Args:
-            action (int): The action to apply.
+            action (np.ndarray | int): The action to apply.
 
         Returns:
             Tuple[int, float, bool]: The new state, reward, and done flag.
         """
         assert self.action_space.contains(action), f"Invalid action: {action}"
 
-        # Apply action
-        if isinstance(action, (list, list, np.ndarray)):
+        # Apply action (extract scalar from array if needed)
+        if isinstance(action, (list, np.ndarray)):
             a = float(np.array(action, dtype=np.float32).reshape(-1)[0])
         else:
             a = float(action)
-            a = float(np.clip(a, self.min_accel, self.max_accel))
 
+        # Clip acceleration to valid range (defensive check)
+        a = float(np.clip(a, self.min_accel, self.max_accel))
+        
         # Jerk calculation
         dt = self.step_length
         jerk = (a - self.prev_accel) / dt if dt > 0 else 0.0

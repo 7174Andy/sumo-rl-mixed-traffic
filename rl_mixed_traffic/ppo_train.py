@@ -77,6 +77,7 @@ def train(
 
     while step_count < total_steps:
         # Collect rollout
+        last_done = False  # Track if the last transition was terminal
         for _ in range(rollout_steps):
             if step_count >= total_steps:
                 break
@@ -101,6 +102,7 @@ def train(
             ep_ret += r
             ep_len += 1
             step_count += 1
+            last_done = done  # Update last_done flag
 
             if done:
                 print(
@@ -111,11 +113,13 @@ def train(
                 s, _ = env.reset()
                 ep_ret, ep_len = 0.0, 0
 
-        # Get last value for bootstrapping (if episode didn't end)
-        if step_count < total_steps:
-            _, last_value, _ = agent.get_action_and_value(s)
+        # Get last value for bootstrapping
+        # If the last transition ended the episode (done=True), use 0.0
+        # Otherwise, bootstrap from the value of the current state
+        if last_done:
+            last_value = 0.0  # Terminal state has zero value
         else:
-            last_value = 0.0  # Terminal state value is 0
+            _, last_value, _ = agent.get_action_and_value(s)
 
         # Update policy
         metrics = agent.learn(last_value=last_value)
