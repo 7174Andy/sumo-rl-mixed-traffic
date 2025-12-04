@@ -80,7 +80,7 @@ class ActorCriticNetwork(nn.Module):
         x = F.relu(self.shared2(x))
 
         if self.continuous:
-            # Continuous: output action mean
+            # Continuous: output action mean (unbounded, will be squashed by tanh later)
             action_mean = self.actor_mean(x)
             actor_output = action_mean
         else:
@@ -118,16 +118,27 @@ class ActorCriticNetwork(nn.Module):
         actor_output, value = self.forward(state)
 
         if self.continuous:
-            # Continuous action space: Gaussian distribution
+            # Continuous action space: Gaussian distribution with tanh squashing
             action_mean = actor_output
             action_std = torch.exp(self.actor_log_std.expand_as(action_mean))
             probs = torch.distributions.Normal(action_mean, action_std)
 
             if action is None:
-                action = probs.sample()
+                # Sample from Gaussian then squash with tanh to [-1, 1]
+                action_raw = probs.sample()
+                action = torch.tanh(action_raw)
+            else:
+                # Action is already squashed (in [-1, 1]), need to reverse tanh for log_prob
+                # atanh: maps [-1, 1] back to unbounded space
+                action_raw = torch.atanh(torch.clamp(action, -0.999, 0.999))
 
-            # Sum log probs across action dimensions for multi-dimensional actions
-            log_prob = probs.log_prob(action).sum(dim=-1)
+            # Compute log probability in unbounded space
+            log_prob = probs.log_prob(action_raw).sum(dim=-1)
+
+            # Adjust log_prob for tanh squashing: log π(a|s) = log μ(u|s) - Σ log(1 - tanh²(u))
+            # This accounts for the change of variables from u (unbounded) to a = tanh(u)
+            log_prob = log_prob - torch.sum(torch.log(1 - action**2 + 1e-6), dim=-1)
+
             entropy = probs.entropy().sum(dim=-1)
         else:
             # Discrete action space: Categorical distribution

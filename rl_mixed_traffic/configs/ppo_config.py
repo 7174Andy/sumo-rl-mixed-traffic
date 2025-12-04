@@ -4,7 +4,7 @@ import torch
 
 @dataclass
 class PPOConfig:
-    lr: float = 1e-4
+    lr: float = 3e-4  # Increased from 1e-4 for better learning
     gamma: float = 0.99
     lam: float = 0.95
     clip_epsilon: float = 0.2

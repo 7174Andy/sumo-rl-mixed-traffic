@@ -83,20 +83,18 @@ def train(
                 break
 
             # Get action, value, and log prob from agent
-            action, value, log_prob = agent.get_action_and_value(s)
+            # action is in [-1, 1] range from tanh
+            action_tanh, value, log_prob = agent.get_action_and_value(s)
 
-            # Clip action to environment bounds
-            action = np.clip(
-                action,
-                env.action_space.low,
-                env.action_space.high,
-            )
+            # Scale action from [-1, 1] (tanh output) to action space bounds [-3, 3]
+            # action_scaled = (action + 1) / 2 * (high - low) + low
+            action_scaled = (action_tanh + 1.0) / 2.0 * (env.action_space.high - env.action_space.low) + env.action_space.low
 
-            # Step environment
-            s_next, r, done, _ = env.step(action)
+            # Step environment with scaled action
+            s_next, r, done, _ = env.step(action_scaled)
 
-            # Store transition
-            agent.store_transition(s, action, r, value, log_prob, done)
+            # Store transition with UNSCALED action (tanh output) for proper PPO training
+            agent.store_transition(s, action_tanh, r, value, log_prob, done)
 
             s = s_next
             ep_ret += r
