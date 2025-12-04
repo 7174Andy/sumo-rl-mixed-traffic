@@ -10,6 +10,6 @@
     <vType id="idm" carFollowModel="IDM" accel="2.0" decel="3.0" tau="1.0" sigma="0.5" minGap="2.5" length="5.0" maxSpeed="30"/>
     <vehicle id="car0" depart="0.00" route="r_0" color="0,0,255" type="idm" departSpeed="10"/>
     <vehicle id="car1" depart="0.00" route="r_0" color="255,0,0" departSpeed="10"/>
-    <vehicle id="car2" depart="2.00" route="r_0" color="0,255,0" departSpeed="10"/>
-    <vehicle id="car3" depart="4.00" route="r_0" color="0,255,0" departSpeed="10"/>
+    <vehicle id="car2" depart="0.00" route="r_0" color="0,255,0" departSpeed="10"/>
+    <vehicle id="car3" depart="0.00" route="r_0" color="0,255,0" departSpeed="10"/>
 </routes>
