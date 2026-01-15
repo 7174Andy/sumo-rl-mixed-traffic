@@ -52,6 +52,13 @@ class RingRoadEnv(gym.Env):
         head_speed_max: float = 20.0,
         head_id: str = "car0",
         head_vehicle_controller: HeadVehicleController = None,
+        # DeeP-LCC reward parameters
+        v_star: float = 15.0,
+        s_star: float = 20.0,
+        weight_v: float = 1.0,
+        weight_s: float = 0.5,
+        weight_u: float = 0.1,
+        spacing_min: float = 5.0,
     ):
         self.sumo_config = sumo_config
         self.agent_id = agent_id
@@ -61,6 +68,14 @@ class RingRoadEnv(gym.Env):
         self.num_vehicles = num_vehicles
         self.prev_accel = 0.0
         self.last_jerk = 0.0
+
+        # DeeP-LCC reward parameters
+        self.v_star = v_star
+        self.s_star = s_star
+        self.weight_v = weight_v
+        self.weight_s = weight_s
+        self.weight_u = weight_u
+        self.spacing_min = spacing_min
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
@@ -354,6 +369,80 @@ class RingRoadEnv(gym.Env):
         # - Actor-critic method
 
         R = 0.15 * R_ttc + 1.0 * r_d + 0.2 * R_jerk
+        return float(R)
+    
+    def compute_lcc_reward(self) -> float:
+        """Compute reward based on DeeP-LCC cost function.
+
+        The DeeP-LCC optimization minimizes ||y||²_Q + ||u||²_R where:
+        - y contains velocity and spacing errors from equilibrium
+        - u is the control input (acceleration)
+
+        This translates to a reward (negative cost):
+        R = -(weight_v * (v - v_star)² + weight_s * (s - s_star)² + weight_u * u²)
+
+        Note: v_star is dynamically set to the head vehicle's current velocity,
+        representing the equilibrium velocity the agent should track.
+
+        Returns:
+            float: Total reward computed
+        """
+        if self.agent_id not in traci.vehicle.getIDList():
+            return 0.0
+
+        # Get ego velocity
+        v_ego = traci.vehicle.getSpeed(self.agent_id)
+
+        # Get v_star from head vehicle's current velocity
+        if self.head_id in traci.vehicle.getIDList():
+            v_star = traci.vehicle.getSpeed(self.head_id)
+        else:
+            v_star = self.v_star  # Fallback to default if head vehicle not present
+
+        # Calculate s_star using OVM-type spacing policy
+        # s_star = acos(1 - v_star/v_max * 2) / pi * (s_go - s_st) + s_st
+        # where s_st = 5 (stop spacing), s_go = 35 (free-flow spacing)
+        v_ratio = max(0.0, min(v_star / self.v_max, 1.0))  # Clamp to [0, 1] for acos domain
+        s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
+
+        # Get gap to leader using existing logic
+        d_gap = 1e9
+        lead = traci.vehicle.getLeader(self.agent_id)
+        if lead:
+            _, d_gap = lead
+        else:
+            try:
+                ids = list(traci.vehicle.getIDList())
+                pos = {vid: traci.vehicle.getDistance(vid) for vid in ids}
+                pos_ego = pos[self.agent_id]
+                deltas = [
+                    (vid, (pos[vid] - pos_ego)) for vid in ids if vid != self.agent_id
+                ]
+                ahead = [(vid, d) for vid, d in deltas if d > 0]
+                if ahead:
+                    _, d_gap = min(ahead, key=lambda x: x[1])
+                elif deltas:
+                    _, d_gap = min(deltas, key=lambda x: abs(x[1]))
+            except traci.TraCIException:
+                d_gap = 1e3
+
+        # Current acceleration (from previous action)
+        accel = self.prev_accel
+
+        # Quadratic penalties (negated for reward maximization)
+        v_error = v_ego - v_star
+        s_error = d_gap - s_star
+
+        R_velocity = -self.weight_v * (v_error**2)
+        R_spacing = -self.weight_s * (s_error**2)
+        R_control = -self.weight_u * (accel**2)
+
+        R = R_velocity + R_spacing + R_control
+
+        # Safety constraint as hard penalty
+        if d_gap < self.spacing_min:
+            R -= 100.0
+
         return float(R)
 
     def terminal(self) -> bool:
