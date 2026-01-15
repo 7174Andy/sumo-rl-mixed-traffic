@@ -4,7 +4,6 @@ from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.agents.ppo_agent import PPOAgent
 
 from rl_mixed_traffic.utils.plot_utils import plot_returns, plot_ppo_metrics
-import numpy as np
 
 
 def make_env(gui: bool = False):

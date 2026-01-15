@@ -1,3 +1,5 @@
+from tqdm import trange
+
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.discretizer import DiscretizeActionWrapper
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
@@ -39,7 +41,7 @@ def train(total_steps: int = 350_000, num_bins=21):
     ep_ret, ep_len = 0.0, 0
     losses = []
 
-    for t in range(1, total_steps + 1):
+    for t in trange(1, total_steps + 1):
         a = agent.act(state=s)
         # print(f"Step: {t}, Action: {env.actions[a]}")
         s_next, r, done, _ = env.step(a)
