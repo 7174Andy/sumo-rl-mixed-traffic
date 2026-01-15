@@ -5,6 +5,7 @@ dependencies = [
   "matplotlib>=3.10.7",
   "torch>=2.9.0",
   "ffmpeg-python>=0.2.0",
+  "tqdm>=4.67.1",
 ]
 description = "Add your description here"
 name = "sumo-rl-mixed-traffic"
