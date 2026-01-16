@@ -286,7 +286,8 @@ class RingRoadEnv(gym.Env):
         self.step_count += 1
 
         obs = self.get_state()
-        reward = self.compute_reward()
+        # reward = self.compute_reward()
+        reward = self.compute_lcc_reward()
         done = self.terminal()
         info = {}
 
