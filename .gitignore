@@ -19,3 +19,6 @@ uv.lock
 
 # VS Code settings
 .vscode/
+
+# scratch
+/scratch
