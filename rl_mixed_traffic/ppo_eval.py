@@ -82,10 +82,13 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
                 cav_speeds.append(0.0)
 
             # Get action from agent (deterministic evaluation)
-            a = agent.act(state=s, eval_mode=True)
+            # agent.act() returns tanh-squashed action in [-1, 1]
+            a_tanh = agent.act(state=s, eval_mode=True)
+            print(a_tanh)
 
-            # Clip action to environment bounds
-            a = np.clip(a, env.action_space.low, env.action_space.high)
+            # Scale from [-1, 1] to action space bounds [-3, 3]
+            # This matches the scaling used during training in ppo_train.py
+            a = (a_tanh + 1.0) / 2.0 * (env.action_space.high - env.action_space.low) + env.action_space.low
 
             # Step environment
             s_next, r, done, _ = env.step(a)
