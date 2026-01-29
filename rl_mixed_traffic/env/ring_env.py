@@ -283,7 +283,7 @@ class RingRoadEnv(gym.Env):
         self._update_head_speed()
 
         traci.simulationStep()
-        # time.sleep(0.01)  # to avoid busy waiting
+        time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
         obs = self.get_state()
@@ -448,6 +448,10 @@ class RingRoadEnv(gym.Env):
         # Safety constraint as hard penalty
         if d_gap < self.spacing_min:
             R -= 100.0
+
+        # Scale reward to keep per-step values in a PPO-friendly range
+        # Worst case unscaled ≈ -560; after /100 → ≈ -5.6
+        R /= 100.0
 
         return float(R)
 
