@@ -120,7 +120,8 @@ class ActorCriticNetwork(nn.Module):
         if self.continuous:
             # Continuous action space: Gaussian distribution with tanh squashing
             action_mean = actor_output
-            action_std = torch.exp(self.actor_log_std.expand_as(action_mean))
+            log_std = torch.clamp(self.actor_log_std, min=-2.0, max=0.5)
+            action_std = torch.exp(log_std.expand_as(action_mean))
             probs = torch.distributions.Normal(action_mean, action_std)
 
             if action is None:
