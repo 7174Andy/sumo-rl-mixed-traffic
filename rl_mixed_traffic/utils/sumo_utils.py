@@ -109,9 +109,10 @@ def compute_ring_length(agent_id: str) -> float:
 
 
 def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
-    """Return lists (ids_sorted, speeds_mps_sorted, positions_m_sorted_mod) sorted by position along ring.
+    """Return lists (ids_sorted, speeds_mps_sorted, positions_m_sorted_mod) sorted by vehicle ID.
 
-    Position is based on distance traveled (mod ring length) for ring-road stability.
+    Sorting by ID ensures each index in the observation vector always corresponds
+    to the same vehicle, stabilizing the input mapping for RL training.
     """
     ids = [vid for vid in traci.vehicle.getIDList()]
     if not ids:
@@ -133,7 +134,7 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
         positions.append(s_wrapped)
         speeds.append(float(v))
 
-    order = np.argsort(positions)
+    order = sorted(range(len(ids)), key=lambda i: ids[i])
     ids_sorted = [ids[i] for i in order]
     speeds_sorted = [speeds[i] for i in order]
     positions_sorted = [positions[i] for i in order]

@@ -143,6 +143,7 @@ class RingRoadEnv(gym.Env):
 
     def get_state(self) -> np.ndarray:
         """Observation = concat([v_norm...N], [p_norm...N]) padded/truncated to max_vehicles.
+        Vehicles are sorted by ID so each index always maps to the same vehicle.
         v_norm = speed / v_max
         p_norm = position / ring_length
         """
