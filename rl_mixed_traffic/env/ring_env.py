@@ -55,8 +55,8 @@ class RingRoadEnv(gym.Env):
         # DeeP-LCC reward parameters
         v_star: float = 15.0,
         s_star: float = 20.0,
-        weight_v: float = 1.0,
-        weight_s: float = 0.5,
+        weight_v: float = 0.8,
+        weight_s: float = 0.7,
         weight_u: float = 0.1,
         spacing_min: float = 5.0,
     ):
@@ -282,7 +282,7 @@ class RingRoadEnv(gym.Env):
         self._update_head_speed()
 
         traci.simulationStep()
-        time.sleep(0.01)  # to avoid busy waiting
+        # time.sleep(0.01)  # to avoid busy waiting
         self.step_count += 1
 
         obs = self.get_state()
@@ -399,11 +399,13 @@ class RingRoadEnv(gym.Env):
             v_star = traci.vehicle.getSpeed(self.head_id)
         else:
             v_star = self.v_star  # Fallback to default if head vehicle not present
+            
+        # print(f"Speed of the Head Vehicle {self.head_id}: {v_star}")
 
         # Calculate s_star using OVM-type spacing policy
         # s_star = acos(1 - v_star/v_max * 2) / pi * (s_go - s_st) + s_st
         # where s_st = 5 (stop spacing), s_go = 35 (free-flow spacing)
-        v_ratio = max(0.0, min(v_star / self.v_max, 1.0))  # Clamp to [0, 1] for acos domain
+        v_ratio = max(0.0, min(15 / self.v_max, 1.0))  # Clamp to [0, 1] for acos domain
         s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
 
         # Get gap to leader using existing logic
@@ -426,13 +428,15 @@ class RingRoadEnv(gym.Env):
                     _, d_gap = min(deltas, key=lambda x: abs(x[1]))
             except traci.TraCIException:
                 d_gap = 1e3
+                
+        # print(f"Gap between lead: {d_gap}")
 
         # Current acceleration (from previous action)
         accel = self.prev_accel
 
         # Quadratic penalties (negated for reward maximization)
-        v_error = v_ego - v_star
-        s_error = d_gap - s_star
+        v_error = v_ego - 15
+        s_error = np.clip(d_gap - s_star, -20.0, 20.0)
 
         R_velocity = -self.weight_v * (v_error**2)
         R_spacing = -self.weight_s * (s_error**2)
