@@ -28,7 +28,7 @@ def make_env(gui: bool = False):
 
 
 def train(
-    total_steps: int = 500_000,
+    total_steps: int = 600_000,
     rollout_steps: int = 2048,
     save_freq: int = 50_000,
 ):
