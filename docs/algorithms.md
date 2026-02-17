@@ -204,6 +204,128 @@ Still, the action space is discretized, which may limit the optimality of the le
 
 ## 3. Proximal Policy Optimization (PPO)
 
+### 3.1 Overview
+
+PPO is an on-policy, policy-gradient algorithm that directly optimizes a parameterized policy $\pi_\theta(a \mid s)$ rather than learning action values. Unlike Q-learning and DQN, PPO naturally handles **continuous action spaces** — the policy outputs a Gaussian distribution over accelerations, eliminating the need for action discretization and enabling fine-grained, smooth control.
+
+The implementation uses an **Actor-Critic** architecture with a clipped surrogate objective and Generalized Advantage Estimation (GAE) [[2]](#references).
+
+### 3.2 Network Architecture
+
+The Actor-Critic network shares feature extraction layers between the policy (actor) and the value function (critic):
+
+$$
+\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\text{ReLU}} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\text{ReLU}} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
+$$
+
+| Layer         | Input dim | Output dim | Activation |
+| ------------- | --------- | ---------- | ---------- |
+| `shared1`     | $2N$      | 256        | ReLU       |
+| `shared2`     | 256       | 256        | ReLU       |
+| `actor_mean`  | 256       | $d_a$      | None       |
+| `critic_head` | 256       | 1          | None       |
+
+**Gaussian policy**: The actor outputs a mean $\mu_\theta(s)$ and uses a learnable, state-independent log standard deviation $\log \sigma$ (clamped to $[-2.0, 0.5]$). Actions are sampled from $\mathcal{N}(\mu, \sigma^2)$ and squashed through $\tanh$ to produce bounded outputs in $[-1, 1]$, which are then rescaled to the acceleration range $[-3, 3]$ m/s².
+
+The log-probability is corrected for the tanh change of variables:
+
+$$
+\log \pi(a \mid s) = \log \mu(u \mid s) - \sum_i \log(1 - \tanh^2(u_i))
+$$
+
+where $u$ is the pre-squashed sample.
+
+### 3.3 Clipped Surrogate Objective
+
+PPO constrains policy updates using a clipped probability ratio to prevent destructively large steps:
+
+$$
+L^{\text{CLIP}} = \mathbb{E}\Bigl[\min\bigl(r_t \hat{A}_t,\;\; \text{clip}(r_t, 1-\epsilon, 1+\epsilon)\,\hat{A}_t\bigr)\Bigr]
+$$
+
+where:
+
+- $r_t = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_\text{old}}(a_t \mid s_t)}$ is the probability ratio between new and old policies.
+- $\hat{A}_t$ is the estimated advantage (see Section 3.4).
+- $\epsilon = 0.2$ is the clipping threshold.
+
+The $\min$ ensures that when the advantage is positive, the ratio cannot exceed $1 + \epsilon$, and when negative, it cannot fall below $1 - \epsilon$. This creates a trust region that keeps the updated policy close to the data-collecting policy.
+
+### 3.4 Generalized Advantage Estimation (GAE)
+
+Advantages are computed using GAE, which provides a tunable bias-variance tradeoff via the $\lambda$ parameter:
+
+$$
+\hat{A}_t = \sum_{l=0}^{T-t-1} (\gamma \lambda)^l \delta_{t+l}
+$$
+
+where the TD residual is:
+
+$$
+\delta_t = r_t + \gamma\,(1 - d_t)\,V(s_{t+1}) - V(s_t)
+$$
+
+- When $\lambda = 0$: pure one-step TD (low variance, high bias).
+- When $\lambda = 1$: Monte Carlo return (high variance, low bias).
+- Default $\lambda = 0.95$ balances both.
+
+Returns for the value function target are computed as $R_t = \hat{A}_t + V(s_t)$.
+
+### 3.5 Training Loop
+
+PPO uses a **rollout-based** training loop that alternates between data collection and policy updates:
+
+1. **Collect rollout**: Run the current policy for 2,048 steps, storing $(s, a, r, V(s), \log\pi(a|s), d)$ in the rollout buffer.
+2. **Compute advantages**: Apply GAE over the collected rollout, bootstrapping from $V(s_T)$ if the episode did not terminate.
+3. **Normalize advantages**: Subtract mean and divide by standard deviation for training stability.
+4. **Minibatch updates**: For $K = 10$ epochs, shuffle the rollout data and iterate over minibatches of size 64:
+   - Recompute $\log\pi_\theta(a|s)$ and $V_\theta(s)$ under the current parameters.
+   - Compute the clipped policy loss, value loss (MSE), and entropy bonus.
+   - Minimize the combined loss: $L = L^{\text{CLIP}} + c_v L^{\text{value}} + c_e L^{\text{entropy}}$.
+   - Clip gradients by global norm to 0.5.
+5. **Clear buffer** and repeat from step 1.
+
+### 3.6 Loss Function
+
+The total loss combines three terms:
+
+$$
+L = L^{\text{CLIP}} + c_v \cdot \text{MSE}\bigl(V_\theta(s),\; R_t\bigr) - c_e \cdot H[\pi_\theta(\cdot \mid s)]
+$$
+
+| Term          | Coefficient  | Purpose                                 |
+| ------------- | ------------ | --------------------------------------- |
+| Policy loss   | 1.0          | Maximize clipped advantage              |
+| Value loss    | $c_v = 0.5$  | Fit value function to returns           |
+| Entropy bonus | $c_e = 0.01$ | Encourage exploration, prevent collapse |
+
+### 3.7 Hyperparameters
+
+| Parameter            | Symbol     | Default            |
+| -------------------- | ---------- | ------------------ |
+| Learning rate        | $\eta$     | $3 \times 10^{-4}$ |
+| Discount factor      | $\gamma$   | 0.99               |
+| GAE lambda           | $\lambda$  | 0.95               |
+| Clip epsilon         | $\epsilon$ | 0.2                |
+| Epochs per update    | $K$        | 10                 |
+| Minibatch size       | —          | 64                 |
+| Value coefficient    | $c_v$      | 0.5                |
+| Entropy coefficient  | $c_e$      | 0.01               |
+| Max gradient norm    | —          | 0.5                |
+| Rollout steps        | —          | 2,048              |
+| Total training steps | —          | 600,000            |
+| Hidden dim           | —          | 256                |
+
+### 3.8 Results
+
+![PPO Training Curves](assets/images/ppo_training_metrics.png)
+
+![PPO Training Returns](assets/images/ppo_training_returns.png)
+
+![PPO Performance](assets/images/ppo_inference.png)
+
 ## References
 
 [1] Mnih, V., Kavukcuoglu, K., Silver, D., Graves, A., Antonoglou, I., Wierstra, D., & Riedmiller, M. (2013). Playing Atari with Deep Reinforcement Learning. arXiv [Cs.LG]. Retrieved from http://arxiv.org/abs/1312.5602
+
+[2] Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). Proximal Policy Optimization Algorithms. arXiv [Cs.LG]. Retrieved from http://arxiv.org/abs/1707.06347
