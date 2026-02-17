@@ -1,6 +1,6 @@
 site_name: SUMO RL Mixed Traffic
 site_description: Reinforcement learning for traffic flow optimization using SUMO
-repo_url: https://github.com/andrewpark/sumo-rl-mixed-traffic
+repo_url: https://github.com/7174Andy/sumo-rl-mixed-traffic
 
 theme:
   name: material
