@@ -11,8 +11,10 @@
       
       
       
-        <link rel="prev" href="../problem/">
+        <link rel="prev" href="..">
       
+      
+        <link rel="next" href="../algorithms/">
       
       
         
@@ -23,7 +25,7 @@
     
     
       
-        <title>Algorithms - SUMO RL Mixed Traffic</title>
+        <title>Problem Formulation - SUMO RL Mixed Traffic</title>
       
     
     
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#algorithms" class="md-skip">
+        <a href="#problem-formulation" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Algorithms
+              Problem Formulation
             
           </span>
         </div>
@@ -280,33 +282,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../problem/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Problem Formulation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
@@ -326,7 +301,7 @@
   <span class="md-ellipsis">
     
   
-    Algorithms
+    Problem Formulation
   
 
     
@@ -344,7 +319,7 @@
   <span class="md-ellipsis">
     
   
-    Algorithms
+    Problem Formulation
   
 
     
@@ -370,66 +345,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-tabular-q-learning" class="md-nav__link">
+  <a href="#11-environment-ring-road-mixed-traffic" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Tabular Q-Learning
+        1.1 Environment: Ring Road Mixed Traffic
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="1. Tabular Q-Learning">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-state-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 State Space
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-action-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Action Space
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.3 Action Space">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#11-overview" class="md-nav__link">
+  <a href="#discretization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.1 Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#12-state-discretization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.2 State Discretization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#13-update-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.3 Update Rule
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#14-exploration-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.4 Exploration Strategy
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#15-hyperparameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.5 Hyperparameters
+        Discretization
       
     </span>
   </a>
@@ -442,22 +395,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-deep-q-network-dqn" class="md-nav__link">
+  <a href="#14-reward-function" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Deep Q-Network (DQN)
+        1.4 Reward Function
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2. Deep Q-Network (DQN)">
+    <nav class="md-nav" aria-label="1.4 Reward Function">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#21-overview" class="md-nav__link">
+  <a href="#components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1 Overview
+        Components
       
     </span>
   </a>
@@ -465,10 +418,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#22-network-architecture" class="md-nav__link">
+  <a href="#total-reward" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.2 Network Architecture
+        Total Reward
       
     </span>
   </a>
@@ -476,54 +429,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#23-double-dqn" class="md-nav__link">
+  <a href="#default-weights" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.3 Double DQN
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#24-experience-replay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.4 Experience Replay
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25-target-network" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 Target Network
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#26-training-details" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.6 Training Details
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#27-hyperparameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.7 Hyperparameters
+        Default Weights
       
     </span>
   </a>
@@ -550,6 +459,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -581,66 +517,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-tabular-q-learning" class="md-nav__link">
+  <a href="#11-environment-ring-road-mixed-traffic" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Tabular Q-Learning
+        1.1 Environment: Ring Road Mixed Traffic
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="1. Tabular Q-Learning">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-state-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 State Space
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-action-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Action Space
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.3 Action Space">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#11-overview" class="md-nav__link">
+  <a href="#discretization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.1 Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#12-state-discretization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.2 State Discretization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#13-update-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.3 Update Rule
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#14-exploration-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.4 Exploration Strategy
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#15-hyperparameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.5 Hyperparameters
+        Discretization
       
     </span>
   </a>
@@ -653,22 +567,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-deep-q-network-dqn" class="md-nav__link">
+  <a href="#14-reward-function" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Deep Q-Network (DQN)
+        1.4 Reward Function
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2. Deep Q-Network (DQN)">
+    <nav class="md-nav" aria-label="1.4 Reward Function">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#21-overview" class="md-nav__link">
+  <a href="#components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1 Overview
+        Components
       
     </span>
   </a>
@@ -676,10 +590,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#22-network-architecture" class="md-nav__link">
+  <a href="#total-reward" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.2 Network Architecture
+        Total Reward
       
     </span>
   </a>
@@ -687,54 +601,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#23-double-dqn" class="md-nav__link">
+  <a href="#default-weights" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.3 Double DQN
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#24-experience-replay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.4 Experience Replay
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25-target-network" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 Target Network
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#26-training-details" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.6 Training Details
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#27-hyperparameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.7 Hyperparameters
+        Default Weights
       
     </span>
   </a>
@@ -777,48 +647,133 @@
   
 
 
-<h1 id="algorithms">Algorithms<a class="headerlink" href="#algorithms" title="Permanent link">&para;</a></h1>
-<h2 id="1-tabular-q-learning">1. Tabular Q-Learning<a class="headerlink" href="#1-tabular-q-learning" title="Permanent link">&para;</a></h2>
-<h3 id="11-overview">1.1 Overview<a class="headerlink" href="#11-overview" title="Permanent link">&para;</a></h3>
-<!-- High-level description of tabular Q-learning and why it applies here. -->
-
-<h3 id="12-state-discretization">1.2 State Discretization<a class="headerlink" href="#12-state-discretization" title="Permanent link">&para;</a></h3>
-<!-- Explain uniform binning, number of bins per dimension, and the position heavy-tail mode. -->
-
-<h3 id="13-update-rule">1.3 Update Rule<a class="headerlink" href="#13-update-rule" title="Permanent link">&para;</a></h3>
-<!-- Present the Q-learning update equation and explain each term. -->
-
-<h3 id="14-exploration-strategy">1.4 Exploration Strategy<a class="headerlink" href="#14-exploration-strategy" title="Permanent link">&para;</a></h3>
-<!-- Describe epsilon-greedy exploration with linear decay schedule. -->
-
-<h3 id="15-hyperparameters">1.5 Hyperparameters<a class="headerlink" href="#15-hyperparameters" title="Permanent link">&para;</a></h3>
-<!-- Table of key hyperparameters: learning rate, discount factor, epsilon schedule, number of episodes. -->
-
+<h1 id="problem-formulation">Problem Formulation<a class="headerlink" href="#problem-formulation" title="Permanent link">&para;</a></h1>
+<h2 id="11-environment-ring-road-mixed-traffic">1.1 Environment: Ring Road Mixed Traffic<a class="headerlink" href="#11-environment-ring-road-mixed-traffic" title="Permanent link">&para;</a></h2>
+<p>This project studies a <strong>single-lane ring road</strong> where one RL-controlled autonomous vehicle (CAV) shares the road with a human-driven head vehicle. The ring topology eliminates boundary effects (on-ramps, traffic lights) and isolates the core car-following dynamics.</p>
+<p>The head vehicle (<code>car0</code>) periodically changes its cruising speed at random, creating disturbances that propagate through the ring. The AV (<code>car1</code>) must learn a speed-control policy that maintains safe following distances, tracks the traffic flow, and avoids abrupt acceleration changes.</p>
+<p>The problem is formulated as a <strong>Markov Decision Process (MDP)</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>State</strong></td>
+<td>Normalized velocities and positions of all vehicles on the ring</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Longitudinal acceleration command applied to the CAV</td>
+</tr>
+<tr>
+<td><strong>Reward</strong></td>
+<td>Quadratic cost penalizing velocity error, spacing error, and control effort</td>
+</tr>
+<tr>
+<td><strong>Transition</strong></td>
+<td>Determined by SUMO's car-following models and the applied acceleration</td>
+</tr>
+</tbody>
+</table>
+<p>The simulation runs at a time step of <span class="arithmatex">\(\Delta t = 0.1\,\text{s}\)</span>, and each episode lasts up to 500 s (5,000 steps).</p>
 <hr />
-<h2 id="2-deep-q-network-dqn">2. Deep Q-Network (DQN)<a class="headerlink" href="#2-deep-q-network-dqn" title="Permanent link">&para;</a></h2>
-<h3 id="21-overview">2.1 Overview<a class="headerlink" href="#21-overview" title="Permanent link">&para;</a></h3>
-<!-- High-level description of DQN and motivation for using it over tabular methods. -->
-
-<h3 id="22-network-architecture">2.2 Network Architecture<a class="headerlink" href="#22-network-architecture" title="Permanent link">&para;</a></h3>
-<!-- Describe the 2-layer MLP: input size, hidden sizes, activation functions, output size. -->
-
-<h3 id="23-double-dqn">2.3 Double DQN<a class="headerlink" href="#23-double-dqn" title="Permanent link">&para;</a></h3>
-<!-- Explain the Double DQN modification and how it reduces overestimation bias. -->
-
-<h3 id="24-experience-replay">2.4 Experience Replay<a class="headerlink" href="#24-experience-replay" title="Permanent link">&para;</a></h3>
-<!-- Describe the replay buffer, sampling strategy, and buffer size. -->
-
-<h3 id="25-target-network">2.5 Target Network<a class="headerlink" href="#25-target-network" title="Permanent link">&para;</a></h3>
-<!-- Explain hard vs. soft target network updates and update frequency. -->
-
-<h3 id="26-training-details">2.6 Training Details<a class="headerlink" href="#26-training-details" title="Permanent link">&para;</a></h3>
-<!-- Loss function (Huber/SmoothL1), optimizer, gradient clipping, and training loop structure. -->
-
-<h3 id="27-hyperparameters">2.7 Hyperparameters<a class="headerlink" href="#27-hyperparameters" title="Permanent link">&para;</a></h3>
-<!-- Table of key hyperparameters: learning rate, batch size, buffer size, epsilon schedule, target update frequency. -->
-
+<h2 id="12-state-space">1.2 State Space<a class="headerlink" href="#12-state-space" title="Permanent link">&para;</a></h2>
+<p>The observation is a fixed-length vector of normalized velocities and positions for all <span class="arithmatex">\(N\)</span> vehicles:</p>
+<div class="arithmatex">\[
+\mathbf{s} = \bigl[\underbrace{v_0/v_{\max},\;\dots,\;v_{N-1}/v_{\max}}_{\text{velocities}},\;\underbrace{p_0/L,\;\dots,\;p_{N-1}/L}_{\text{positions}}\bigr]
+\]</div>
+<p>where:</p>
+<ul>
+<li><span class="arithmatex">\(v_{\max} = 30\;\text{m/s}\)</span> is the maximum speed.</li>
+<li><span class="arithmatex">\(L\)</span> is the ring circumference (computed from the SUMO network at startup).</li>
+<li>Vehicles are <strong>sorted by ID</strong> so each index always maps to the same vehicle.</li>
+<li>If fewer than <span class="arithmatex">\(N\)</span> vehicles are present, the vector is <strong>zero-padded</strong> to maintain a fixed shape of <span class="arithmatex">\((2N,)\)</span>.</li>
+<li>All values are clipped to <span class="arithmatex">\([0, 1]\)</span>.</li>
+</ul>
+<p>For the default two-vehicle scenario, the observation has shape <span class="arithmatex">\((4,)\)</span>: <code>[v_head, v_agent, p_head, p_agent]</code>.</p>
+<hr />
+<h2 id="13-action-space">1.3 Action Space<a class="headerlink" href="#13-action-space" title="Permanent link">&para;</a></h2>
+<p>The native action space is a <strong>continuous scalar acceleration</strong>:</p>
+<div class="arithmatex">\[
+a \in [a_{\min},\; a_{\max}] = [-3.0,\; 3.0]\;\text{m/s}^2
+\]</div>
+<p>The acceleration is integrated into velocity each step:</p>
+<div class="arithmatex">\[
+v_{t+1} = \text{clip}\bigl(v_t + a \cdot \Delta t,\; 0,\; v_{\max}\bigr)
+\]</div>
+<p>and applied to the vehicle via TraCI's <code>setSpeed()</code> for immediate response.</p>
+<h3 id="discretization">Discretization<a class="headerlink" href="#discretization" title="Permanent link">&para;</a></h3>
+<p>Because both Q-learning and DQN operate over discrete actions, the continuous range is discretized into <span class="arithmatex">\(n\)</span> evenly spaced bins using <code>DiscretizeActionWrapper</code>:</p>
+<div class="arithmatex">\[
+\mathcal{A} = \bigl\{a_{\min},\;\; a_{\min} + \delta,\;\; a_{\min} + 2\delta,\;\;\dots,\;\; a_{\max}\bigr\}, \quad \delta = \frac{a_{\max} - a_{\min}}{n - 1}
+\]</div>
+<hr />
+<h2 id="14-reward-function">1.4 Reward Function<a class="headerlink" href="#14-reward-function" title="Permanent link">&para;</a></h2>
+<p>The active reward function is based on the <strong>DeeP-LCC</strong> <a href="#references">[1]</a> cost formulation, which penalizes deviations from equilibrium velocity, desired spacing, and excessive control effort.</p>
+<h3 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h3>
+<p><strong>Velocity error</strong> — penalizes deviation from the target speed (<span class="arithmatex">\(v^{*} = 15\;\text{m/s}\)</span>):</p>
+<div class="arithmatex">\[
+R_v = -w_v \cdot (v_{\text{ego}} - v^{*})^2
+\]</div>
+<p><strong>Spacing error</strong> — penalizes deviation from the OVM equilibrium spacing <span class="arithmatex">\(s^{*}\)</span>:</p>
+<div class="arithmatex">\[
+R_s = -w_s \cdot \bigl(\text{clip}(d_{\text{gap}} - s^{*},\;-20,\;20)\bigr)^2
+\]</div>
+<p>where <span class="arithmatex">\(s^{*}\)</span> is computed using the Optimal Velocity Model (OVM):</p>
+<div class="arithmatex">\[
+s^{*} = \frac{\arccos\!\bigl(1 - 2\,v^{*}/v_{\max}\bigr)}{\pi}\,(s_{\text{go}} - s_{\text{st}}) + s_{\text{st}}
+\]</div>
+<p>with <span class="arithmatex">\(s_{\text{st}} = 5\;\text{m}\)</span> (stop spacing) and <span class="arithmatex">\(s_{\text{go}} = 35\;\text{m}\)</span> (free-flow spacing).</p>
+<p><strong>Control effort</strong> — penalizes large accelerations for smooth driving:</p>
+<div class="arithmatex">\[
+R_u = -w_u \cdot a^2
+\]</div>
+<p><strong>Safety constraint</strong> — a hard penalty when the gap falls below a minimum:</p>
+<div class="arithmatex">\[
+R_{\text{safety}} = \begin{cases} -100 &amp; \text{if } d_{\text{gap}} &lt; s_{\min} \\ 0 &amp; \text{otherwise} \end{cases}
+\]</div>
+<h3 id="total-reward">Total Reward<a class="headerlink" href="#total-reward" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[
+R = \frac{R_v + R_s + R_u + R_{\text{safety}}}{100}
+\]</div>
+<p>The division by 100 scales per-step values into a range suitable for policy gradient methods.</p>
+<h3 id="default-weights">Default Weights<a class="headerlink" href="#default-weights" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Symbol</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Velocity</td>
+<td><span class="arithmatex">\(w_v\)</span></td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>Spacing</td>
+<td><span class="arithmatex">\(w_s\)</span></td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>Control</td>
+<td><span class="arithmatex">\(w_u\)</span></td>
+<td>0.1</td>
+</tr>
+<tr>
+<td>Min gap</td>
+<td><span class="arithmatex">\(s_{\min}\)</span></td>
+<td>5.0 m</td>
+</tr>
+</tbody>
+</table>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
-<!-- List relevant papers and resources. -->
+<p>[1] Wang, J., Zheng, Y., Li, K., &amp; Xu, Q. (2023). DeeP-LCC: Data-EnablEd Predictive Leading Cruise Control in Mixed Traffic Flow. IEEE Transactions on Control Systems Technology, 31(6), 2760–2776. doi:10.1109/tcst.2023.3288636</p>
 
 
 
