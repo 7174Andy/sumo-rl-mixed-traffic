@@ -1,0 +1,43 @@
+name: Deploy MkDocs to GitHub Pages
+
+on:
+    push:
+        branches:
+            - main
+
+concurrency:
+    group: docs-deployment
+    cancel-in-progress: true
+
+jobs:
+    docs:
+        name: Docs
+        runs-on: "ubuntu-latest"
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup UV
+              uses: astral-sh/setup-uv@v6
+              with:
+                  python-version: "3.13"
+
+            - name: Install dependencies
+              run: |
+                  uv sync --extra docs
+
+            - name: Setup Git user
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Deploy docs
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  uv run mike deploy --update-aliases --allow-empty --push latest
+                  uv run mike set-default --push latest

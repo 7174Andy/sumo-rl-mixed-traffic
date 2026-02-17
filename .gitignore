@@ -22,3 +22,6 @@ uv.lock
 
 # scratch
 /scratch
+
+# MkDocs build output
+site/
