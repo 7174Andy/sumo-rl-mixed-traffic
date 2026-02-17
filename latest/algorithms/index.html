@@ -577,6 +577,100 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3. Proximal Policy Optimization (PPO)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-network-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Network Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-clipped-surrogate-objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Clipped Surrogate Objective
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-generalized-advantage-estimation-gae" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Generalized Advantage Estimation (GAE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-training-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Training Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-loss-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6 Loss Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7 Hyperparameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#38-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.8 Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -831,6 +925,100 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3. Proximal Policy Optimization (PPO)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-network-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Network Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-clipped-surrogate-objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Clipped Surrogate Objective
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-generalized-advantage-estimation-gae" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Generalized Advantage Estimation (GAE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-training-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Training Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-loss-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6 Loss Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7 Hyperparameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#38-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.8 Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1160,8 +1348,206 @@ y = r + \gamma\,(1 - d)\,Q_{\theta^-}(s', a^*)
 <h3 id="29-problems-and-limitations">2.9 Problems and Limitations<a class="headerlink" href="#29-problems-and-limitations" title="Permanent link">&para;</a></h3>
 <p>Still, the action space is discretized, which may limit the optimality of the learned policy. The agent cannot output fine-grained accelerations, which may be necessary for smooth control in a continuous environment. As shown in the DQN performance plot, the agent learns a reasonable policy but displays some spikes in the velocity to catch up the head vehicle, which may not be ideal for smooth traffic flow. Therefore, we concluded to use a policy-gradient method that can directly output continuous actions, such as <strong>Proximal Policy Optimization (PPO)</strong>, which is more suitable for continuous control tasks and can learn more stable policies with fewer hyperparameters to tune.</p>
 <h2 id="3-proximal-policy-optimization-ppo">3. Proximal Policy Optimization (PPO)<a class="headerlink" href="#3-proximal-policy-optimization-ppo" title="Permanent link">&para;</a></h2>
+<h3 id="31-overview">3.1 Overview<a class="headerlink" href="#31-overview" title="Permanent link">&para;</a></h3>
+<p>PPO is an on-policy, policy-gradient algorithm that directly optimizes a parameterized policy <span class="arithmatex">\(\pi_\theta(a \mid s)\)</span> rather than learning action values. Unlike Q-learning and DQN, PPO naturally handles <strong>continuous action spaces</strong> — the policy outputs a Gaussian distribution over accelerations, eliminating the need for action discretization and enabling fine-grained, smooth control.</p>
+<p>The implementation uses an <strong>Actor-Critic</strong> architecture with a clipped surrogate objective and Generalized Advantage Estimation (GAE) <a href="#references">[2]</a>.</p>
+<h3 id="32-network-architecture">3.2 Network Architecture<a class="headerlink" href="#32-network-architecture" title="Permanent link">&para;</a></h3>
+<p>The Actor-Critic network shares feature extraction layers between the policy (actor) and the value function (critic):</p>
+<div class="arithmatex">\[
+\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\text{ReLU}} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\text{ReLU}} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
+\]</div>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Input dim</th>
+<th>Output dim</th>
+<th>Activation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shared1</code></td>
+<td><span class="arithmatex">\(2N\)</span></td>
+<td>256</td>
+<td>ReLU</td>
+</tr>
+<tr>
+<td><code>shared2</code></td>
+<td>256</td>
+<td>256</td>
+<td>ReLU</td>
+</tr>
+<tr>
+<td><code>actor_mean</code></td>
+<td>256</td>
+<td><span class="arithmatex">\(d_a\)</span></td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>critic_head</code></td>
+<td>256</td>
+<td>1</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Gaussian policy</strong>: The actor outputs a mean <span class="arithmatex">\(\mu_\theta(s)\)</span> and uses a learnable, state-independent log standard deviation <span class="arithmatex">\(\log \sigma\)</span> (clamped to <span class="arithmatex">\([-2.0, 0.5]\)</span>). Actions are sampled from <span class="arithmatex">\(\mathcal{N}(\mu, \sigma^2)\)</span> and squashed through <span class="arithmatex">\(\tanh\)</span> to produce bounded outputs in <span class="arithmatex">\([-1, 1]\)</span>, which are then rescaled to the acceleration range <span class="arithmatex">\([-3, 3]\)</span> m/s².</p>
+<p>The log-probability is corrected for the tanh change of variables:</p>
+<div class="arithmatex">\[
+\log \pi(a \mid s) = \log \mu(u \mid s) - \sum_i \log(1 - \tanh^2(u_i))
+\]</div>
+<p>where <span class="arithmatex">\(u\)</span> is the pre-squashed sample.</p>
+<h3 id="33-clipped-surrogate-objective">3.3 Clipped Surrogate Objective<a class="headerlink" href="#33-clipped-surrogate-objective" title="Permanent link">&para;</a></h3>
+<p>PPO constrains policy updates using a clipped probability ratio to prevent destructively large steps:</p>
+<div class="arithmatex">\[
+L^{\text{CLIP}} = \mathbb{E}\Bigl[\min\bigl(r_t \hat{A}_t,\;\; \text{clip}(r_t, 1-\epsilon, 1+\epsilon)\,\hat{A}_t\bigr)\Bigr]
+\]</div>
+<p>where:</p>
+<ul>
+<li><span class="arithmatex">\(r_t = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_\text{old}}(a_t \mid s_t)}\)</span> is the probability ratio between new and old policies.</li>
+<li><span class="arithmatex">\(\hat{A}_t\)</span> is the estimated advantage (see Section 3.4).</li>
+<li><span class="arithmatex">\(\epsilon = 0.2\)</span> is the clipping threshold.</li>
+</ul>
+<p>The <span class="arithmatex">\(\min\)</span> ensures that when the advantage is positive, the ratio cannot exceed <span class="arithmatex">\(1 + \epsilon\)</span>, and when negative, it cannot fall below <span class="arithmatex">\(1 - \epsilon\)</span>. This creates a trust region that keeps the updated policy close to the data-collecting policy.</p>
+<h3 id="34-generalized-advantage-estimation-gae">3.4 Generalized Advantage Estimation (GAE)<a class="headerlink" href="#34-generalized-advantage-estimation-gae" title="Permanent link">&para;</a></h3>
+<p>Advantages are computed using GAE, which provides a tunable bias-variance tradeoff via the <span class="arithmatex">\(\lambda\)</span> parameter:</p>
+<div class="arithmatex">\[
+\hat{A}_t = \sum_{l=0}^{T-t-1} (\gamma \lambda)^l \delta_{t+l}
+\]</div>
+<p>where the TD residual is:</p>
+<div class="arithmatex">\[
+\delta_t = r_t + \gamma\,(1 - d_t)\,V(s_{t+1}) - V(s_t)
+\]</div>
+<ul>
+<li>When <span class="arithmatex">\(\lambda = 0\)</span>: pure one-step TD (low variance, high bias).</li>
+<li>When <span class="arithmatex">\(\lambda = 1\)</span>: Monte Carlo return (high variance, low bias).</li>
+<li>Default <span class="arithmatex">\(\lambda = 0.95\)</span> balances both.</li>
+</ul>
+<p>Returns for the value function target are computed as <span class="arithmatex">\(R_t = \hat{A}_t + V(s_t)\)</span>.</p>
+<h3 id="35-training-loop">3.5 Training Loop<a class="headerlink" href="#35-training-loop" title="Permanent link">&para;</a></h3>
+<p>PPO uses a <strong>rollout-based</strong> training loop that alternates between data collection and policy updates:</p>
+<ol>
+<li><strong>Collect rollout</strong>: Run the current policy for 2,048 steps, storing <span class="arithmatex">\((s, a, r, V(s), \log\pi(a|s), d)\)</span> in the rollout buffer.</li>
+<li><strong>Compute advantages</strong>: Apply GAE over the collected rollout, bootstrapping from <span class="arithmatex">\(V(s_T)\)</span> if the episode did not terminate.</li>
+<li><strong>Normalize advantages</strong>: Subtract mean and divide by standard deviation for training stability.</li>
+<li><strong>Minibatch updates</strong>: For <span class="arithmatex">\(K = 10\)</span> epochs, shuffle the rollout data and iterate over minibatches of size 64:</li>
+<li>Recompute <span class="arithmatex">\(\log\pi_\theta(a|s)\)</span> and <span class="arithmatex">\(V_\theta(s)\)</span> under the current parameters.</li>
+<li>Compute the clipped policy loss, value loss (MSE), and entropy bonus.</li>
+<li>Minimize the combined loss: <span class="arithmatex">\(L = L^{\text{CLIP}} + c_v L^{\text{value}} + c_e L^{\text{entropy}}\)</span>.</li>
+<li>Clip gradients by global norm to 0.5.</li>
+<li><strong>Clear buffer</strong> and repeat from step 1.</li>
+</ol>
+<h3 id="36-loss-function">3.6 Loss Function<a class="headerlink" href="#36-loss-function" title="Permanent link">&para;</a></h3>
+<p>The total loss combines three terms:</p>
+<div class="arithmatex">\[
+L = L^{\text{CLIP}} + c_v \cdot \text{MSE}\bigl(V_\theta(s),\; R_t\bigr) - c_e \cdot H[\pi_\theta(\cdot \mid s)]
+\]</div>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Coefficient</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Policy loss</td>
+<td>1.0</td>
+<td>Maximize clipped advantage</td>
+</tr>
+<tr>
+<td>Value loss</td>
+<td><span class="arithmatex">\(c_v = 0.5\)</span></td>
+<td>Fit value function to returns</td>
+</tr>
+<tr>
+<td>Entropy bonus</td>
+<td><span class="arithmatex">\(c_e = 0.01\)</span></td>
+<td>Encourage exploration, prevent collapse</td>
+</tr>
+</tbody>
+</table>
+<h3 id="37-hyperparameters">3.7 Hyperparameters<a class="headerlink" href="#37-hyperparameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Symbol</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Learning rate</td>
+<td><span class="arithmatex">\(\eta\)</span></td>
+<td><span class="arithmatex">\(3 \times 10^{-4}\)</span></td>
+</tr>
+<tr>
+<td>Discount factor</td>
+<td><span class="arithmatex">\(\gamma\)</span></td>
+<td>0.99</td>
+</tr>
+<tr>
+<td>GAE lambda</td>
+<td><span class="arithmatex">\(\lambda\)</span></td>
+<td>0.95</td>
+</tr>
+<tr>
+<td>Clip epsilon</td>
+<td><span class="arithmatex">\(\epsilon\)</span></td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>Epochs per update</td>
+<td><span class="arithmatex">\(K\)</span></td>
+<td>10</td>
+</tr>
+<tr>
+<td>Minibatch size</td>
+<td>—</td>
+<td>64</td>
+</tr>
+<tr>
+<td>Value coefficient</td>
+<td><span class="arithmatex">\(c_v\)</span></td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Entropy coefficient</td>
+<td><span class="arithmatex">\(c_e\)</span></td>
+<td>0.01</td>
+</tr>
+<tr>
+<td>Max gradient norm</td>
+<td>—</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Rollout steps</td>
+<td>—</td>
+<td>2,048</td>
+</tr>
+<tr>
+<td>Total training steps</td>
+<td>—</td>
+<td>600,000</td>
+</tr>
+<tr>
+<td>Hidden dim</td>
+<td>—</td>
+<td>256</td>
+</tr>
+</tbody>
+</table>
+<h3 id="38-results">3.8 Results<a class="headerlink" href="#38-results" title="Permanent link">&para;</a></h3>
+<p><img alt="PPO Training Curves" src="../assets/images/ppo_training_metrics.png" /></p>
+<p><img alt="PPO Training Returns" src="../assets/images/ppo_training_returns.png" /></p>
+<p><img alt="PPO Performance" src="../assets/images/ppo_inference.png" /></p>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <p>[1] Mnih, V., Kavukcuoglu, K., Silver, D., Graves, A., Antonoglou, I., Wierstra, D., &amp; Riedmiller, M. (2013). Playing Atari with Deep Reinforcement Learning. arXiv [Cs.LG]. Retrieved from http://arxiv.org/abs/1312.5602</p>
+<p>[2] Schulman, J., Wolski, F., Dhariwal, P., Radford, A., &amp; Klimov, O. (2017). Proximal Policy Optimization Algorithms. arXiv [Cs.LG]. Retrieved from http://arxiv.org/abs/1707.06347</p>
 
 
 
