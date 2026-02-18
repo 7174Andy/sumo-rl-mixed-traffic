@@ -1,3 +1,6 @@
+from pathlib import Path
+from omegaconf import DictConfig
+import hydra
 from tqdm import trange
 
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
@@ -9,41 +12,61 @@ from rl_mixed_traffic.agents.dqn_agent import DQNAgent
 from rl_mixed_traffic.utils.plot_utils import plot_returns, plot_losses
 
 
-def make_env(gui: bool = False, num_bins=21):
+def make_env(sumocfg_path: str, gui: bool, num_vehicles: int, num_bins: int):
     sumo_config = SumoConfig(
-        sumocfg_path="configs/ring/simulation.sumocfg",
+        sumocfg_path=sumocfg_path,
         use_gui=gui,
     )
     base_env = RingRoadEnv(
         sumo_config=sumo_config,
         gui=gui,
-        num_vehicles=4,
+        num_vehicles=num_vehicles,
     )
     env = DiscretizeActionWrapper(base_env, num_bins)
     return env
 
 
-def train(total_steps: int = 350_000, num_bins=21):
-    env = make_env(gui=False, num_bins=num_bins)
+def train(cfg: DictConfig):
+    orig_cwd = hydra.utils.get_original_cwd()
+    sumocfg_path = str(Path(orig_cwd) / cfg.env.sumocfg_path)
+
+    env = make_env(
+        sumocfg_path=sumocfg_path,
+        gui=cfg.gui,
+        num_vehicles=cfg.env.num_vehicles,
+        num_bins=cfg.env.n_bins,
+    )
 
     returns = []
 
     obs_dim = env.observation_space.shape[0]
 
-    cfg = DQNConfig()
+    dqn_cfg = DQNConfig(
+        gamma=cfg.agent.gamma,
+        lr=cfg.agent.lr,
+        batch_size=cfg.agent.batch_size,
+        buffer_size=cfg.agent.buffer_size,
+        start_learning_after=cfg.agent.start_learning_after,
+        train_freq=cfg.agent.train_freq,
+        target_update_freq=cfg.agent.target_update_freq,
+        tau=cfg.agent.tau,
+        epsilon_start=cfg.agent.epsilon_start,
+        epsilon_end=cfg.agent.epsilon_end,
+        epsilon_decay_steps=cfg.agent.epsilon_decay_steps,
+        max_grad_norm=cfg.agent.max_grad_norm,
+    )
     agent = DQNAgent(
         obs_dim=obs_dim,
         n_actions=env.action_space.n,
-        config=cfg,
+        config=dqn_cfg,
     )
 
     s, _ = env.reset()
     ep_ret, ep_len = 0.0, 0
     losses = []
 
-    for t in trange(1, total_steps + 1):
+    for t in trange(1, cfg.total_steps + 1):
         a = agent.act(state=s)
-        # print(f"Step: {t}, Action: {env.actions[a]}")
         s_next, r, done, _ = env.step(a)
         loss = agent.update(state=s, action=a, reward=r, next_state=s_next, done=done)
 
@@ -61,22 +84,29 @@ def train(total_steps: int = 350_000, num_bins=21):
             s, _ = env.reset()
             ep_ret, ep_len = 0.0, 0
 
-    agent.save("dqn_results/dqn_agent.pth")
+    out_dir = Path(orig_cwd) / cfg.out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    agent.save(str(out_dir / "dqn_agent.pth"))
     env.close()
 
-    # Plot training losses
     plot_losses(
         losses,
-        out_path="dqn_results/dqn_training_losses.png",
+        out_path=str(out_dir / "dqn_training_losses.png"),
         title="DQN Training Losses",
     )
-    return returns
+    return returns, out_dir
+
+
+@hydra.main(version_base=None, config_path="conf", config_name="dqn_train")
+def main(cfg: DictConfig):
+    returns, out_dir = train(cfg)
+    plot_returns(
+        returns,
+        out_path=str(out_dir / "dqn_training_returns.png"),
+        title="DQN Training Returns",
+    )
 
 
 if __name__ == "__main__":
-    returns = train()
-    plot_returns(
-        returns,
-        out_path="dqn_results/dqn_training_returns.png",
-        title="DQN Training Returns",
-    )
+    main()

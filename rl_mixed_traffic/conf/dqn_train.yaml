@@ -1,0 +1,22 @@
+total_steps: 350_000
+gui: false
+out_dir: dqn_results
+
+env:
+  sumocfg_path: configs/ring/simulation.sumocfg
+  num_vehicles: 4
+  n_bins: 21
+
+agent:
+  gamma: 0.99
+  lr: 5e-4
+  batch_size: 128
+  buffer_size: 200_000
+  start_learning_after: 10_000
+  train_freq: 1
+  target_update_freq: 3_000
+  tau: 0.01
+  epsilon_start: 1.0
+  epsilon_end: 0.10
+  epsilon_decay_steps: 500_000
+  max_grad_norm: 10.0
