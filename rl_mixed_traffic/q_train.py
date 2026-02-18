@@ -1,6 +1,9 @@
 import pickle
 import numpy as np
 from pathlib import Path
+from omegaconf import DictConfig
+import hydra
+
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.discretizer import (
     DiscretizeActionWrapper,
@@ -13,33 +16,36 @@ from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.utils.plot_utils import plot_returns
 from rl_mixed_traffic.utils.sumo_utils import save_returns_csv
 
-CFG = "./configs/ring/simulation.sumocfg"
-
 
 def snapshot_q(q_defaultdict):
     """Convert defaultdict to a plain dict with numpy arrays (picklable)."""
     return {k: np.array(v, dtype=np.float32) for k, v in q_defaultdict.items()}
 
 
-def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.pkl"):
+def train(cfg: DictConfig):
+    orig_cwd = hydra.utils.get_original_cwd()
+    sumocfg_path = str(Path(orig_cwd) / cfg.env.sumocfg_path)
+
     base_env = RingRoadEnv(
-        sumo_config=SumoConfig(sumocfg_path=CFG, use_gui=gui),
-        gui=gui,
-        num_vehicles=4,
+        sumo_config=SumoConfig(sumocfg_path=sumocfg_path, use_gui=cfg.gui),
+        gui=cfg.gui,
+        num_vehicles=cfg.env.num_vehicles,
     )
 
-    env = DiscretizeActionWrapper(base_env, n_bins=20)
+    env = DiscretizeActionWrapper(base_env, n_bins=cfg.env.n_bins)
 
     obs_dim = env.observation_space.shape[0]
-    state_discretizer = StateDiscretizer(obs_dim, DiscretizerConfig(bins_per_dim=20))
+    state_discretizer = StateDiscretizer(
+        obs_dim, DiscretizerConfig(bins_per_dim=cfg.discretizer.bins_per_dim)
+    )
 
     agent = QLearningAgent(
         action_space=env.action_space.n,
-        alpha=0.2,
-        gamma=0.98,
-        eps_start=1.0,
-        eps_end=0.05,
-        eps_decay_steps=num_episodes * env.max_steps,
+        alpha=cfg.agent.alpha,
+        gamma=cfg.agent.gamma,
+        eps_start=cfg.agent.eps_start,
+        eps_end=cfg.agent.eps_end,
+        eps_decay_steps=cfg.num_episodes * env.max_steps,
     )
 
     returns = []
@@ -47,7 +53,7 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
     best_Q = None
 
     try:
-        for episode in range(num_episodes):
+        for episode in range(cfg.num_episodes):
             s, _ = env.reset()
             s = state_discretizer(s)
             done = False
@@ -65,7 +71,7 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
 
             returns.append(G)
             print(
-                f"Episode {episode + 1}/{num_episodes}, Return: {G:.2f}, Steps: {steps}, Epsilon: {agent.epsilon():.4f}"
+                f"Episode {episode + 1}/{cfg.num_episodes}, Return: {G:.2f}, Steps: {steps}, Epsilon: {agent.epsilon():.4f}"
             )
 
             if G > best_return:
@@ -74,23 +80,30 @@ def train(num_episodes: int = 150, gui: bool = False, out_path: str = "q_table.p
     finally:
         env.close()
 
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(orig_cwd) / cfg.out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(out_path, "wb") as f:
+    q_table_path = out_dir / "q_table.pkl"
+    with open(q_table_path, "wb") as f:
         pickle.dump(snapshot_q(best_Q), f)
     print(
-        f"Training completed. Best return: {best_return:.2f}. Q-table saved to {out_path}."
+        f"Training completed. Best return: {best_return:.2f}. Q-table saved to {q_table_path}."
     )
 
-    return returns
+    return returns, out_dir
 
 
-if __name__ == "__main__":
-    returns = train(num_episodes=250, gui=True, out_path="output/q_table.pkl")
-    save_returns_csv(returns, out_path="output/returns.csv")
+@hydra.main(version_base=None, config_path="conf", config_name="q_train")
+def main(cfg: DictConfig):
+    returns, out_dir = train(cfg)
+    save_returns_csv(returns, out_path=str(out_dir / "returns.csv"))
     plot_returns(
         returns,
-        out_path="output/returns.png",
+        out_path=str(out_dir / "returns.png"),
         smooth_window=10,
         title="Episode Returns",
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+num_episodes: 250
+gui: true
+out_dir: output
+
+env:
+  sumocfg_path: configs/ring/simulation.sumocfg
+  num_vehicles: 4
+  n_bins: 20
+
+discretizer:
+  bins_per_dim: 20
+
+agent:
+  alpha: 0.2
+  gamma: 0.98
+  eps_start: 1.0
+  eps_end: 0.05
