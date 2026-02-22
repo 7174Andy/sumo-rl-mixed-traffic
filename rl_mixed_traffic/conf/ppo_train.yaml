@@ -1,0 +1,19 @@
+total_steps: 600_000
+rollout_steps: 2048
+save_freq: 50_000
+gui: false
+out_dir: ppo_results
+
+env:
+  sumocfg_path: configs/ring/simulation.sumocfg
+  num_vehicles: 4
+
+agent:
+  lr: 3e-4
+  gamma: 0.99
+  lam: 0.95
+  clip_epsilon: 0.2
+  k_epochs: 10
+  batch_size: 64
+  entropy_coef: 0.01
+  value_coef: 0.5

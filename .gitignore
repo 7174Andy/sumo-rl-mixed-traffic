@@ -25,3 +25,6 @@ uv.lock
 
 # MkDocs build output
 site/
+
+# Hydra outputs
+outputs/
