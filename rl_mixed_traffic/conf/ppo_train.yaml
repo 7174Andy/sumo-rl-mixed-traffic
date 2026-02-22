@@ -7,6 +7,7 @@ out_dir: ppo_results
 env:
   sumocfg_path: configs/ring/simulation.sumocfg
   num_vehicles: 4
+  num_agents: 3
 
 agent:
   lr: 3e-4
