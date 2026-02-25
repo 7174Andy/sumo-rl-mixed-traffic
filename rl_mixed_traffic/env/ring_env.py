@@ -419,7 +419,6 @@ class RingRoadEnv(gym.Env):
         """
         action = np.asarray(action, dtype=np.float32).reshape(self.num_agents)
 
-        dt = self.step_length
         active_ids = traci.vehicle.getIDList()
 
         # Track per-agent accelerations and apply

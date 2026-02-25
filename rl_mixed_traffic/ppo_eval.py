@@ -6,7 +6,6 @@ from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.utils.plot_utils import plot_vehicle_speeds
 
 import gymnasium as gym
-import numpy as np
 import traci
 
 
