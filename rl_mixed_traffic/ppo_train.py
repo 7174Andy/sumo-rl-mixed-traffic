@@ -2,8 +2,10 @@ from pathlib import Path
 import numpy as np
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import gymnasium as gym
 
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
+from rl_mixed_traffic.env.wrappers import FourToFiveTupleWrapper
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.agents.ppo_agent import PPOAgent
@@ -16,17 +18,22 @@ def make_env(
     gui: bool = False,
     num_vehicles: int = 4,
     num_agents: int = 1,
+    gamma: float = 0.99,
 ):
-    """Create the ring road environment for continuous PPO.
+    """Create the ring road environment for continuous PPO training.
+
+    Applies the wrapper chain:
+        RingRoadEnv -> FourToFiveTuple -> ClipAction -> NormalizeReward -> TransformReward(clip)
 
     Args:
         sumocfg_path: Path to the SUMO config file
         gui: Whether to use SUMO GUI
         num_vehicles: Total number of vehicles in the ring (including head)
         num_agents: Number of CAVs controlled by RL (car1..carN). car0 is head.
+        gamma: Discount factor for NormalizeReward wrapper
 
     Returns:
-        RingRoadEnv with continuous action space (no discretization wrapper)
+        Wrapped environment with 5-tuple step output
     """
     sumo_config = SumoConfig(
         sumocfg_path=sumocfg_path,
@@ -38,6 +45,10 @@ def make_env(
         num_vehicles=num_vehicles,
         num_agents=num_agents,
     )
+    env = FourToFiveTupleWrapper(env)
+    env = gym.wrappers.ClipAction(env)
+    env = gym.wrappers.NormalizeReward(env, gamma=gamma)
+    env = gym.wrappers.TransformReward(env, lambda r: np.clip(r, -10, 10))
     return env
 
 
@@ -63,6 +74,7 @@ def train(cfg: DictConfig):
         gui=cfg.gui,
         num_vehicles=cfg.env.num_vehicles,
         num_agents=num_agents,
+        gamma=cfg.agent.gamma,
     )
 
     if num_agents > 1:
@@ -117,21 +129,20 @@ def _train_single_agent(cfg: DictConfig, env: RingRoadEnv, orig_cwd: str):
             if step_count >= cfg.total_steps:
                 break
 
-            action_tanh, value, log_prob = agent.get_action_and_value(s)
+            action, value, log_prob = agent.get_action_and_value(s)
 
-            action_scaled = (action_tanh + 1.0) / 2.0 * (env.action_space.high - env.action_space.low) + env.action_space.low
+            s_next, r, done, truncated, _ = env.step(action)
 
-            s_next, r, done, _ = env.step(action_scaled)
-
-            agent.store_transition(s, action_tanh, r, value, log_prob, done)
+            agent.store_transition(s, action, r, value, log_prob, done or truncated)
 
             s = s_next
             ep_ret += r
             ep_len += 1
             step_count += 1
-            last_done = done
+            episode_done = done or truncated
+            last_done = episode_done
 
-            if done:
+            if episode_done:
                 print(
                     f"Step: {step_count:>7d} | Episode Return: {ep_ret:>8.2f} | "
                     f"Episode Length: {ep_len:>4d} | Updates: {agent.update_count}"
@@ -148,9 +159,9 @@ def _train_single_agent(cfg: DictConfig, env: RingRoadEnv, orig_cwd: str):
         metrics = agent.learn(last_value=last_value)
 
         if metrics:
-            for key, value in metrics.items():
+            for key, val in metrics.items():
                 if key in metrics_history:
-                    metrics_history[key].append(value)
+                    metrics_history[key].append(val)
 
             print(
                 f"Update {agent.update_count:>4d} | "
@@ -246,51 +257,46 @@ def _train_multi_agent(
 
             # Query shared policy for each agent
             per_agent_data = []
-            all_actions_scaled = np.zeros(num_agents, dtype=np.float32)
+            all_actions = np.zeros(num_agents, dtype=np.float32)
 
             for i, aid in enumerate(agent_ids):
                 obs_i = obs_dict[aid]
 
-                # Get action (tanh output in [-1, 1]), value, and log prob
-                action_tanh_i, value_i, log_prob_i = agent.get_action_and_value(obs_i)
+                # Get raw Gaussian action, value, and log prob
+                action_i, value_i, log_prob_i = agent.get_action_and_value(obs_i)
 
-                # Scale action from [-1, 1] to [-max_accel, max_accel]
-                action_scaled_i = (
-                    (action_tanh_i + 1.0) / 2.0
-                    * (env.max_accel - (-env.max_accel))
-                    + (-env.max_accel)
-                )
-                all_actions_scaled[i] = float(np.asarray(action_scaled_i).reshape(-1)[0])
+                all_actions[i] = float(np.asarray(action_i).reshape(-1)[0])
 
                 per_agent_data.append({
                     "obs": obs_i,
-                    "action_tanh": action_tanh_i,
+                    "action": action_i,
                     "value": value_i,
                     "log_prob": log_prob_i,
                 })
 
-            # Step environment with all agents' actions
-            obs_dict_next, r, done, _ = env.step(all_actions_scaled)
+            # Step environment with all agents' actions (ClipAction wrapper bounds them)
+            obs_dict_next, r, done, truncated, _ = env.step(all_actions)
 
             # Store one transition per agent with the SHARED reward
+            episode_done = done or truncated
             for i, aid in enumerate(agent_ids):
                 data = per_agent_data[i]
                 agent.store_transition(
                     data["obs"],
-                    data["action_tanh"],
+                    data["action"],
                     r,  # shared reward
                     data["value"],
                     data["log_prob"],
-                    done,
+                    episode_done,
                 )
 
             obs_dict = obs_dict_next
             ep_ret += r
             ep_len += 1
             step_count += 1
-            last_done = done
+            last_done = episode_done
 
-            if done:
+            if episode_done:
                 print(
                     f"Step: {step_count:>7d} | Episode Return: {ep_ret:>8.2f} | "
                     f"Episode Length: {ep_len:>4d} | Updates: {agent.update_count}"
@@ -313,9 +319,9 @@ def _train_multi_agent(
         metrics = agent.learn(last_value=last_value)
 
         if metrics:
-            for key, value in metrics.items():
+            for key, val in metrics.items():
                 if key in metrics_history:
-                    metrics_history[key].append(value)
+                    metrics_history[key].append(val)
 
             print(
                 f"Update {agent.update_count:>4d} | "

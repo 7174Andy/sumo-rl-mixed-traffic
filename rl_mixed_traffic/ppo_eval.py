@@ -1,9 +1,11 @@
 from rl_mixed_traffic.agents.ppo_agent import PPOAgent
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
+from rl_mixed_traffic.env.wrappers import FourToFiveTupleWrapper
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.utils.plot_utils import plot_vehicle_speeds
 
+import gymnasium as gym
 import numpy as np
 import traci
 
@@ -11,11 +13,14 @@ import traci
 def make_env(gui: bool = False):
     """Create the ring road environment for continuous PPO evaluation.
 
+    Applies FourToFiveTuple -> ClipAction only (no reward normalization
+    so we get raw rewards for eval reporting).
+
     Args:
         gui: Whether to use SUMO GUI
 
     Returns:
-        RingRoadEnv with continuous action space
+        Wrapped environment with 5-tuple step output
     """
     sumo_config = SumoConfig(
         sumocfg_path="configs/ring/simulation.sumocfg",
@@ -26,6 +31,8 @@ def make_env(gui: bool = False):
         gui=gui,
         num_vehicles=4,
     )
+    env = FourToFiveTupleWrapper(env)
+    env = gym.wrappers.ClipAction(env)
     return env
 
 
@@ -69,7 +76,7 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
     print("-" * 80)
 
     try:
-        while not (done or truncated):
+        while not done and not truncated:
             # Track speeds before action
             if env.head_id in traci.vehicle.getIDList():
                 head_speeds.append(traci.vehicle.getSpeed(env.head_id))
@@ -82,16 +89,11 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
                 cav_speeds.append(0.0)
 
             # Get action from agent (deterministic evaluation)
-            # agent.act() returns tanh-squashed action in [-1, 1]
-            a_tanh = agent.act(state=s, eval_mode=True)
-            print(a_tanh)
-
-            # Scale from [-1, 1] to action space bounds [-3, 3]
-            # This matches the scaling used during training in ppo_train.py
-            a = (a_tanh + 1.0) / 2.0 * (env.action_space.high - env.action_space.low) + env.action_space.low
+            # Raw Gaussian mean; ClipAction wrapper bounds it to action space
+            a = agent.act(state=s, eval_mode=True)
 
             # Step environment
-            s_next, r, done, _ = env.step(a)
+            s_next, r, done, truncated, _ = env.step(a)
 
             s = s_next
             G += r

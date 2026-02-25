@@ -1,14 +1,21 @@
+import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
 from typing import Tuple
-import numpy as np
+
+
+def layer_init(layer: nn.Linear, std: float = np.sqrt(2), bias_const: float = 0.0):
+    """Orthogonal weight initialization (CleanRL convention)."""
+    nn.init.orthogonal_(layer.weight, std)
+    nn.init.constant_(layer.bias, bias_const)
+    return layer
 
 
 class ActorCriticNetwork(nn.Module):
     """Actor-Critic network for PPO with shared feature extraction.
 
     Supports both continuous (Gaussian policy) and discrete (Categorical policy) action spaces.
+    Uses orthogonal initialization and tanh activations following CleanRL conventions.
 
     Architecture:
     - Shared layers: state -> hidden1 -> hidden2
@@ -46,22 +53,21 @@ class ActorCriticNetwork(nn.Module):
         self.continuous = continuous
         self.action_dim = action_dim
 
-        # Shared feature extraction layers
-        self.shared1 = nn.Linear(state_dim, hidden_dim)
-        self.shared2 = nn.Linear(hidden_dim, hidden_dim)
+        # Shared feature extraction layers (orthogonal init, std=sqrt(2))
+        self.shared1 = layer_init(nn.Linear(state_dim, hidden_dim))
+        self.shared2 = layer_init(nn.Linear(hidden_dim, hidden_dim))
 
         if continuous:
-            # Continuous action space: Gaussian policy
-            # Output mean and learn a separate log_std parameter
-            self.actor_mean = nn.Linear(hidden_dim, action_dim)
+            # Actor mean head (std=0.01 for small initial actions)
+            self.actor_mean = layer_init(nn.Linear(hidden_dim, action_dim), std=0.01)
             # Log standard deviation as learnable parameter (state-independent)
             self.actor_log_std = nn.Parameter(torch.zeros(1, action_dim))
         else:
             # Discrete action space: Categorical policy
-            self.actor_head = nn.Linear(hidden_dim, action_dim)
+            self.actor_head = layer_init(nn.Linear(hidden_dim, action_dim), std=0.01)
 
-        # Critic head (value function): outputs state value V(s)
-        self.critic_head = nn.Linear(hidden_dim, 1)
+        # Critic head (std=1.0 for value function)
+        self.critic_head = layer_init(nn.Linear(hidden_dim, 1), std=1.0)
 
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass through the network.
@@ -75,9 +81,9 @@ class ActorCriticNetwork(nn.Module):
             - If discrete: actor_output is action_logits [batch_size, action_dim]
             - state_values: [batch_size, 1] estimated state values V(s)
         """
-        # Shared feature extraction
-        x = F.relu(self.shared1(state))
-        x = F.relu(self.shared2(x))
+        # Shared feature extraction (tanh activations per CleanRL)
+        x = torch.tanh(self.shared1(state))
+        x = torch.tanh(self.shared2(x))
 
         if self.continuous:
             # Continuous: output action mean (unbounded, will be squashed by tanh later)
@@ -118,28 +124,15 @@ class ActorCriticNetwork(nn.Module):
         actor_output, value = self.forward(state)
 
         if self.continuous:
-            # Continuous action space: Gaussian distribution with tanh squashing
+            # Continuous action space: raw Gaussian (ClipAction wrapper bounds actions)
             action_mean = actor_output
-            log_std = torch.clamp(self.actor_log_std, min=-2.0, max=0.5)
-            action_std = torch.exp(log_std.expand_as(action_mean))
+            action_std = torch.exp(self.actor_log_std.expand_as(action_mean))
             probs = torch.distributions.Normal(action_mean, action_std)
 
             if action is None:
-                # Sample from Gaussian then squash with tanh to [-1, 1]
-                action_raw = probs.sample()
-                action = torch.tanh(action_raw)
-            else:
-                # Action is already squashed (in [-1, 1]), need to reverse tanh for log_prob
-                # atanh: maps [-1, 1] back to unbounded space
-                action_raw = torch.atanh(torch.clamp(action, -0.999, 0.999))
+                action = probs.sample()
 
-            # Compute log probability in unbounded space
-            log_prob = probs.log_prob(action_raw).sum(dim=-1)
-
-            # Adjust log_prob for tanh squashing: log π(a|s) = log μ(u|s) - Σ log(1 - tanh²(u))
-            # This accounts for the change of variables from u (unbounded) to a = tanh(u)
-            log_prob = log_prob - torch.sum(torch.log(1 - action**2 + 1e-6), dim=-1)
-
+            log_prob = probs.log_prob(action).sum(dim=-1)
             entropy = probs.entropy().sum(dim=-1)
         else:
             # Discrete action space: Categorical distribution
