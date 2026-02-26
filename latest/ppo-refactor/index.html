@@ -564,15 +564,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#results-stable-training" class="md-nav__link">
+  <a href="#results-stable-training-with-normalizereward" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Results: Stable Training
+        Results: Stable Training (with NormalizeReward)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Results: Stable Training">
+    <nav class="md-nav" aria-label="Results: Stable Training (with NormalizeReward)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -605,6 +605,73 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removing-normalizereward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removing NormalizeReward
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Removing NormalizeReward">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results-without-normalizereward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results: Without NormalizeReward
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results: Without NormalizeReward">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#training-returns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-metrics_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vehicle-speed-tracking_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Speed Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -837,15 +904,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#results-stable-training" class="md-nav__link">
+  <a href="#results-stable-training-with-normalizereward" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Results: Stable Training
+        Results: Stable Training (with NormalizeReward)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Results: Stable Training">
+    <nav class="md-nav" aria-label="Results: Stable Training (with NormalizeReward)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -878,6 +945,73 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removing-normalizereward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removing NormalizeReward
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Removing NormalizeReward">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results-without-normalizereward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results: Without NormalizeReward
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results: Without NormalizeReward">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#training-returns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-metrics_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vehicle-speed-tracking_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Speed Tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1059,7 +1193,7 @@
 <div class="highlight"><pre><span></span><code><span class="n">action_scaled</span> <span class="o">=</span> <span class="n">action_tanh</span> <span class="o">*</span> <span class="n">max_accel</span>  <span class="c1"># [-1, 1] * 3.0 -&gt; [-3, 3]</span>
 </code></pre></div>
 <p>This works because the action space is symmetric. The <code>ClipAction</code> wrapper remains in the chain as an additional safety net.</p>
-<h2 id="results-stable-training">Results: Stable Training<a class="headerlink" href="#results-stable-training" title="Permanent link">&para;</a></h2>
+<h2 id="results-stable-training-with-normalizereward">Results: Stable Training (with NormalizeReward)<a class="headerlink" href="#results-stable-training-with-normalizereward" title="Permanent link">&para;</a></h2>
 <h3 id="training-returns">Training Returns<a class="headerlink" href="#training-returns" title="Permanent link">&para;</a></h3>
 <p><img alt="Refactored PPO Training Returns" src="../assets/images/ppo_refactor_training_returns.png" /></p>
 <p>The training curve converges by episode ~85 and remains stable, with only rare dips. The MA(10) shows consistent improvement without the periodic collapses seen in the CleanRL-style version.</p>
@@ -1073,6 +1207,67 @@
 <h3 id="vehicle-speed-tracking_1">Vehicle Speed Tracking<a class="headerlink" href="#vehicle-speed-tracking_1" title="Permanent link">&para;</a></h3>
 <p><img alt="Refactored PPO Inference" src="../assets/images/ppo_refactor_inference.png" /></p>
 <p>The CAV tracks the head vehicle closely with minor overshoots (~1-2 m/s), comparable to the original implementation.</p>
+<h2 id="removing-normalizereward">Removing NormalizeReward<a class="headerlink" href="#removing-normalizereward" title="Permanent link">&para;</a></h2>
+<p>While restoring tanh squashing fixed the instability, the <code>NormalizeReward</code> wrapper introduced its own issues. The reward function already applies <code>R /= 100</code> to keep per-step values in a PPO-friendly range, making adaptive normalization redundant and even harmful:</p>
+<ol>
+<li>
+<p><strong>Non-stationary reward scale.</strong> <code>NormalizeReward</code> uses a running standard deviation that shifts during training. The same raw reward maps to different normalized values at episode 10 vs episode 100, confusing the value function.</p>
+</li>
+<li>
+<p><strong>Uninterpretable returns.</strong> Training returns become meaningless across runs. The normalized returns (~-25) cannot be compared to the raw returns (~-1,500) from other configurations, making it hard to evaluate whether a hyperparameter change actually improved performance.</p>
+</li>
+<li>
+<p><strong>Collision penalty interaction.</strong> Early episodes with <span class="arithmatex">\(-100\)</span> safety penalties inflate the running standard deviation. This makes the fine-grained velocity and spacing reward signals appear tiny by comparison, effectively flattening the reward landscape for the policy.</p>
+</li>
+</ol>
+<p>Since the reward function is fixed and its scale is known, the <code>R /= 100</code> divisor already keeps rewards in a good range in a stationary way — no running statistics needed.</p>
+<p>The <code>NormalizeReward</code> and <code>TransformReward</code> wrappers were removed, leaving a minimal wrapper chain:</p>
+<div class="highlight"><pre><span></span><code>RingRoadEnv -&gt; FourToFiveTupleWrapper -&gt; ClipAction
+</code></pre></div>
+<h3 id="results-without-normalizereward">Results: Without NormalizeReward<a class="headerlink" href="#results-without-normalizereward" title="Permanent link">&para;</a></h3>
+<h4 id="training-returns_1">Training Returns<a class="headerlink" href="#training-returns_1" title="Permanent link">&para;</a></h4>
+<p><img alt="No NormalizeReward Training Returns" src="../assets/images/ppo_no_norm_training_returns.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Converged Return</th>
+<th>Stabilizes at</th>
+<th>Collapse Episodes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Original baseline</strong></td>
+<td>~-1,500</td>
+<td>Episode ~95</td>
+<td>40-70 (long plateau)</td>
+</tr>
+<tr>
+<td><strong>With NormalizeReward</strong></td>
+<td>~-25 (normalized)</td>
+<td>Episode ~85</td>
+<td>30, 75</td>
+</tr>
+<tr>
+<td><strong>Without NormalizeReward</strong></td>
+<td>~-5,000</td>
+<td>Episode ~10</td>
+<td>Rare dips at 45, 85</td>
+</tr>
+</tbody>
+</table>
+<p>Training converges <strong>much faster</strong> (MA(10) reaches steady state by episode ~10 vs ~85-95) and the returns are now raw values directly comparable across runs. The converged value of ~-5,000 reflects the larger raw reward scale from the orthogonal init + tanh activation changes compared to the original baseline.</p>
+<h4 id="training-metrics_1">Training Metrics<a class="headerlink" href="#training-metrics_1" title="Permanent link">&para;</a></h4>
+<p><img alt="No NormalizeReward Training Metrics" src="../assets/images/ppo_no_norm_training_metrics.png" /></p>
+<ul>
+<li><strong>Value loss</strong>: Starts high (~10,000) due to the larger raw return scale, then drops quickly and stabilizes after update ~50.</li>
+<li><strong>Policy loss</strong>: Some spikes around updates 100-250, but generally small. More active than the NormalizeReward version since the reward signal is no longer dampened.</li>
+<li><strong>Entropy</strong>: Clear downward trend from ~1.50 to ~1.30 — the policy is becoming more deterministic as it learns, which is healthy behavior.</li>
+</ul>
+<h4 id="vehicle-speed-tracking_2">Vehicle Speed Tracking<a class="headerlink" href="#vehicle-speed-tracking_2" title="Permanent link">&para;</a></h4>
+<p><img alt="No NormalizeReward Inference" src="../assets/images/ppo_no_norm_inference.png" /></p>
+<p>The CAV tracks the head vehicle well during steady-state phases. There is some overshoot on upward speed transitions (~2-3 m/s above the head vehicle at steps 150 and 4300), slightly more than the original baseline but comparable to the NormalizeReward version. This is likely improvable with hyperparameter tuning (lower learning rate and fewer epochs per update).</p>
 <h2 id="key-takeaways">Key Takeaways<a class="headerlink" href="#key-takeaways" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
@@ -1082,7 +1277,7 @@
 <p><strong>Tanh squashing provides implicit regularization.</strong> Beyond bounding actions, tanh's saturating gradient naturally discourages extreme outputs. This is critical in environments where extreme actions have catastrophic consequences (collisions).</p>
 </li>
 <li>
-<p><strong>Reward normalization interacts with reward discontinuities.</strong> <code>NormalizeReward</code> works best when the reward distribution is relatively smooth. Large outlier penalties (like the <span class="arithmatex">\(-100\)</span> safety penalty) can destabilize the running statistics and corrupt the learning signal.</p>
+<p><strong>Reward normalization is unnecessary when the reward scale is known.</strong> <code>NormalizeReward</code> is designed for environments where the reward magnitude is unknown or varies. When the reward function is fixed and already scaled (via <code>R /= 100</code>), adaptive normalization adds non-stationarity without benefit.</p>
 </li>
 <li>
 <p><strong>Hybrid approaches can capture the best of both worlds.</strong> Orthogonal initialization and tanh activations from CleanRL improved training, while the original tanh squashing and log-std clamping provided the stability needed for this specific environment.</p>
