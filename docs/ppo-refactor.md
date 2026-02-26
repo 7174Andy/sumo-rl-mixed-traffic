@@ -121,7 +121,7 @@ action_scaled = action_tanh * max_accel  # [-1, 1] * 3.0 -> [-3, 3]
 
 This works because the action space is symmetric. The `ClipAction` wrapper remains in the chain as an additional safety net.
 
-## Results: Stable Training
+## Results: Stable Training (with NormalizeReward)
 
 ### Training Returns
 
@@ -143,13 +143,59 @@ The training curve converges by episode ~85 and remains stable, with only rare d
 
 The CAV tracks the head vehicle closely with minor overshoots (~1-2 m/s), comparable to the original implementation.
 
+## Removing NormalizeReward
+
+While restoring tanh squashing fixed the instability, the `NormalizeReward` wrapper introduced its own issues. The reward function already applies `R /= 100` to keep per-step values in a PPO-friendly range, making adaptive normalization redundant and even harmful:
+
+1. **Non-stationary reward scale.** `NormalizeReward` uses a running standard deviation that shifts during training. The same raw reward maps to different normalized values at episode 10 vs episode 100, confusing the value function.
+
+2. **Uninterpretable returns.** Training returns become meaningless across runs. The normalized returns (~-25) cannot be compared to the raw returns (~-1,500) from other configurations, making it hard to evaluate whether a hyperparameter change actually improved performance.
+
+3. **Collision penalty interaction.** Early episodes with $-100$ safety penalties inflate the running standard deviation. This makes the fine-grained velocity and spacing reward signals appear tiny by comparison, effectively flattening the reward landscape for the policy.
+
+Since the reward function is fixed and its scale is known, the `R /= 100` divisor already keeps rewards in a good range in a stationary way — no running statistics needed.
+
+The `NormalizeReward` and `TransformReward` wrappers were removed, leaving a minimal wrapper chain:
+
+```
+RingRoadEnv -> FourToFiveTupleWrapper -> ClipAction
+```
+
+### Results: Without NormalizeReward
+
+#### Training Returns
+
+![No NormalizeReward Training Returns](assets/images/ppo_no_norm_training_returns.png)
+
+| Version | Converged Return | Stabilizes at | Collapse Episodes |
+| --- | --- | --- | --- |
+| **Original baseline** | ~-1,500 | Episode ~95 | 40-70 (long plateau) |
+| **With NormalizeReward** | ~-25 (normalized) | Episode ~85 | 30, 75 |
+| **Without NormalizeReward** | ~-5,000 | Episode ~10 | Rare dips at 45, 85 |
+
+Training converges **much faster** (MA(10) reaches steady state by episode ~10 vs ~85-95) and the returns are now raw values directly comparable across runs. The converged value of ~-5,000 reflects the larger raw reward scale from the orthogonal init + tanh activation changes compared to the original baseline.
+
+#### Training Metrics
+
+![No NormalizeReward Training Metrics](assets/images/ppo_no_norm_training_metrics.png)
+
+- **Value loss**: Starts high (~10,000) due to the larger raw return scale, then drops quickly and stabilizes after update ~50.
+- **Policy loss**: Some spikes around updates 100-250, but generally small. More active than the NormalizeReward version since the reward signal is no longer dampened.
+- **Entropy**: Clear downward trend from ~1.50 to ~1.30 — the policy is becoming more deterministic as it learns, which is healthy behavior.
+
+#### Vehicle Speed Tracking
+
+![No NormalizeReward Inference](assets/images/ppo_no_norm_inference.png)
+
+The CAV tracks the head vehicle well during steady-state phases. There is some overshoot on upward speed transitions (~2-3 m/s above the head vehicle at steps 150 and 4300), slightly more than the original baseline but comparable to the NormalizeReward version. This is likely improvable with hyperparameter tuning (lower learning rate and fewer epochs per update).
+
 ## Key Takeaways
 
 1. **Environment characteristics matter more than "best practices."** CleanRL conventions are well-tested on standard benchmarks but don't automatically transfer to environments with discontinuous reward functions and hard safety constraints.
 
 2. **Tanh squashing provides implicit regularization.** Beyond bounding actions, tanh's saturating gradient naturally discourages extreme outputs. This is critical in environments where extreme actions have catastrophic consequences (collisions).
 
-3. **Reward normalization interacts with reward discontinuities.** `NormalizeReward` works best when the reward distribution is relatively smooth. Large outlier penalties (like the $-100$ safety penalty) can destabilize the running statistics and corrupt the learning signal.
+3. **Reward normalization is unnecessary when the reward scale is known.** `NormalizeReward` is designed for environments where the reward magnitude is unknown or varies. When the reward function is fixed and already scaled (via `R /= 100`), adaptive normalization adds non-stationarity without benefit.
 
 4. **Hybrid approaches can capture the best of both worlds.** Orthogonal initialization and tanh activations from CleanRL improved training, while the original tanh squashing and log-std clamping provided the stability needed for this specific environment.
 
