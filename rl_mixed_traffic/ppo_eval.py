@@ -6,6 +6,7 @@ from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.utils.plot_utils import plot_vehicle_speeds
 
 import gymnasium as gym
+import time
 import traci
 
 
@@ -47,6 +48,7 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
         Total episode return
     """
     env = make_env(gui=gui)
+    raw_env = env.unwrapped  # access RingRoadEnv attributes through wrappers
 
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -61,6 +63,7 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
     agent.load(agent_path)
 
     s, _ = env.reset()
+    max_accel = float(env.unwrapped.max_accel)
     done = False
     truncated = False
     G = 0.0
@@ -77,19 +80,23 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True):
     try:
         while not done and not truncated:
             # Track speeds before action
-            if env.head_id in traci.vehicle.getIDList():
-                head_speeds.append(traci.vehicle.getSpeed(env.head_id))
+            if raw_env.head_id in traci.vehicle.getIDList():
+                head_speeds.append(traci.vehicle.getSpeed(raw_env.head_id))
             else:
                 head_speeds.append(0.0)
 
-            if env.agent_id in traci.vehicle.getIDList():
-                cav_speeds.append(traci.vehicle.getSpeed(env.agent_id))
+            if raw_env.agent_id in traci.vehicle.getIDList():
+                cav_speeds.append(traci.vehicle.getSpeed(raw_env.agent_id))
             else:
                 cav_speeds.append(0.0)
 
             # Get action from agent (deterministic evaluation)
-            # Raw Gaussian mean; ClipAction wrapper bounds it to action space
-            a = agent.act(state=s, eval_mode=True)
+            # agent.act() returns tanh-squashed action in [-1, 1]
+            a_tanh = agent.act(state=s, eval_mode=True)
+
+            # Scale from [-1, 1] to action space bounds [-3, 3]
+            a = a_tanh * max_accel
+            time.sleep(0.01)
 
             # Step environment
             s_next, r, done, truncated, _ = env.step(a)

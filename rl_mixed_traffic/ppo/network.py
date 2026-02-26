@@ -124,15 +124,24 @@ class ActorCriticNetwork(nn.Module):
         actor_output, value = self.forward(state)
 
         if self.continuous:
-            # Continuous action space: raw Gaussian (ClipAction wrapper bounds actions)
+            # Continuous action space: Gaussian distribution with tanh squashing
             action_mean = actor_output
-            action_std = torch.exp(self.actor_log_std.expand_as(action_mean))
+            log_std = torch.clamp(self.actor_log_std, min=-2.0, max=0.5)
+            action_std = torch.exp(log_std.expand_as(action_mean))
             probs = torch.distributions.Normal(action_mean, action_std)
 
             if action is None:
-                action = probs.sample()
+                # Sample from Gaussian then squash with tanh to [-1, 1]
+                action_raw = probs.sample()
+                action = torch.tanh(action_raw)
+            else:
+                # Action is already squashed (in [-1, 1]), need to reverse tanh for log_prob
+                action_raw = torch.atanh(torch.clamp(action, -0.999, 0.999))
 
-            log_prob = probs.log_prob(action).sum(dim=-1)
+            # Compute log probability with tanh correction
+            log_prob = probs.log_prob(action_raw).sum(dim=-1)
+            log_prob = log_prob - torch.sum(torch.log(1 - action**2 + 1e-6), dim=-1)
+
             entropy = probs.entropy().sum(dim=-1)
         else:
             # Discrete action space: Categorical distribution

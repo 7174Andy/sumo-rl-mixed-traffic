@@ -94,15 +94,17 @@ class PPOAgent(BaseAgent):
             action_mean, _ = self.network(state_tensor)
 
             if eval_mode:
-                # Deterministic: use mean action directly (ClipAction wrapper bounds it)
-                action = action_mean.squeeze(0).cpu().numpy()
+                # Deterministic: use mean action with tanh squashing
+                action = torch.tanh(action_mean).squeeze(0).cpu().numpy()
             else:
-                # Stochastic: raw Gaussian sample (ClipAction wrapper bounds it)
+                # Stochastic: sample from Gaussian policy then apply tanh
+                log_std = torch.clamp(self.network.actor_log_std, min=-2.0, max=0.5)
                 action_std = torch.exp(
-                    self.network.actor_log_std.expand_as(action_mean)
+                    log_std.expand_as(action_mean)
                 )
                 probs = torch.distributions.Normal(action_mean, action_std)
-                action = probs.sample().squeeze(0).cpu().numpy()
+                action_raw = probs.sample()
+                action = torch.tanh(action_raw).squeeze(0).cpu().numpy()
 
             return action
         else:

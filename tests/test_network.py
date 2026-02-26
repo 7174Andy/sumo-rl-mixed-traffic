@@ -52,46 +52,45 @@ class TestActorCriticContinuous:
         assert torch.allclose(action, action2)
         assert log_prob.shape == (4,)
 
-    def test_actions_are_unbounded(self):
-        """Actions should NOT be squashed by tanh — raw Gaussian samples."""
+    def test_actions_are_bounded_by_tanh(self):
+        """Actions should be squashed by tanh to [-1, 1]."""
         net = ActorCriticNetwork(state_dim=4, action_dim=1, continuous=True)
-        # Set high log_std to produce large samples
         net.actor_log_std.data.fill_(2.0)
         max_abs = 0.0
         for _ in range(200):
             a, _, _, _ = net.get_action_and_value(torch.randn(1, 4))
             max_abs = max(max_abs, a.abs().item())
-        assert max_abs > 1.0, "Actions should be unbounded (no tanh squashing)"
+        assert max_abs <= 1.0, "Actions should be bounded by tanh to [-1, 1]"
 
-    def test_no_log_std_clamping(self):
-        """log_std should be used directly, not clamped."""
+    def test_log_std_is_clamped(self):
+        """log_std should be clamped to [-2.0, 0.5]."""
         net = ActorCriticNetwork(state_dim=4, action_dim=1, continuous=True)
         net.actor_log_std.data.fill_(3.0)
         state = torch.randn(1, 4)
-        action_mean, _ = net(state)
-        # The std used internally should be exp(3.0), not clamped
-        expected_std = np.exp(3.0)
-        # Sample many actions and check variance is large
+        # Sample many actions — tanh squashing + clamped std means limited variance
         actions = torch.stack(
             [net.get_action_and_value(state)[0] for _ in range(500)]
         ).squeeze()
         actual_std = actions.std().item()
-        # Should be roughly exp(3.0) ≈ 20; clamped would be exp(0.5) ≈ 1.6
-        assert actual_std > 5.0, f"std should be ~{expected_std:.1f}, got {actual_std:.1f}"
+        # Clamped to max 0.5 → exp(0.5) ≈ 1.65, but after tanh further compressed
+        assert actual_std < 5.0, f"std should be small (clamped), got {actual_std:.1f}"
 
-    def test_log_prob_is_simple_gaussian(self):
-        """log_prob should be plain Gaussian, no Jacobian correction."""
+    def test_log_prob_includes_tanh_correction(self):
+        """log_prob should include the Jacobian correction for tanh squashing."""
         net = ActorCriticNetwork(state_dim=4, action_dim=1, continuous=True)
         state = torch.randn(1, 4)
         action, log_prob, _, _ = net.get_action_and_value(state)
 
-        # Manually compute expected log_prob
+        # Manually compute expected log_prob with tanh correction
         action_mean, _ = net(state)
-        action_std = torch.exp(net.actor_log_std.expand_as(action_mean))
+        log_std = torch.clamp(net.actor_log_std, min=-2.0, max=0.5)
+        action_std = torch.exp(log_std.expand_as(action_mean))
         dist = torch.distributions.Normal(action_mean, action_std)
-        expected_lp = dist.log_prob(action).sum(dim=-1)
+        action_raw = torch.atanh(torch.clamp(action, -0.999, 0.999))
+        expected_lp = dist.log_prob(action_raw).sum(dim=-1)
+        expected_lp = expected_lp - torch.sum(torch.log(1 - action**2 + 1e-6), dim=-1)
 
-        assert torch.allclose(log_prob, expected_lp, atol=1e-6)
+        assert torch.allclose(log_prob, expected_lp, atol=1e-5)
 
     def test_tanh_activations(self, net):
         """Hidden activations should use tanh (outputs bounded in [-1, 1])."""

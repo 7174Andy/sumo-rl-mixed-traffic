@@ -18,19 +18,17 @@ def make_env(
     gui: bool = False,
     num_vehicles: int = 4,
     num_agents: int = 1,
-    gamma: float = 0.99,
 ):
     """Create the ring road environment for continuous PPO training.
 
     Applies the wrapper chain:
-        RingRoadEnv -> FourToFiveTuple -> ClipAction -> NormalizeReward -> TransformReward(clip)
+        RingRoadEnv -> FourToFiveTuple -> ClipAction
 
     Args:
         sumocfg_path: Path to the SUMO config file
         gui: Whether to use SUMO GUI
         num_vehicles: Total number of vehicles in the ring (including head)
         num_agents: Number of CAVs controlled by RL (car1..carN). car0 is head.
-        gamma: Discount factor for NormalizeReward wrapper
 
     Returns:
         Wrapped environment with 5-tuple step output
@@ -47,8 +45,6 @@ def make_env(
     )
     env = FourToFiveTupleWrapper(env)
     env = gym.wrappers.ClipAction(env)
-    env = gym.wrappers.NormalizeReward(env, gamma=gamma)
-    env = gym.wrappers.TransformReward(env, lambda r: np.clip(r, -10, 10))
     return env
 
 
@@ -74,7 +70,6 @@ def train(cfg: DictConfig):
         gui=cfg.gui,
         num_vehicles=cfg.env.num_vehicles,
         num_agents=num_agents,
-        gamma=cfg.agent.gamma,
     )
 
     if num_agents > 1:
@@ -117,6 +112,9 @@ def _train_single_agent(cfg: DictConfig, env: RingRoadEnv, orig_cwd: str):
     ep_ret, ep_len = 0.0, 0
     step_count = 0
 
+    # Scalar max accel for tanh→action scaling: [-1,1] * max_accel → [-3, 3]
+    max_accel = float(env.unwrapped.max_accel)
+
     print(f"Starting PPO training for {cfg.total_steps} steps (single-agent)")
     print(f"Observation dim: {obs_dim}, Action dim: {action_dim} (continuous)")
     print(f"Rollout steps: {cfg.rollout_steps}, Update frequency: every {cfg.rollout_steps} steps")
@@ -129,11 +127,13 @@ def _train_single_agent(cfg: DictConfig, env: RingRoadEnv, orig_cwd: str):
             if step_count >= cfg.total_steps:
                 break
 
-            action, value, log_prob = agent.get_action_and_value(s)
+            action_tanh, value, log_prob = agent.get_action_and_value(s)
 
-            s_next, r, done, truncated, _ = env.step(action)
+            action_scaled = action_tanh * max_accel
 
-            agent.store_transition(s, action, r, value, log_prob, done or truncated)
+            s_next, r, done, truncated, _ = env.step(action_scaled)
+
+            agent.store_transition(s, action_tanh, r, value, log_prob, done or truncated)
 
             s = s_next
             ep_ret += r
@@ -242,6 +242,9 @@ def _train_multi_agent(
     ep_ret, ep_len = 0.0, 0
     step_count = 0
 
+    # Scalar max accel for tanh→action scaling
+    max_accel = float(env.unwrapped.max_accel)
+
     print(f"Starting PPO training for {cfg.total_steps} steps (multi-agent, {num_agents} CAVs)")
     print(f"Observation dim: {obs_dim} (global state + agent index), Action dim: {action_dim} (per-agent)")
     print(f"Agent IDs: {agent_ids}")
@@ -257,25 +260,27 @@ def _train_multi_agent(
 
             # Query shared policy for each agent
             per_agent_data = []
-            all_actions = np.zeros(num_agents, dtype=np.float32)
+            all_actions_scaled = np.zeros(num_agents, dtype=np.float32)
 
             for i, aid in enumerate(agent_ids):
                 obs_i = obs_dict[aid]
 
-                # Get raw Gaussian action, value, and log prob
-                action_i, value_i, log_prob_i = agent.get_action_and_value(obs_i)
+                # Get action (tanh output in [-1, 1]), value, and log prob
+                action_tanh_i, value_i, log_prob_i = agent.get_action_and_value(obs_i)
 
-                all_actions[i] = float(np.asarray(action_i).reshape(-1)[0])
+                # Scale action from [-1, 1] to [-max_accel, max_accel]
+                action_scaled_i = action_tanh_i * max_accel
+                all_actions_scaled[i] = float(np.asarray(action_scaled_i).reshape(-1)[0])
 
                 per_agent_data.append({
                     "obs": obs_i,
-                    "action": action_i,
+                    "action_tanh": action_tanh_i,
                     "value": value_i,
                     "log_prob": log_prob_i,
                 })
 
-            # Step environment with all agents' actions (ClipAction wrapper bounds them)
-            obs_dict_next, r, done, truncated, _ = env.step(all_actions)
+            # Step environment with scaled actions
+            obs_dict_next, r, done, truncated, _ = env.step(all_actions_scaled)
 
             # Store one transition per agent with the SHARED reward
             episode_done = done or truncated
@@ -283,7 +288,7 @@ def _train_multi_agent(
                 data = per_agent_data[i]
                 agent.store_transition(
                     data["obs"],
-                    data["action"],
+                    data["action_tanh"],
                     r,  # shared reward
                     data["value"],
                     data["log_prob"],

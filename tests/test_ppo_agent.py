@@ -40,12 +40,12 @@ class TestActContinuous:
         unique = len(set(a.item() for a in actions))
         assert unique > 1, "Training actions should be stochastic"
 
-    def test_act_train_unbounded(self, agent):
-        """Raw Gaussian samples should not be clamped to [-1, 1]."""
+    def test_act_train_bounded_by_tanh(self, agent):
+        """Tanh-squashed actions should be bounded to [-1, 1]."""
         agent.network.actor_log_std.data.fill_(2.0)
         state = np.random.randn(8).astype(np.float32)
         max_abs = max(abs(agent.act(state).item()) for _ in range(200))
-        assert max_abs > 1.0, "Actions should be unbounded (no tanh)"
+        assert max_abs <= 1.0, "Actions should be bounded by tanh to [-1, 1]"
 
 
 class TestActDiscrete:
