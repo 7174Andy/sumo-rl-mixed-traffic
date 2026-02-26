@@ -215,15 +215,15 @@ The implementation uses an **Actor-Critic** architecture with a clipped surrogat
 The Actor-Critic network shares feature extraction layers between the policy (actor) and the value function (critic):
 
 $$
-\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\text{ReLU}} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\text{ReLU}} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
+\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\tanh} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\tanh} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
 $$
 
-| Layer         | Input dim | Output dim | Activation |
-| ------------- | --------- | ---------- | ---------- |
-| `shared1`     | $2N$      | 256        | ReLU       |
-| `shared2`     | 256       | 256        | ReLU       |
-| `actor_mean`  | 256       | $d_a$      | None       |
-| `critic_head` | 256       | 1          | None       |
+| Layer         | Input dim | Output dim | Activation | Init |
+| ------------- | --------- | ---------- | ---------- | ---- |
+| `shared1`     | $2N$      | 256        | tanh       | Orthogonal (std=$\sqrt{2}$) |
+| `shared2`     | 256       | 256        | tanh       | Orthogonal (std=$\sqrt{2}$) |
+| `actor_mean`  | 256       | $d_a$      | None       | Orthogonal (std=0.01) |
+| `critic_head` | 256       | 1          | None       | Orthogonal (std=1.0) |
 
 **Gaussian policy**: The actor outputs a mean $\mu_\theta(s)$ and uses a learnable, state-independent log standard deviation $\log \sigma$ (clamped to $[-2.0, 0.5]$). Actions are sampled from $\mathcal{N}(\mu, \sigma^2)$ and squashed through $\tanh$ to produce bounded outputs in $[-1, 1]$, which are then rescaled to the acceleration range $[-3, 3]$ m/s².
 

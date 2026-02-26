@@ -38,3 +38,4 @@ nav:
   - Home: index.md
   - Problem Formulation: problem.md
   - Algorithms: algorithms.md
+  - PPO Refactoring: ppo-refactor.md
