@@ -14,6 +14,8 @@
         <link rel="prev" href="../problem/">
       
       
+        <link rel="next" href="../ppo-refactor/">
+      
       
         
       
@@ -692,6 +694,33 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ppo-refactor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1354,7 +1383,7 @@ y = r + \gamma\,(1 - d)\,Q_{\theta^-}(s', a^*)
 <h3 id="32-network-architecture">3.2 Network Architecture<a class="headerlink" href="#32-network-architecture" title="Permanent link">&para;</a></h3>
 <p>The Actor-Critic network shares feature extraction layers between the policy (actor) and the value function (critic):</p>
 <div class="arithmatex">\[
-\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\text{ReLU}} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\text{ReLU}} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
+\mathbf{s} \in \mathbb{R}^{2N} \xrightarrow{\text{Linear}(2N, 256)} \xrightarrow{\tanh} \xrightarrow{\text{Linear}(256, 256)} \xrightarrow{\tanh} \begin{cases} \xrightarrow{\text{Actor head}} \mu \in \mathbb{R}^{d_a} \\ \xrightarrow{\text{Critic head}} V \in \mathbb{R} \end{cases}
 \]</div>
 <table>
 <thead>
@@ -1363,6 +1392,7 @@ y = r + \gamma\,(1 - d)\,Q_{\theta^-}(s', a^*)
 <th>Input dim</th>
 <th>Output dim</th>
 <th>Activation</th>
+<th>Init</th>
 </tr>
 </thead>
 <tbody>
@@ -1370,25 +1400,29 @@ y = r + \gamma\,(1 - d)\,Q_{\theta^-}(s', a^*)
 <td><code>shared1</code></td>
 <td><span class="arithmatex">\(2N\)</span></td>
 <td>256</td>
-<td>ReLU</td>
+<td>tanh</td>
+<td>Orthogonal (std=<span class="arithmatex">\(\sqrt{2}\)</span>)</td>
 </tr>
 <tr>
 <td><code>shared2</code></td>
 <td>256</td>
 <td>256</td>
-<td>ReLU</td>
+<td>tanh</td>
+<td>Orthogonal (std=<span class="arithmatex">\(\sqrt{2}\)</span>)</td>
 </tr>
 <tr>
 <td><code>actor_mean</code></td>
 <td>256</td>
 <td><span class="arithmatex">\(d_a\)</span></td>
 <td>None</td>
+<td>Orthogonal (std=0.01)</td>
 </tr>
 <tr>
 <td><code>critic_head</code></td>
 <td>256</td>
 <td>1</td>
 <td>None</td>
+<td>Orthogonal (std=1.0)</td>
 </tr>
 </tbody>
 </table>
