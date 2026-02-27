@@ -573,10 +573,6 @@ class RingRoadEnv(gym.Env):
 
         R = R_velocity + R_spacing + R_control
 
-        # Safety constraint as hard penalty
-        if d_gap < self.spacing_min:
-            R -= 100.0
-
         # Scale reward to keep per-step values in a PPO-friendly range
         R /= 100.0
 
@@ -594,8 +590,6 @@ class RingRoadEnv(gym.Env):
         - Velocity error: summed over ALL vehicles (HDVs + CAVs), excluding head
         - Spacing error: summed over CAVs only
         - Control penalty: summed over CAVs only
-        - Safety penalty: per CAV if gap < spacing_min
-
         Returns:
             float: Single shared system-level reward (scaled by /100)
         """
@@ -619,7 +613,6 @@ class RingRoadEnv(gym.Env):
         # --- Spacing error + control penalty: CAVs only ---
         R_spacing = 0.0
         R_control = 0.0
-        R_safety = 0.0
 
         for aid in self.agent_ids:
             if aid not in active_ids:
@@ -632,10 +625,7 @@ class RingRoadEnv(gym.Env):
             accel = self.prev_accels[aid]
             R_control -= self.weight_u * (accel ** 2)
 
-            if d_gap < self.spacing_min:
-                R_safety -= 100.0
-
-        R_total = R_velocity + R_spacing + R_control + R_safety
+        R_total = R_velocity + R_spacing + R_control
 
         # Scale reward to keep per-step values in a PPO-friendly range
         R_total /= 100.0
