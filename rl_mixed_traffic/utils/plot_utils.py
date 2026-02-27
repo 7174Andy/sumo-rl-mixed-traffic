@@ -174,6 +174,14 @@ def plot_ppo_metrics(metrics_history: dict, out_dir: str = "ppo_results"):
         axes[1, 0].set_ylabel("Entropy")
         axes[1, 0].grid(True)
 
+    # Clip Fraction
+    if "clipfrac" in metrics_history and len(metrics_history["clipfrac"]) > 0:
+        axes[1, 1].plot(metrics_history["clipfrac"])
+        axes[1, 1].set_title("Clip Fraction")
+        axes[1, 1].set_xlabel("Update")
+        axes[1, 1].set_ylabel("Fraction")
+        axes[1, 1].grid(True)
+
     plt.tight_layout()
     plt.savefig(f"{out_dir}/ppo_training_metrics.png", dpi=150)
     plt.close()
