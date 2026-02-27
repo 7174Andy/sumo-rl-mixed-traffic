@@ -9,6 +9,15 @@ env:
   num_vehicles: 4
   num_agents: 1
 
+scenario:
+  type: random
+  v_cruise: 15.0
+  v_low: 2.0
+  t_brake: 50.0
+  brake_duration: 3.0
+  hold_duration: 10.0
+  recover_duration: 5.0
+
 agent:
   lr: 3e-4
   gamma: 0.99

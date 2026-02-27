@@ -165,6 +165,10 @@ class RingRoadEnv(gym.Env):
             self.ring_length = compute_ring_length(self.agent_id)
 
     def _update_head_speed(self):
+        if self.head_vehicle_controller.update_every_step:
+            self.head_vehicle_controller.set_random_head_speed()
+            return
+
         if (
             self.step_count - self._last_head_update_step
         ) < self.head_speed_change_interval_steps:
@@ -254,9 +258,13 @@ class RingRoadEnv(gym.Env):
                 ]
                 ahead = [(vid, d) for vid, d in deltas if d > 0]
                 if ahead:
-                    _, d_gap = min(ahead, key=lambda x: x[1])
+                    lead_vid, d_gap = min(ahead, key=lambda x: x[1])
+                    lead_length = traci.vehicle.getLength(lead_vid)
+                    d_gap = d_gap - lead_length
                 elif deltas:
-                    _, d_gap = min(deltas, key=lambda x: abs(x[1]))
+                    lead_vid, d_gap = min(deltas, key=lambda x: abs(x[1]))
+                    lead_length = traci.vehicle.getLength(lead_vid)
+                    d_gap = d_gap - lead_length
             except traci.TraCIException:
                 d_gap = 1e3
         return d_gap
@@ -275,6 +283,7 @@ class RingRoadEnv(gym.Env):
         self.last_jerk = 0.0
         self._last_head_update_step = 0
         self._cached_global_state = None
+        self.head_vehicle_controller.reset()
         self.prev_accels = {aid: 0.0 for aid in self.agent_ids}
         self.cmd_speeds = {aid: 0.0 for aid in self.agent_ids}
 

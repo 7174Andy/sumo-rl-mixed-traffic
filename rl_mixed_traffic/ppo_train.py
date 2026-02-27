@@ -6,6 +6,7 @@ import gymnasium as gym
 
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
 from rl_mixed_traffic.env.wrappers import FourToFiveTupleWrapper
+from rl_mixed_traffic.env.scenario import make_head_controller
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.configs.ppo_config import PPOConfig
 from rl_mixed_traffic.agents.ppo_agent import PPOAgent
@@ -18,6 +19,7 @@ def make_env(
     gui: bool = False,
     num_vehicles: int = 4,
     num_agents: int = 1,
+    head_vehicle_controller=None,
 ):
     """Create the ring road environment for continuous PPO training.
 
@@ -29,6 +31,8 @@ def make_env(
         gui: Whether to use SUMO GUI
         num_vehicles: Total number of vehicles in the ring (including head)
         num_agents: Number of CAVs controlled by RL (car1..carN). car0 is head.
+        head_vehicle_controller: Optional controller for the head vehicle.
+            If None, the default random controller is used.
 
     Returns:
         Wrapped environment with 5-tuple step output
@@ -42,6 +46,7 @@ def make_env(
         gui=gui,
         num_vehicles=num_vehicles,
         num_agents=num_agents,
+        head_vehicle_controller=head_vehicle_controller,
     )
     env = FourToFiveTupleWrapper(env)
     env = gym.wrappers.ClipAction(env)
@@ -65,11 +70,14 @@ def train(cfg: DictConfig):
     sumocfg_path = str(Path(orig_cwd) / cfg.env.sumocfg_path)
     num_agents = OmegaConf.select(cfg, "env.num_agents", default=1)
 
+    head_controller = make_head_controller(cfg.scenario)
+
     env = make_env(
         sumocfg_path=sumocfg_path,
         gui=cfg.gui,
         num_vehicles=cfg.env.num_vehicles,
         num_agents=num_agents,
+        head_vehicle_controller=head_controller,
     )
 
     if num_agents > 1:

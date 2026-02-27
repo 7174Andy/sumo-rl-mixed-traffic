@@ -76,6 +76,68 @@ def plot_vehicle_speeds(
     plt.close()
     print(f"[OK] Saved plot: {out_path}")
 
+def plot_cav_spacing(
+    spacings: dict[str, list],
+    out_path: str,
+    title: str = "CAV Spacing Over Time",
+):
+    """Plot CAV gap-to-leader (bumper-to-bumper) over evaluation steps.
+
+    Args:
+        spacings: Dict mapping agent_id -> list of gap values (m) per step.
+        out_path: Path to save the plot.
+        title: Title for the plot.
+    """
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+    plt.figure(figsize=(10, 5))
+    for aid, vals in spacings.items():
+        plt.plot(range(len(vals)), vals, label=aid, linewidth=1.5, alpha=0.8)
+    plt.xlabel("Step")
+    plt.ylabel("Spacing (m)")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"[OK] Saved plot: {out_path}")
+
+
+def plot_accelerations(
+    head_accels: list,
+    cav_accels: dict[str, list],
+    out_path: str,
+    title: str = "Vehicle Accelerations Over Time",
+):
+    """Plot head vehicle and CAV accelerations over evaluation steps.
+
+    Args:
+        head_accels: List of head vehicle accelerations (m/s^2) per step.
+        cav_accels: Dict mapping agent_id -> list of accel values per step.
+        out_path: Path to save the plot.
+        title: Title for the plot.
+    """
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(
+        range(len(head_accels)), head_accels,
+        label="Head Vehicle", linewidth=1.5, alpha=0.8,
+    )
+    for aid, vals in cav_accels.items():
+        plt.plot(range(len(vals)), vals, label=f"CAV ({aid})", linewidth=1.5, alpha=0.8)
+    plt.xlabel("Step")
+    plt.ylabel("Acceleration (m/s²)")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"[OK] Saved plot: {out_path}")
+
+
 def plot_ppo_metrics(metrics_history: dict, out_dir: str = "ppo_results"):
     """Plot PPO training metrics.
 
