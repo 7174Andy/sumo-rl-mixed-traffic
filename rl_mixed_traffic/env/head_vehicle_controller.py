@@ -112,3 +112,99 @@ class EmergencyBrakingController(HeadVehicleController):
         speed = self.get_target_speed(self._sim_time)
         traci.vehicle.setSpeed(self.head_id, speed)
         self._sim_time += self.step_length
+
+
+class EUDCController(HeadVehicleController):
+    """Head vehicle follows a scaled EUDC (Extra-Urban Driving Cycle) profile.
+
+    The EUDC is a 400-second piecewise-linear driving cycle.  Speeds are
+    linearly scaled from the original 0–120 km/h range into
+    [v_min, v_max] m/s so the profile fits the ring-road speed regime.
+    After 400 s the cycle loops.
+    """
+
+    # (start_kmh, end_kmh, duration_s)
+    _EUDC_SEGMENTS: list[tuple[float, float, float]] = [
+        (0, 0, 20),
+        (0, 15, 6),
+        (15, 35, 11),
+        (35, 50, 10),
+        (50, 70, 14),
+        (70, 70, 50),
+        (70, 50, 8),
+        (50, 50, 69),
+        (50, 70, 13),
+        (70, 70, 50),
+        (70, 100, 35),
+        (100, 100, 30),
+        (100, 120, 20),
+        (120, 120, 10),
+        (120, 80, 16),
+        (80, 50, 8),
+        (50, 0, 10),
+        (0, 0, 20),
+    ]
+
+    def __init__(
+        self,
+        head_id: str = "car0",
+        step_length: float = 0.1,
+        v_min: float = 5.0,
+        v_max: float = 20.0,
+    ):
+        super().__init__(
+            head_id=head_id,
+            head_speed_min=int(v_min),
+            head_speed_max=int(v_max + 1),
+        )
+        self.step_length = step_length
+        self.v_min = v_min
+        self.v_max = v_max
+        self._sim_time = 0.0
+
+        # Pre-compute cumulative time boundaries and scaled velocities.
+        self._cum_times: list[float] = []  # end-time of each segment
+        self._start_speeds: list[float] = []  # scaled start speed (m/s)
+        self._end_speeds: list[float] = []  # scaled end speed (m/s)
+        t = 0.0
+        for start_kmh, end_kmh, dur in self._EUDC_SEGMENTS:
+            self._start_speeds.append(self._scale(start_kmh))
+            self._end_speeds.append(self._scale(end_kmh))
+            t += dur
+            self._cum_times.append(t)
+        self._cycle_length = t  # 400 s
+
+    def _scale(self, v_kmh: float) -> float:
+        """Linearly map EUDC speed (0–120 km/h) to [v_min, v_max] m/s."""
+        return self.v_min + (v_kmh / 120.0) * (self.v_max - self.v_min)
+
+    @property
+    def update_every_step(self) -> bool:
+        return True
+
+    def reset(self):
+        self._sim_time = 0.0
+
+    def get_target_speed(self, t: float) -> float:
+        """Return the scaled EUDC target speed at simulation time *t*."""
+        t_mod = t % self._cycle_length
+        seg_start = 0.0
+        for i, seg_end in enumerate(self._cum_times):
+            if t_mod < seg_end:
+                frac = (t_mod - seg_start) / (seg_end - seg_start)
+                return self._start_speeds[i] + frac * (
+                    self._end_speeds[i] - self._start_speeds[i]
+                )
+            seg_start = seg_end
+        # Exactly at cycle boundary → last segment end speed.
+        return self._end_speeds[-1]
+
+    def set_random_head_speed(self):
+        """Override: apply the EUDC profile instead of random speed."""
+        if self.head_id not in traci.vehicle.getIDList():
+            self._sim_time += self.step_length
+            return
+
+        speed = self.get_target_speed(self._sim_time)
+        traci.vehicle.setSpeed(self.head_id, speed)
+        self._sim_time += self.step_length
