@@ -1,0 +1,36 @@
+total_steps: 600_000
+rollout_steps: 2048
+save_freq: 50_000
+gui: false
+out_dir: lagrangian_ppo_results
+
+env:
+  sumocfg_path: configs/ring/simulation.sumocfg
+  num_vehicles: 4
+  num_agents: 1
+  enable_safety_layer: true
+  disable_sumo_safety: true
+  spacing_min: 5.0
+
+scenario:
+  type: random
+  v_cruise: 15.0
+  v_low: 2.0
+  t_brake: 50.0
+  brake_duration: 3.0
+  hold_duration: 10.0
+  recover_duration: 5.0
+
+agent:
+  lr: 3e-4
+  gamma: 0.99
+  lam: 0.95
+  clip_epsilon: 0.2
+  k_epochs: 10
+  batch_size: 64
+  entropy_coef: 0.01
+  value_coef: 0.5
+  enable_lagrangian: true
+  lambda_init: 0.0
+  lambda_lr: 0.01
+  lambda_max: 10.0

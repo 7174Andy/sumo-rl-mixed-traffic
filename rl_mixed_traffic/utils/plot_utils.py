@@ -141,13 +141,26 @@ def plot_accelerations(
 def plot_ppo_metrics(metrics_history: dict, out_dir: str = "ppo_results"):
     """Plot PPO training metrics.
 
+    When Lagrangian keys (lambda, mean_violation, safety_clip_rate) are present,
+    uses a 3x2 grid instead of 2x2 to show the additional metrics.
+
     Args:
         metrics_history: Dictionary of metric names to lists of values
         out_dir: Output directory for plots
     """
     Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    lagrangian_keys = {"lambda", "mean_violation", "safety_clip_rate"}
+    has_lagrangian = any(
+        k in metrics_history and len(metrics_history[k]) > 0
+        for k in lagrangian_keys
+    )
+
+    if has_lagrangian:
+        fig, axes = plt.subplots(3, 2, figsize=(12, 15))
+    else:
+        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
     fig.suptitle("PPO Training Metrics", fontsize=16)
 
     # Policy Loss
@@ -181,6 +194,39 @@ def plot_ppo_metrics(metrics_history: dict, out_dir: str = "ppo_results"):
         axes[1, 1].set_xlabel("Update")
         axes[1, 1].set_ylabel("Fraction")
         axes[1, 1].grid(True)
+
+    # Lagrangian-specific metrics (row 3)
+    if has_lagrangian:
+        if "lambda" in metrics_history and len(metrics_history["lambda"]) > 0:
+            axes[2, 0].plot(metrics_history["lambda"], color="purple")
+            axes[2, 0].set_title("Lagrange Multiplier (lambda)")
+            axes[2, 0].set_xlabel("Update")
+            axes[2, 0].set_ylabel("Lambda")
+            axes[2, 0].grid(True)
+
+        # Combine violation and clip rate on the same subplot
+        ax_right = axes[2, 1]
+        plotted = False
+        if "mean_violation" in metrics_history and len(metrics_history["mean_violation"]) > 0:
+            ax_right.plot(
+                metrics_history["mean_violation"],
+                color="red", label="Mean Violation (m)",
+            )
+            plotted = True
+        if "safety_clip_rate" in metrics_history and len(metrics_history["safety_clip_rate"]) > 0:
+            ax_twin = ax_right.twinx()
+            ax_twin.plot(
+                metrics_history["safety_clip_rate"],
+                color="orange", label="Safety Clip Rate",
+            )
+            ax_twin.set_ylabel("Clip Rate")
+            ax_twin.legend(loc="upper right")
+        if plotted:
+            ax_right.set_title("Violation & Safety Clip Rate")
+            ax_right.set_xlabel("Update")
+            ax_right.set_ylabel("Violation (m)")
+            ax_right.legend(loc="upper left")
+            ax_right.grid(True)
 
     plt.tight_layout()
     plt.savefig(f"{out_dir}/ppo_training_metrics.png", dpi=150)

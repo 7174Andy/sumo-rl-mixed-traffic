@@ -14,6 +14,7 @@ from rl_mixed_traffic.utils.sumo_utils import (
 )
 from rl_mixed_traffic.configs.sumo_config import SumoConfig
 from rl_mixed_traffic.env.head_vehicle_controller import HeadVehicleController
+from rl_mixed_traffic.env.safety_layer import SafetyLayer
 
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
@@ -52,7 +53,7 @@ class RingRoadEnv(gym.Env):
         agent_id: str = "car1",
         gui: bool = False,
         max_accel: float = 3.0,
-        min_accel: float = -3.0,
+        min_accel: float = -5.0,
         episode_length: float = 500.0,
         num_vehicles: int = 2,
         num_agents: int = 1,
@@ -64,10 +65,12 @@ class RingRoadEnv(gym.Env):
         # DeeP-LCC reward parameters
         v_star: float = 15.0,
         s_star: float = 20.0,
-        weight_v: float = 0.8,
-        weight_s: float = 0.7,
+        weight_v: float = 1,
+        weight_s: float = 0.5,
         weight_u: float = 0.1,
         spacing_min: float = 5.0,
+        enable_safety_layer: bool = False,
+        disable_sumo_safety: bool = False,
     ):
         self.sumo_config = sumo_config
         self.gui = gui or sumo_config.use_gui
@@ -96,6 +99,13 @@ class RingRoadEnv(gym.Env):
         self.weight_s = weight_s
         self.weight_u = weight_u
         self.spacing_min = spacing_min
+        self.enable_safety_layer = enable_safety_layer
+        self.disable_sumo_safety = disable_sumo_safety
+        self.safety_layer = (
+            SafetyLayer(s_min=spacing_min, dt=sumo_config.step_length)
+            if enable_safety_layer
+            else None
+        )
 
         self.episode_length = episode_length
         self.step_length = sumo_config.step_length
@@ -235,8 +245,55 @@ class RingRoadEnv(gym.Env):
         obs = np.append(global_state, np.float32(norm_idx))
         return obs
 
+    def _find_ring_leader(self, veh_id: str) -> tuple[str | None, float]:
+        """Find the immediately preceding vehicle on the ring using ring-aware math.
+
+        Uses getLeader() first; if that fails, falls back to computing
+        forward distances modulo ring_length so the wrap-around is handled
+        correctly.
+
+        Args:
+            veh_id: Vehicle ID to find leader for.
+
+        Returns:
+            (lead_id, bumper_gap) — lead_id is None when no leader is found,
+            in which case bumper_gap is a large sentinel value.
+        """
+        lead = traci.vehicle.getLeader(veh_id)
+        if lead:
+            return lead  # (lead_id, bumper_gap)
+
+        # Fallback: ring-aware position calculation
+        L = self.ring_length or 1e6
+        try:
+            ids = list(traci.vehicle.getIDList())
+            pos = {vid: traci.vehicle.getDistance(vid) % L for vid in ids}
+            pos_ego = pos[veh_id]
+
+            best_vid = None
+            best_fwd = L  # max possible forward distance on ring
+
+            for vid in ids:
+                if vid == veh_id:
+                    continue
+                # Forward distance on ring (always positive, wraps around)
+                fwd = (pos[vid] - pos_ego) % L
+                if fwd < best_fwd:
+                    best_fwd = fwd
+                    best_vid = vid
+
+            if best_vid is not None:
+                lead_length = traci.vehicle.getLength(best_vid)
+                bumper_gap = best_fwd - lead_length
+                return best_vid, max(0.0, bumper_gap)
+
+        except traci.TraCIException:
+            pass
+
+        return None, 1e3
+
     def _get_gap_to_leader(self, veh_id: str) -> float:
-        """Get the gap (meters) from veh_id to its leader on the ring.
+        """Get the bumper-to-bumper gap (meters) from veh_id to its leader on the ring.
 
         Args:
             veh_id: Vehicle ID to find leader gap for.
@@ -244,30 +301,43 @@ class RingRoadEnv(gym.Env):
         Returns:
             Gap distance in meters (large value if no leader found).
         """
-        d_gap = 1e9
-        lead = traci.vehicle.getLeader(veh_id)
-        if lead:
-            _, d_gap = lead
+        _, gap = self._find_ring_leader(veh_id)
+        return gap
+
+    def _get_leader_info(self, veh_id: str) -> tuple[float, float]:
+        """Get gap and relative velocity to the leader of veh_id on the ring.
+
+        Args:
+            veh_id: Vehicle ID to query.
+
+        Returns:
+            (gap, relative_vel) where relative_vel = v_leader - v_ego.
+            gap is bumper-to-bumper distance in meters.
+        """
+        v_ego = traci.vehicle.getSpeed(veh_id)
+        lead_id, d_gap = self._find_ring_leader(veh_id)
+
+        if lead_id is not None:
+            v_leader = traci.vehicle.getSpeed(lead_id)
         else:
-            try:
-                ids = list(traci.vehicle.getIDList())
-                pos = {vid: traci.vehicle.getDistance(vid) for vid in ids}
-                pos_ego = pos[veh_id]
-                deltas = [
-                    (vid, (pos[vid] - pos_ego)) for vid in ids if vid != veh_id
-                ]
-                ahead = [(vid, d) for vid, d in deltas if d > 0]
-                if ahead:
-                    lead_vid, d_gap = min(ahead, key=lambda x: x[1])
-                    lead_length = traci.vehicle.getLength(lead_vid)
-                    d_gap = d_gap - lead_length
-                elif deltas:
-                    lead_vid, d_gap = min(deltas, key=lambda x: abs(x[1]))
-                    lead_length = traci.vehicle.getLength(lead_vid)
-                    d_gap = d_gap - lead_length
-            except traci.TraCIException:
-                d_gap = 1e3
-        return d_gap
+            v_leader = v_ego  # no leader → no relative velocity
+
+        return d_gap, v_leader - v_ego
+
+    def get_spacing_violation(self) -> float:
+        """Compute total spacing violation across all agent vehicles.
+
+        Returns:
+            Sum of max(0, s_min - gap) for each agent. Zero means no violation.
+        """
+        active_ids = traci.vehicle.getIDList()
+        total_violation = 0.0
+        for aid in self.agent_ids:
+            if aid not in active_ids:
+                continue
+            gap = self._get_gap_to_leader(aid)
+            total_violation += max(0.0, self.spacing_min - gap)
+        return total_violation
 
     def reset(self, seed: int | None = None, options: dict = None):
         """Reset the environment and return the initial observation.
@@ -299,9 +369,10 @@ class RingRoadEnv(gym.Env):
             warmup += 1
 
         # Set speed mode and max speed for all agent vehicles
+        speed_mode = 0 if self.disable_sumo_safety else 95
         for aid in self.agent_ids:
             if aid in traci.vehicle.getIDList():
-                traci.vehicle.setSpeedMode(aid, 95)  # 0b1011111
+                traci.vehicle.setSpeedMode(aid, speed_mode)
                 traci.vehicle.setMaxSpeed(aid, self.v_max)
                 v_now = traci.vehicle.getSpeed(aid)
                 self.cmd_speeds[aid] = max(0.5, min(v_now, self.v_max))
@@ -393,6 +464,12 @@ class RingRoadEnv(gym.Env):
         # Clip acceleration to valid range (defensive check)
         a = float(np.clip(a, self.min_accel, self.max_accel))
 
+        # Safety layer: filter accel if enabled
+        safety_clipped = False
+        if self.safety_layer is not None and self.agent_id in traci.vehicle.getIDList():
+            gap, rel_vel = self._get_leader_info(self.agent_id)
+            a, safety_clipped = self.safety_layer.filter(a, gap, rel_vel)
+
         # Jerk calculation
         dt = self.step_length
         jerk = (a - self.prev_accel) / dt if dt > 0 else 0.0
@@ -412,7 +489,7 @@ class RingRoadEnv(gym.Env):
         obs = self.get_state()
         reward = self.compute_lcc_reward()
         done = self.terminal()
-        info = {}
+        info = {"safety_clipped": safety_clipped}
 
         return obs, reward, done, info
 
@@ -433,8 +510,16 @@ class RingRoadEnv(gym.Env):
         # Track per-agent accelerations and apply
         accels_to_apply = []
         ids_to_apply = []
+        any_safety_clipped = False
         for i, aid in enumerate(self.agent_ids):
             a = float(np.clip(action[i], self.min_accel, self.max_accel))
+
+            # Safety layer: filter accel if enabled
+            if self.safety_layer is not None and aid in active_ids:
+                gap, rel_vel = self._get_leader_info(aid)
+                a, clipped = self.safety_layer.filter(a, gap, rel_vel)
+                any_safety_clipped = any_safety_clipped or clipped
+
             self.prev_accels[aid] = a
             if aid in active_ids:
                 ids_to_apply.append(aid)
@@ -458,7 +543,7 @@ class RingRoadEnv(gym.Env):
 
         reward = self.compute_multi_agent_lcc_reward()
         done = self.terminal()
-        info = {}
+        info = {"safety_clipped": any_safety_clipped}
 
         return obs_dict, reward, done, info
 
