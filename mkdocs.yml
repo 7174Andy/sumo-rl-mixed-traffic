@@ -39,3 +39,4 @@ nav:
   - Problem Formulation: problem.md
   - Algorithms: algorithms.md
   - PPO Refactoring: ppo-refactor.md
+  - Redesign Reward: reward-redesign.md
