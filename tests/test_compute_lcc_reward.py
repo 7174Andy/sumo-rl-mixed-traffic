@@ -1,12 +1,9 @@
-"""Unit tests for DeeP-LCC reward functions (single-agent and multi-agent).
+"""Unit tests for non-negative DeeP-LCC reward functions.
+
+The reward is r = max(J_max - J, 0) / J_max  where J >= 0 is the raw cost.
+At equilibrium (J=0) reward is 1.0; at worst case (J=J_max) reward is 0.0.
 
 Mocks traci calls to test the reward math in isolation (no SUMO needed).
-Verifies:
-  - Velocity error: quadratic penalty for all vehicles except head
-  - Spacing error: quadratic penalty for CAV gap vs OVM-derived s_star
-  - Control penalty: quadratic penalty on CAV acceleration
-  - Scaling: reward divided by 100
-  - Agent absent: returns 0.0
 """
 
 import pytest
@@ -89,8 +86,8 @@ class TestSingleAgentLCCReward:
         )
         assert env.compute_lcc_reward() == 0.0
 
-    def test_at_equilibrium_reward_near_zero(self):
-        """When all vehicles at v_star and gap == s_star, reward == 0."""
+    def test_at_equilibrium_reward_is_one(self):
+        """When all vehicles at v_star and gap == s_star, reward == 1.0."""
         env = _make_env()
         s_star = _compute_s_star(env.v_star)
         env.prev_accel = 0.0
@@ -106,10 +103,10 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        assert reward == pytest.approx(0.0, abs=1e-6)
+        assert reward == pytest.approx(1.0, abs=1e-6)
 
-    def test_velocity_error_penalty(self):
-        """Vehicles deviating from v_star produce negative reward."""
+    def test_velocity_error_reduces_reward(self):
+        """Vehicles deviating from v_star produce reward < 1."""
         env = _make_env()
         s_star = _compute_s_star(env.v_star)
         env.prev_accel = 0.0
@@ -125,12 +122,13 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        # car2: (10-15)^2=25, car3: (20-15)^2=25 -> R_vel = -0.8*50 = -40
-        expected = -40.0 / 100.0
+        # J_vel = 0.8*(25+25) = 40.0
+        expected = max(env.J_max - 40.0, 0.0) / env.J_max
         assert reward == pytest.approx(expected, abs=1e-6)
+        assert 0.0 < reward < 1.0
 
-    def test_spacing_error_penalty(self):
-        """Gap deviating from s_star produces spacing penalty."""
+    def test_spacing_error_reduces_reward(self):
+        """Gap deviating from s_star reduces reward."""
         env = _make_env()
         s_star = _compute_s_star(env.v_star)
         env.prev_accel = 0.0
@@ -145,12 +143,12 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        # R_spacing = -0.7 * 25 = -17.5
-        expected = -17.5 / 100.0
+        # J_spacing = 0.7 * 25 = 17.5
+        expected = max(env.J_max - 17.5, 0.0) / env.J_max
         assert reward == pytest.approx(expected, abs=1e-6)
 
-    def test_control_penalty(self):
-        """Non-zero acceleration produces control penalty."""
+    def test_control_penalty_reduces_reward(self):
+        """Non-zero acceleration reduces reward."""
         env = _make_env()
         s_star = _compute_s_star(env.v_star)
         env.prev_accel = 2.0
@@ -164,8 +162,8 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        # R_control = -0.1 * 4 = -0.4
-        expected = -0.4 / 100.0
+        # J_control = 0.1 * 4 = 0.4
+        expected = max(env.J_max - 0.4, 0.0) / env.J_max
         assert reward == pytest.approx(expected, abs=1e-6)
 
     def test_combined_cost(self):
@@ -184,8 +182,9 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        # R_vel = -0.8*9 = -7.2, R_spacing = -0.7*9 = -6.3, R_ctrl = -0.1*1 = -0.1
-        expected = (-7.2 + -6.3 + -0.1) / 100.0
+        # J_vel = 0.8*9 = 7.2, J_spacing = 0.7*9 = 6.3, J_ctrl = 0.1*1 = 0.1
+        J = 7.2 + 6.3 + 0.1
+        expected = max(env.J_max - J, 0.0) / env.J_max
         assert reward == pytest.approx(expected, abs=1e-6)
 
     def test_spacing_error_clipped(self):
@@ -204,12 +203,12 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        # R_spacing = -0.7 * 400 = -280
-        expected = -280.0 / 100.0
+        # J_spacing = 0.7 * 400 = 280
+        expected = max(env.J_max - 280.0, 0.0) / env.J_max
         assert reward == pytest.approx(expected, abs=1e-6)
 
-    def test_reward_is_always_nonpositive(self):
-        """DeeP-LCC cost >= 0, so reward <= 0."""
+    def test_reward_is_always_nonnegative(self):
+        """Non-negative reward: always in [0, 1]."""
         env = _make_env()
         s_star = _compute_s_star(env.v_star)
         env.prev_accel = 1.5
@@ -224,7 +223,24 @@ class TestSingleAgentLCCReward:
         )
 
         reward = env.compute_lcc_reward()
-        assert reward <= 0.0
+        assert 0.0 <= reward <= 1.0
+
+    def test_reward_bounded_above_by_one(self):
+        """Reward never exceeds 1.0."""
+        env = _make_env()
+        s_star = _compute_s_star(env.v_star)
+        env.prev_accel = 0.0
+
+        _setup_vehicles(
+            {
+                "car0": {"speed": 15.0, "distance": 0.0, "length": 5.0},
+                "car1": {"speed": 15.0, "distance": 50.0, "length": 5.0},
+            },
+            {"car1": ("car0", s_star)},
+        )
+
+        reward = env.compute_lcc_reward()
+        assert reward <= 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +248,7 @@ class TestSingleAgentLCCReward:
 # ---------------------------------------------------------------------------
 class TestMultiAgentLCCReward:
 
-    def test_at_equilibrium_reward_near_zero(self):
+    def test_at_equilibrium_reward_is_one(self):
         env = _make_env(num_agents=2)
         s_star = _compute_s_star(env.v_star)
         env.prev_accels = {"car1": 0.0, "car2": 0.0}
@@ -251,7 +267,7 @@ class TestMultiAgentLCCReward:
         )
 
         reward = env.compute_multi_agent_lcc_reward()
-        assert reward == pytest.approx(0.0, abs=1e-6)
+        assert reward == pytest.approx(1.0, abs=1e-6)
 
     def test_sums_spacing_across_agents(self):
         """Spacing error summed across all CAVs."""
@@ -274,8 +290,8 @@ class TestMultiAgentLCCReward:
         )
 
         reward = env.compute_multi_agent_lcc_reward()
-        # R_spacing = -0.7 * (16 + 9) = -17.5
-        expected = -17.5 / 100.0
+        # J_spacing = 0.7 * (16 + 9) = 17.5
+        expected = max(env.J_max_multi - 17.5, 0.0) / env.J_max_multi
         assert reward == pytest.approx(expected, abs=1e-6)
 
     def test_sums_control_across_agents(self):
@@ -297,8 +313,8 @@ class TestMultiAgentLCCReward:
         )
 
         reward = env.compute_multi_agent_lcc_reward()
-        # R_control = -0.1 * (4 + 1) = -0.5
-        expected = -0.5 / 100.0
+        # J_control = 0.1 * (4 + 1) = 0.5
+        expected = max(env.J_max_multi - 0.5, 0.0) / env.J_max_multi
         assert reward == pytest.approx(expected, abs=1e-6)
 
     def test_inactive_agent_skipped(self):
@@ -317,4 +333,4 @@ class TestMultiAgentLCCReward:
         )
 
         reward = env.compute_multi_agent_lcc_reward()
-        assert reward == pytest.approx(0.0, abs=1e-6)
+        assert reward == pytest.approx(1.0, abs=1e-6)

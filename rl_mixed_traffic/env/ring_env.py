@@ -117,6 +117,14 @@ class RingRoadEnv(gym.Env):
         self.cmd_speeds = {aid: 0.0 for aid in self.agent_ids}
         self.v_max = 30.0
 
+        # Worst-case DeeP-LCC cost for non-negative reward normalisation
+        max_v_error = max(v_star, self.v_max - v_star)
+        J_v_max = weight_v * max_v_error ** 2 * max(num_vehicles - 1, 1)
+        J_s_max = weight_s * 20.0 ** 2  # spacing error clipped to ±20
+        J_u_max = weight_u * max_accel ** 2
+        self.J_max = J_v_max + J_s_max + J_u_max
+        self.J_max_multi = J_v_max + num_agents * J_s_max + num_agents * J_u_max
+
         self.head_speed_change_interval = head_speed_change_interval
         self.head_speed_change_interval_steps = max(
             1, int(round(head_speed_change_interval / self.step_length))
@@ -613,19 +621,14 @@ class RingRoadEnv(gym.Env):
         return float(R)
 
     def compute_lcc_reward(self) -> float:
-        """Compute system-level reward based on DeeP-LCC cost function (single-agent).
+        """Compute non-negative reward from DeeP-LCC cost (single-agent).
 
-        Following the DeeP-LCC paper, the cost is a single system-level objective:
-            J(y, u) = y^T Q y + u^T R u
-        where y = [velocity errors of ALL vehicles; spacing errors of CAVs]
-        and u = [accelerations of CAVs].
-
-        The velocity error penalty sums over ALL vehicles (HDVs + CAVs),
-        not just the agent. This incentivizes the CAV to smooth traffic flow
-        for the entire platoon.
+        The DeeP-LCC cost J >= 0 is transformed to a reward in [0, 1]:
+            r = max(J_max - J, 0) / J_max
+        At equilibrium (J=0) reward is 1.0; at worst case reward is 0.0.
 
         Returns:
-            float: System-level reward (negative cost, scaled)
+            float: Reward in [0, 1]
         """
         active_ids = traci.vehicle.getIDList()
 
@@ -640,43 +643,35 @@ class RingRoadEnv(gym.Env):
         s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
 
         # --- System-level velocity error: ALL vehicles except head ---
-        R_velocity = 0.0
+        J_velocity = 0.0
         for vid in active_ids:
             if vid == self.head_id:
                 continue
             v = traci.vehicle.getSpeed(vid)
-            R_velocity -= self.weight_v * (v - v_eq) ** 2
+            J_velocity += self.weight_v * (v - v_eq) ** 2
 
         # --- Spacing error: CAV (agent) only ---
         d_gap = self._get_gap_to_leader(self.agent_id)
         s_error = np.clip(d_gap - s_star, -20.0, 20.0)
-        R_spacing = -self.weight_s * (s_error ** 2)
+        J_spacing = self.weight_s * (s_error ** 2)
 
         # --- Control penalty: CAV (agent) only ---
         accel = self.prev_accel
-        R_control = -self.weight_u * (accel ** 2)
+        J_control = self.weight_u * (accel ** 2)
 
-        R = R_velocity + R_spacing + R_control
+        J = J_velocity + J_spacing + J_control
+        reward = max(self.J_max - J, 0.0) / self.J_max
 
-        # Scale reward to keep per-step values in a PPO-friendly range
-        R /= 100.0
-
-        return float(R)
+        return float(reward)
 
     def compute_multi_agent_lcc_reward(self) -> float:
-        """Compute single system-level reward following DeeP-LCC (multi-agent).
+        """Compute non-negative reward from DeeP-LCC cost (multi-agent).
 
-        The DeeP-LCC cost is a system-level objective:
-            J(y, u) = y^T Q y + u^T R u
-        where y = [velocity errors of ALL vehicles; spacing errors of CAVs]
-        and u = [accelerations of CAVs].
+        Same transformation as single-agent but spacing and control costs
+        are summed over all CAVs, using J_max_multi for normalisation.
 
-        Components:
-        - Velocity error: summed over ALL vehicles (HDVs + CAVs), excluding head
-        - Spacing error: summed over CAVs only
-        - Control penalty: summed over CAVs only
         Returns:
-            float: Single shared system-level reward (scaled by /100)
+            float: Reward in [0, 1]
         """
         active_ids = traci.vehicle.getIDList()
 
@@ -688,16 +683,16 @@ class RingRoadEnv(gym.Env):
         s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
 
         # --- System-level velocity error: ALL vehicles except head ---
-        R_velocity = 0.0
+        J_velocity = 0.0
         for vid in active_ids:
             if vid == self.head_id:
                 continue
             v = traci.vehicle.getSpeed(vid)
-            R_velocity -= self.weight_v * (v - v_eq) ** 2
+            J_velocity += self.weight_v * (v - v_eq) ** 2
 
         # --- Spacing error + control penalty: CAVs only ---
-        R_spacing = 0.0
-        R_control = 0.0
+        J_spacing = 0.0
+        J_control = 0.0
 
         for aid in self.agent_ids:
             if aid not in active_ids:
@@ -705,17 +700,15 @@ class RingRoadEnv(gym.Env):
 
             d_gap = self._get_gap_to_leader(aid)
             s_error = np.clip(d_gap - s_star, -20.0, 20.0)
-            R_spacing -= self.weight_s * (s_error ** 2)
+            J_spacing += self.weight_s * (s_error ** 2)
 
             accel = self.prev_accels[aid]
-            R_control -= self.weight_u * (accel ** 2)
+            J_control += self.weight_u * (accel ** 2)
 
-        R_total = R_velocity + R_spacing + R_control
+        J = J_velocity + J_spacing + J_control
+        reward = max(self.J_max_multi - J, 0.0) / self.J_max_multi
 
-        # Scale reward to keep per-step values in a PPO-friendly range
-        R_total /= 100.0
-
-        return float(R_total)
+        return float(reward)
 
     def terminal(self) -> bool:
         if self.step_count >= self.max_steps:
