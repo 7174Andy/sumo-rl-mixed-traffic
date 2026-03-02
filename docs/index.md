@@ -46,3 +46,8 @@ uv run rl_mixed_traffic/q_eval_policy.py
 ```bash
 uv run rl_mixed_traffic/dqn_eval.py
 ```
+
+## Design Notes
+
+- [Reward Redesign](reward-redesign.md) — investigation into the SUMO safety override problem and the proposed non-negative reward solution
+- [Lagrangian PPO](lagrangian-ppo.md) — safety-constrained training with a physics-based safety layer and adaptive Lagrange multiplier
