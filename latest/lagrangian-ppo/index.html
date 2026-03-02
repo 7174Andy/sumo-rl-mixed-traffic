@@ -11,10 +11,6 @@
       
       
       
-        <link rel="prev" href="..">
-      
-      
-        <link rel="next" href="../algorithms/">
       
       
         
@@ -25,7 +21,7 @@
     
     
       
-        <title>Problem Formulation - SUMO RL Mixed Traffic</title>
+        <title>Lagrangian PPO: Safety-Constrained Training - SUMO RL Mixed Traffic</title>
       
     
     
@@ -76,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#problem-formulation" class="md-skip">
+        <a href="#lagrangian-ppo-safety-constrained-training" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Problem Formulation
+              Lagrangian PPO: Safety-Constrained Training
             
           </span>
         </div>
@@ -282,37 +278,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Problem Formulation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../problem/" class="md-nav__link">
         
   
   
@@ -328,137 +297,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#11-environment-ring-road-mixed-traffic" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.1 Environment: Ring Road Mixed Traffic
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12-state-space" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.2 State Space
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#13-action-space" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.3 Action Space
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="1.3 Action Space">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#discretization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Discretization
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#14-reward-function" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.4 Reward Function
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="1.4 Reward Function">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Components
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#total-reward" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Total Reward
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#default-weights" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Default Weights
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -571,10 +409,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#11-environment-ring-road-mixed-traffic" class="md-nav__link">
+  <a href="#1-motivation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.1 Environment: Ring Road Mixed Traffic
+        1. Motivation
       
     </span>
   </a>
@@ -582,33 +420,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#12-state-space" class="md-nav__link">
+  <a href="#2-safety-layer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.2 State Space
+        2. Safety Layer
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#13-action-space" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.3 Action Space
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="1.3 Action Space">
+    <nav class="md-nav" aria-label="2. Safety Layer">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#discretization" class="md-nav__link">
+  <a href="#physics-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Discretization
+        Physics model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clipping-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clipping rule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
       
     </span>
   </a>
@@ -621,22 +470,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#14-reward-function" class="md-nav__link">
+  <a href="#3-lagrangian-reward-augmentation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.4 Reward Function
+        3. Lagrangian Reward Augmentation
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="1.4 Reward Function">
+    <nav class="md-nav" aria-label="3. Lagrangian Reward Augmentation">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#components" class="md-nav__link">
+  <a href="#constraint-violation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Components
+        Constraint violation
       
     </span>
   </a>
@@ -644,10 +493,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#total-reward" class="md-nav__link">
+  <a href="#augmented-reward" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Total Reward
+        Augmented reward
       
     </span>
   </a>
@@ -655,10 +504,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#default-weights" class="md-nav__link">
+  <a href="#lambda-update" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Default Weights
+        Lambda update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
       
     </span>
   </a>
@@ -671,13 +531,102 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
+  <a href="#4-training-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        References
+        4. Training Configuration
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="4. Training Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-ppo-vs-lagrangian-ppo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard PPO vs Lagrangian PPO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-results-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Results and Limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Results and Limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outcome
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-it-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it fails
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Insight
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -701,133 +650,193 @@
   
 
 
-<h1 id="problem-formulation">Problem Formulation<a class="headerlink" href="#problem-formulation" title="Permanent link">&para;</a></h1>
-<h2 id="11-environment-ring-road-mixed-traffic">1.1 Environment: Ring Road Mixed Traffic<a class="headerlink" href="#11-environment-ring-road-mixed-traffic" title="Permanent link">&para;</a></h2>
-<p>This project studies a <strong>single-lane ring road</strong> where one RL-controlled autonomous vehicle (CAV) shares the road with a human-driven head vehicle. The ring topology eliminates boundary effects (on-ramps, traffic lights) and isolates the core car-following dynamics.</p>
-<p>The head vehicle (<code>car0</code>) periodically changes its cruising speed at random, creating disturbances that propagate through the ring. The AV (<code>car1</code>) must learn a speed-control policy that maintains safe following distances, tracks the traffic flow, and avoids abrupt acceleration changes.</p>
-<p>The problem is formulated as a <strong>Markov Decision Process (MDP)</strong>:</p>
+<h1 id="lagrangian-ppo-safety-constrained-training">Lagrangian PPO: Safety-Constrained Training<a class="headerlink" href="#lagrangian-ppo-safety-constrained-training" title="Permanent link">&para;</a></h1>
+<p>This page documents the Lagrangian PPO variant — an attempt to solve the SUMO safety override problem by disabling SUMO's built-in safety checks and replacing them with a learned + hard-constraint approach.</p>
+<h2 id="1-motivation">1. Motivation<a class="headerlink" href="#1-motivation" title="Permanent link">&para;</a></h2>
+<p>Standard PPO training relies on SUMO's speed mode 95, which keeps the Krauss car-following model active. As documented in <a href="../reward-redesign/">Reward Redesign</a>, this causes SUMO to silently override 99.1% of agent commands — the agent learns a degenerate "always accelerate" policy because SUMO handles all braking.</p>
+<p>The idea behind Lagrangian PPO: <strong>disable SUMO safety entirely</strong> (speed mode 0) and have the agent learn safe behavior through two mechanisms:</p>
+<ol>
+<li><strong>Hard constraint</strong> — a physics-based safety layer that clips unsafe accelerations before they reach SUMO.</li>
+<li><strong>Soft penalty</strong> — a Lagrange multiplier that penalizes spacing violations in the reward signal.</li>
+</ol>
+<p>The PPO algorithm itself is unchanged. Only the environment wrapper and reward augmentation differ.</p>
+<h2 id="2-safety-layer">2. Safety Layer<a class="headerlink" href="#2-safety-layer" title="Permanent link">&para;</a></h2>
+<p>The safety layer (<code>rl_mixed_traffic/env/safety_layer.py</code>) is a pure-math filter with no SUMO dependency. It uses a one-step constant-acceleration prediction to check whether a requested acceleration would violate the minimum spacing threshold.</p>
+<h3 id="physics-model">Physics model<a class="headerlink" href="#physics-model" title="Permanent link">&para;</a></h3>
+<p>Predicted spacing after one timestep:</p>
+<div class="arithmatex">\[
+\hat{s} = s + v_\text{rel} \cdot \Delta t - \tfrac{1}{2} a \cdot \Delta t^2
+\]</div>
+<p>where <span class="arithmatex">\(s\)</span> is the current bumper-to-bumper gap, <span class="arithmatex">\(v_\text{rel} = v_\text{leader} - v_\text{ego}\)</span> (negative means closing), and <span class="arithmatex">\(a\)</span> is the requested acceleration.</p>
+<h3 id="clipping-rule">Clipping rule<a class="headerlink" href="#clipping-rule" title="Permanent link">&para;</a></h3>
+<p>If <span class="arithmatex">\(\hat{s} &lt; s_\text{min}\)</span>, compute the maximum safe acceleration that keeps the predicted spacing exactly at the threshold:</p>
+<div class="arithmatex">\[
+a_\text{safe} = \frac{2(s - s_\text{min} + v_\text{rel} \cdot \Delta t)}{\Delta t^2}
+\]</div>
+<p>The filtered acceleration is:</p>
+<div class="arithmatex">\[
+a_\text{filtered} = \min(a,\; a_\text{safe})
+\]</div>
+<p>The filter only restricts — it never allows a more aggressive acceleration than the agent requested.</p>
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>Component</th>
+<th>Parameter</th>
+<th>Value</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>State</strong></td>
-<td>Normalized velocities and positions of all vehicles on the ring</td>
+<td><span class="arithmatex">\(s_\text{min}\)</span></td>
+<td>5.0 m</td>
+<td>Minimum allowed bumper-to-bumper gap</td>
 </tr>
 <tr>
-<td><strong>Action</strong></td>
-<td>Longitudinal acceleration command applied to the CAV</td>
-</tr>
-<tr>
-<td><strong>Reward</strong></td>
-<td>Quadratic cost penalizing velocity error, spacing error, and control effort</td>
-</tr>
-<tr>
-<td><strong>Transition</strong></td>
-<td>Determined by SUMO's car-following models and the applied acceleration</td>
+<td><span class="arithmatex">\(\Delta t\)</span></td>
+<td>0.1 s</td>
+<td>Simulation timestep</td>
 </tr>
 </tbody>
 </table>
-<p>The simulation runs at a time step of <span class="arithmatex">\(\Delta t = 0.1\,\text{s}\)</span>, and each episode lasts up to 500 s (5,000 steps).</p>
-<hr />
-<h2 id="12-state-space">1.2 State Space<a class="headerlink" href="#12-state-space" title="Permanent link">&para;</a></h2>
-<p>The observation is a fixed-length vector of normalized velocities and positions for all <span class="arithmatex">\(N\)</span> vehicles:</p>
+<h2 id="3-lagrangian-reward-augmentation">3. Lagrangian Reward Augmentation<a class="headerlink" href="#3-lagrangian-reward-augmentation" title="Permanent link">&para;</a></h2>
+<p>The Lagrangian mechanism adds a soft spacing penalty to the base reward, with an adaptive multiplier that grows when violations occur.</p>
+<h3 id="constraint-violation">Constraint violation<a class="headerlink" href="#constraint-violation" title="Permanent link">&para;</a></h3>
+<p>At each step, the environment computes the spacing violation for each agent vehicle (<code>ring_env.py:335</code>):</p>
 <div class="arithmatex">\[
-\mathbf{s} = \bigl[\underbrace{v_0/v_{\max},\;\dots,\;v_{N-1}/v_{\max}}_{\text{velocities}},\;\underbrace{p_0/L,\;\dots,\;p_{N-1}/L}_{\text{positions}}\bigr]
+c_t = \max(s_\text{min} - s_t,\; 0)
 \]</div>
-<p>where:</p>
-<ul>
-<li><span class="arithmatex">\(v_{\max} = 30\;\text{m/s}\)</span> is the maximum speed.</li>
-<li><span class="arithmatex">\(L\)</span> is the ring circumference (computed from the SUMO network at startup).</li>
-<li>Vehicles are <strong>sorted by ID</strong> so each index always maps to the same vehicle.</li>
-<li>If fewer than <span class="arithmatex">\(N\)</span> vehicles are present, the vector is <strong>zero-padded</strong> to maintain a fixed shape of <span class="arithmatex">\((2N,)\)</span>.</li>
-<li>All values are clipped to <span class="arithmatex">\([0, 1]\)</span>.</li>
-</ul>
-<p>For the default two-vehicle scenario, the observation has shape <span class="arithmatex">\((4,)\)</span>: <code>[v_head, v_agent, p_head, p_agent]</code>.</p>
-<hr />
-<h2 id="13-action-space">1.3 Action Space<a class="headerlink" href="#13-action-space" title="Permanent link">&para;</a></h2>
-<p>The native action space is a <strong>continuous scalar acceleration</strong>:</p>
+<p>This is zero when the gap <span class="arithmatex">\(s_t\)</span> exceeds the threshold, and positive when the agent is too close to the leader.</p>
+<h3 id="augmented-reward">Augmented reward<a class="headerlink" href="#augmented-reward" title="Permanent link">&para;</a></h3>
+<p>The PPO agent sees an augmented reward instead of the base reward:</p>
 <div class="arithmatex">\[
-a \in [a_{\min},\; a_{\max}] = [-3.0,\; 3.0]\;\text{m/s}^2
+r_\text{aug} = r_\text{base} - \lambda \cdot c_t
 \]</div>
-<p>The acceleration is integrated into velocity each step:</p>
+<p>The base reward is unchanged — the Lagrange multiplier <span class="arithmatex">\(\lambda\)</span> only adds an additional penalty proportional to the violation magnitude.</p>
+<h3 id="lambda-update">Lambda update<a class="headerlink" href="#lambda-update" title="Permanent link">&para;</a></h3>
+<p>At the end of each rollout (2048 steps), the multiplier is updated based on the mean violation across the rollout:</p>
 <div class="arithmatex">\[
-v_{t+1} = \text{clip}\bigl(v_t + a \cdot \Delta t,\; 0,\; v_{\max}\bigr)
+\lambda \leftarrow \text{clip}\!\left(\lambda + \alpha_\lambda \cdot \bar{c},\; 0,\; \lambda_\text{max}\right)
 \]</div>
-<p>and applied to the vehicle via TraCI's <code>setSpeed()</code> for immediate response.</p>
-<h3 id="discretization">Discretization<a class="headerlink" href="#discretization" title="Permanent link">&para;</a></h3>
-<p>Because both Q-learning and DQN operate over discrete actions, the continuous range is discretized into <span class="arithmatex">\(n\)</span> evenly spaced bins using <code>DiscretizeActionWrapper</code>:</p>
-<div class="arithmatex">\[
-\mathcal{A} = \bigl\{a_{\min},\;\; a_{\min} + \delta,\;\; a_{\min} + 2\delta,\;\;\dots,\;\; a_{\max}\bigr\}, \quad \delta = \frac{a_{\max} - a_{\min}}{n - 1}
-\]</div>
-<hr />
-<h2 id="14-reward-function">1.4 Reward Function<a class="headerlink" href="#14-reward-function" title="Permanent link">&para;</a></h2>
-<p>The active reward function is based on the <strong>DeeP-LCC</strong> <a href="#references">[1]</a> cost formulation, which penalizes deviations from equilibrium velocity, desired spacing, and excessive control effort.</p>
-<h3 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h3>
-<p><strong>Velocity error</strong> — penalizes deviation from the target speed (<span class="arithmatex">\(v^{*} = 15\;\text{m/s}\)</span>):</p>
-<div class="arithmatex">\[
-R_v = -w_v \cdot (v_{\text{ego}} - v^{*})^2
-\]</div>
-<p><strong>Spacing error</strong> — penalizes deviation from the OVM equilibrium spacing <span class="arithmatex">\(s^{*}\)</span>:</p>
-<div class="arithmatex">\[
-R_s = -w_s \cdot \bigl(\text{clip}(d_{\text{gap}} - s^{*},\;-20,\;20)\bigr)^2
-\]</div>
-<p>where <span class="arithmatex">\(s^{*}\)</span> is computed using the Optimal Velocity Model (OVM):</p>
-<div class="arithmatex">\[
-s^{*} = \frac{\arccos\!\bigl(1 - 2\,v^{*}/v_{\max}\bigr)}{\pi}\,(s_{\text{go}} - s_{\text{st}}) + s_{\text{st}}
-\]</div>
-<p>with <span class="arithmatex">\(s_{\text{st}} = 5\;\text{m}\)</span> (stop spacing) and <span class="arithmatex">\(s_{\text{go}} = 35\;\text{m}\)</span> (free-flow spacing).</p>
-<p><strong>Control effort</strong> — penalizes large accelerations for smooth driving:</p>
-<div class="arithmatex">\[
-R_u = -w_u \cdot a^2
-\]</div>
-<p><strong>Safety constraint</strong> — a hard penalty when the gap falls below a minimum:</p>
-<div class="arithmatex">\[
-R_{\text{safety}} = \begin{cases} -100 &amp; \text{if } d_{\text{gap}} &lt; s_{\min} \\ 0 &amp; \text{otherwise} \end{cases}
-\]</div>
-<h3 id="total-reward">Total Reward<a class="headerlink" href="#total-reward" title="Permanent link">&para;</a></h3>
-<div class="arithmatex">\[
-R = \frac{R_v + R_s + R_u + R_{\text{safety}}}{100}
-\]</div>
-<p>The division by 100 scales per-step values into a range suitable for policy gradient methods.</p>
-<h3 id="default-weights">Default Weights<a class="headerlink" href="#default-weights" title="Permanent link">&para;</a></h3>
+<p>where <span class="arithmatex">\(\bar{c}\)</span> is the mean violation over the rollout. Lambda starts at 0 and grows only when violations occur. The clip keeps it bounded.</p>
+<h3 id="parameters_1">Parameters<a class="headerlink" href="#parameters_1" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Parameter</th>
-<th>Symbol</th>
+<th>Config key</th>
 <th>Default</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Velocity</td>
-<td><span class="arithmatex">\(w_v\)</span></td>
-<td>0.8</td>
+<td><span class="arithmatex">\(\lambda_0\)</span></td>
+<td><code>lambda_init</code></td>
+<td>0.0</td>
+<td>Initial multiplier value</td>
 </tr>
 <tr>
-<td>Spacing</td>
-<td><span class="arithmatex">\(w_s\)</span></td>
-<td>0.7</td>
+<td><span class="arithmatex">\(\alpha_\lambda\)</span></td>
+<td><code>lambda_lr</code></td>
+<td>0.01</td>
+<td>Multiplier learning rate</td>
 </tr>
 <tr>
-<td>Control</td>
-<td><span class="arithmatex">\(w_u\)</span></td>
-<td>0.1</td>
+<td><span class="arithmatex">\(\lambda_\text{max}\)</span></td>
+<td><code>lambda_max</code></td>
+<td>10.0</td>
+<td>Upper bound on multiplier</td>
 </tr>
 <tr>
-<td>Min gap</td>
-<td><span class="arithmatex">\(s_{\min}\)</span></td>
+<td><span class="arithmatex">\(s_\text{min}\)</span></td>
+<td><code>spacing_min</code></td>
 <td>5.0 m</td>
+<td>Minimum spacing threshold</td>
 </tr>
 </tbody>
 </table>
-<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
-<p>[1] Wang, J., Zheng, Y., Li, K., &amp; Xu, Q. (2023). DeeP-LCC: Data-EnablEd Predictive Leading Cruise Control in Mixed Traffic Flow. IEEE Transactions on Control Systems Technology, 31(6), 2760–2776. doi:10.1109/tcst.2023.3288636</p>
+<h2 id="4-training-configuration">4. Training Configuration<a class="headerlink" href="#4-training-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="standard-ppo-vs-lagrangian-ppo">Standard PPO vs Lagrangian PPO<a class="headerlink" href="#standard-ppo-vs-lagrangian-ppo" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Standard PPO</th>
+<th>Lagrangian PPO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total steps</td>
+<td>800,000</td>
+<td>600,000</td>
+</tr>
+<tr>
+<td>Rollout steps</td>
+<td>2,048</td>
+<td>2,048</td>
+</tr>
+<tr>
+<td>Learning rate</td>
+<td>1e-4</td>
+<td>3e-4</td>
+</tr>
+<tr>
+<td>Clip epsilon</td>
+<td>0.15</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>PPO epochs</td>
+<td>6</td>
+<td>10</td>
+</tr>
+<tr>
+<td>SUMO speed mode</td>
+<td>95 (safety on)</td>
+<td>0 (safety off)</td>
+</tr>
+<tr>
+<td>Safety layer</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Lagrangian penalty</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p>The Lagrangian variant uses a higher learning rate and more PPO epochs per update to compensate for the harder optimization landscape when SUMO safety is disabled.</p>
+<h3 id="config-file">Config file<a class="headerlink" href="#config-file" title="Permanent link">&para;</a></h3>
+<p>Source: <code>rl_mixed_traffic/conf/lagrangian_ppo_train.yaml</code></p>
+<p>Key environment flags that differ from standard PPO:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">env</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enable_safety_layer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">disable_sumo_safety</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">spacing_min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span>
+
+<span class="nt">agent</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enable_lagrangian</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">lambda_init</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="nt">lambda_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.01</span>
+<span class="w">  </span><span class="nt">lambda_max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0</span>
+</code></pre></div>
+<h3 id="running">Running<a class="headerlink" href="#running" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_train.py
+</code></pre></div>
+<p>Output goes to <code>lagrangian_ppo_results/</code>. The training loop tracks three additional metrics beyond standard PPO: <code>lambda</code> (current multiplier value), <code>mean_violation</code> (average spacing violation per rollout), and <code>safety_clip_rate</code> (fraction of steps where the safety layer clipped the action).</p>
+<h2 id="5-results-and-limitations">5. Results and Limitations<a class="headerlink" href="#5-results-and-limitations" title="Permanent link">&para;</a></h2>
+<h3 id="outcome">Outcome<a class="headerlink" href="#outcome" title="Permanent link">&para;</a></h3>
+<p>The agent still collides under speed mode 0, even with both the safety layer and Lagrangian penalty active.</p>
+<h3 id="why-it-fails">Why it fails<a class="headerlink" href="#why-it-fails" title="Permanent link">&para;</a></h3>
+<p>The safety layer uses a <strong>one-step prediction horizon</strong> (<span class="arithmatex">\(\Delta t = 0.1\;\text{s}\)</span>). In fast-closing scenarios — where the lead vehicle brakes suddenly — 0.1 seconds of lookahead is not enough to prevent a collision. By the time the predicted spacing falls below <span class="arithmatex">\(s_\text{min}\)</span>, the vehicles are already too close for a single-step correction to avoid contact.</p>
+<p>The Lagrangian penalty cannot compensate for a fundamentally inadequate safety model. It can only shape the reward signal — it cannot override physics.</p>
+<h3 id="insight">Insight<a class="headerlink" href="#insight" title="Permanent link">&para;</a></h3>
+<p>This experiment led to the deeper realization documented in <a href="../reward-redesign/">Reward Redesign</a>: the root cause is not insufficient safety mechanisms but the <strong>negative-only reward structure</strong>. With rewards always <span class="arithmatex">\(\leq 0\)</span>, the agent is incentivized to crash early (terminating the episode escapes accumulated negative reward). The fix is to transform the reward into a non-negative <span class="arithmatex">\([0, 1]\)</span> range where collision termination is always the worst outcome.</p>
 
 
 
