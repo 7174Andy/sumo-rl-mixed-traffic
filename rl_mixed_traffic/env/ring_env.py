@@ -71,6 +71,7 @@ class RingRoadEnv(gym.Env):
         weight_s: float = 0.5,
         weight_u: float = 0.2,
         spacing_min: float = 5.0,
+        spacing_max: float = 40.0,
         enable_safety_layer: bool = False,
         disable_sumo_safety: bool = False,
     ):
@@ -101,6 +102,7 @@ class RingRoadEnv(gym.Env):
         self.weight_s = weight_s
         self.weight_u = weight_u
         self.spacing_min = spacing_min
+        self.spacing_max = spacing_max
         self.enable_safety_layer = enable_safety_layer
         self.disable_sumo_safety = disable_sumo_safety
         self.safety_layer = (
@@ -325,6 +327,25 @@ class RingRoadEnv(gym.Env):
         _, gap = self._find_ring_leader(veh_id)
         return gap
 
+    def _get_gap_to_head(self, veh_id: str) -> float:
+        """Ring-aware bumper-to-bumper gap from veh_id to the head vehicle.
+
+        Always measures forward distance to self.head_id, regardless of
+        which vehicle is physically closest ahead.  This prevents the CAV
+        from gaming the spacing reward by falling behind and measuring
+        gap to a co-slowing HDV instead.
+        """
+        active_ids = traci.vehicle.getIDList()
+        if veh_id not in active_ids or self.head_id not in active_ids:
+            return 1e3
+
+        L = self.ring_length or 1e6
+        pos_ego = traci.vehicle.getDistance(veh_id) % L
+        pos_head = traci.vehicle.getDistance(self.head_id) % L
+        fwd = (pos_head - pos_ego) % L
+        head_length = traci.vehicle.getLength(self.head_id)
+        return max(0.0, fwd - head_length)
+
     def _get_leader_info(self, veh_id: str) -> tuple[float, float]:
         """Get gap and relative velocity to the leader of veh_id on the ring.
 
@@ -346,18 +367,34 @@ class RingRoadEnv(gym.Env):
         return d_gap, v_leader - v_ego
 
     def get_spacing_violation(self) -> float:
-        """Compute total spacing violation across all agent vehicles.
+        """Compute total normalised spacing violation across all agent vehicles.
+
+        Two constraints are enforced, each normalised by its own scale so
+        both contribute comparably to the Lagrangian penalty:
+
+        1. s_min (too close to physical leader):
+               max(0, s_min - gap_to_leader) / s_min
+           Range [0, 1]: 0 at boundary, 1.0 when gap = 0.
+
+        2. s_max (too far from head vehicle):
+               max(0, gap_to_head - s_max) / s_max
+           Range [0, ~5]: 0 at boundary, scales with distance.
 
         Returns:
-            Sum of max(0, s_min - gap) for each agent. Zero means no violation.
+            Sum of dimensionless violations across agents.
+            Zero means no violation.
         """
         active_ids = traci.vehicle.getIDList()
         total_violation = 0.0
         for aid in self.agent_ids:
             if aid not in active_ids:
                 continue
-            gap = self._get_gap_to_leader(aid)
-            total_violation += max(0.0, self.spacing_min - gap)
+            # s_min: too close to physical leader (normalised by s_min)
+            gap_leader = self._get_gap_to_leader(aid)
+            total_violation += max(0.0, self.spacing_min - gap_leader) / self.spacing_min
+            # s_max: too far from head vehicle (normalised by s_max)
+            gap_head = self._get_gap_to_head(aid)
+            total_violation += max(0.0, gap_head - self.spacing_max) / self.spacing_max
         return total_violation
 
     def reset(self, seed: int | None = None, options: dict = None):

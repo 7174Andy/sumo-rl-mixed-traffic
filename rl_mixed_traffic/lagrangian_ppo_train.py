@@ -33,6 +33,7 @@ def make_env(
     enable_safety_layer: bool = True,
     disable_sumo_safety: bool = True,
     spacing_min: float = 5.0,
+    spacing_max: float = 40.0,
     weight_v: float = 1.0,
     weight_s: float = 0.5,
     weight_u: float = 0.2,
@@ -68,6 +69,7 @@ def make_env(
         enable_safety_layer=enable_safety_layer,
         disable_sumo_safety=disable_sumo_safety,
         spacing_min=spacing_min,
+        spacing_max=spacing_max,
         weight_v=weight_v,
         weight_s=weight_s,
         weight_u=weight_u,
@@ -97,6 +99,7 @@ def train(cfg: DictConfig):
     enable_safety_layer = OmegaConf.select(cfg, "env.enable_safety_layer", default=True)
     disable_sumo_safety = OmegaConf.select(cfg, "env.disable_sumo_safety", default=True)
     spacing_min = OmegaConf.select(cfg, "env.spacing_min", default=5.0)
+    spacing_max = OmegaConf.select(cfg, "env.spacing_max", default=40.0)
     weight_v = OmegaConf.select(cfg, "env.weight_v", default=1.0)
     weight_s = OmegaConf.select(cfg, "env.weight_s", default=0.5)
     weight_u = OmegaConf.select(cfg, "env.weight_u", default=0.2)
@@ -110,6 +113,7 @@ def train(cfg: DictConfig):
         enable_safety_layer=enable_safety_layer,
         disable_sumo_safety=disable_sumo_safety,
         spacing_min=spacing_min,
+        spacing_max=spacing_max,
         weight_v=weight_v,
         weight_s=weight_s,
         weight_u=weight_u,
@@ -127,6 +131,11 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
 
+    enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
+    lambda_init = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
+    lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
+    lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
+
     ppo_cfg = PPOConfig(
         lr=cfg.agent.lr,
         gamma=cfg.agent.gamma,
@@ -138,6 +147,10 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
         value_coef=cfg.agent.value_coef,
         clip_vloss=OmegaConf.select(cfg, "agent.clip_vloss", default=False),
         vf_clip_coef=OmegaConf.select(cfg, "agent.vf_clip_coef", default=0.2),
+        enable_lagrangian=enable_lagrangian,
+        lambda_init=lambda_init,
+        lambda_lr=lambda_lr,
+        lambda_max=lambda_max,
     )
     anneal_lr = OmegaConf.select(cfg, "agent.anneal_lr", default=True)
     ppo_cfg.anneal_lr = anneal_lr
@@ -151,12 +164,8 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
         rollout_steps=cfg.rollout_steps,
     )
 
-    # Lagrangian multiplier with dual (PID-style) update
-    enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
-    lambda_val = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
-    lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
-    lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
-    # Violation tolerance: lambda decreases when mean violation < tolerance
+    # Lagrangian multiplier state
+    lambda_val = lambda_init
     violation_tolerance = OmegaConf.select(cfg, "agent.violation_tolerance", default=0.5)
 
     metrics_history = {
@@ -207,6 +216,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
             rollout_clips.append(1.0 if safety_clipped else 0.0)
 
             # Compute spacing violation for Lagrangian penalty
+            # (already normalised per-constraint inside get_spacing_violation)
             violation = env.unwrapped.get_spacing_violation()
             rollout_violations.append(violation)
 
@@ -310,6 +320,11 @@ def _train_multi_agent(
     obs_dim = env.observation_space.shape[0]
     action_dim = 1
 
+    enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
+    lambda_init = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
+    lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
+    lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
+
     ppo_cfg = PPOConfig(
         lr=cfg.agent.lr,
         gamma=cfg.agent.gamma,
@@ -321,6 +336,10 @@ def _train_multi_agent(
         value_coef=cfg.agent.value_coef,
         clip_vloss=OmegaConf.select(cfg, "agent.clip_vloss", default=False),
         vf_clip_coef=OmegaConf.select(cfg, "agent.vf_clip_coef", default=0.2),
+        enable_lagrangian=enable_lagrangian,
+        lambda_init=lambda_init,
+        lambda_lr=lambda_lr,
+        lambda_max=lambda_max,
     )
     anneal_lr = OmegaConf.select(cfg, "agent.anneal_lr", default=True)
     ppo_cfg.anneal_lr = anneal_lr
@@ -334,11 +353,8 @@ def _train_multi_agent(
         rollout_steps=cfg.rollout_steps,
     )
 
-    # Lagrangian multiplier with dual (PID-style) update
-    enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
-    lambda_val = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
-    lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
-    lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
+    # Lagrangian multiplier state
+    lambda_val = lambda_init
     violation_tolerance = OmegaConf.select(cfg, "agent.violation_tolerance", default=0.5)
 
     metrics_history = {
@@ -402,7 +418,10 @@ def _train_multi_agent(
             safety_clipped = info.get("safety_clipped", False)
             rollout_clips.append(1.0 if safety_clipped else 0.0)
 
-            violation = env.unwrapped.get_spacing_violation()
+            # Normalize by spacing_max so penalty is dimensionless and
+            # comparable with [0, 1] base reward (raw violation is in meters).
+            violation_raw = env.unwrapped.get_spacing_violation()
+            violation = violation_raw / max(env.unwrapped.spacing_max, 1.0)
             rollout_violations.append(violation)
 
             if enable_lagrangian:
