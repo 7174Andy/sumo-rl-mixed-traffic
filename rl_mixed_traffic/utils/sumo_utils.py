@@ -17,7 +17,6 @@ else:
 import traci
 from sumolib import checkBinary  # finds sumo / sumo-gui binary
 
-SUMO_BINARY = checkBinary("sumo-gui")
 
 def close_traci():
     if traci.isLoaded():
@@ -25,9 +24,10 @@ def close_traci():
 
 
 def start_traci(sim: SumoConfig):
+    binary = checkBinary("sumo-gui" if sim.use_gui else "sumo")
     traci.start(
         [
-            SUMO_BINARY,
+            binary,
             "-c",
             sim.sumocfg_path,
             "--no-step-log",
