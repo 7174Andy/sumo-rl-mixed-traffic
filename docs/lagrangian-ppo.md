@@ -99,30 +99,45 @@ where $\bar{c}$ is the mean violation over the rollout. Lambda starts at 0 and g
 
 | Setting | Standard PPO | Lagrangian PPO |
 | ------- | ------------ | -------------- |
-| Total steps | 800,000 | 600,000 |
-| Rollout steps | 2,048 | 2,048 |
-| Learning rate | 1e-4 | 3e-4 |
-| Clip epsilon | 0.15 | 0.2 |
-| PPO epochs | 6 | 10 |
+| Total steps | 800,000 | 1,500,000 |
+| Rollout steps | 4,096 | 4,096 |
+| Learning rate | 3e-4 | 3e-4 |
+| Clip epsilon | 0.15 | 0.15 |
+| PPO epochs | 6 | 6 |
+| Value function clipping | No | Yes (`vf_clip_coef=0.2`) |
 | SUMO speed mode | 95 (safety on) | 0 (safety off) |
 | Safety layer | No | Yes |
 | Lagrangian penalty | No | Yes |
+| `weight_v` / `weight_s` / `weight_u` | 1.0 / 0.5 / 0.2 | 5.0 / 0.5 / 0.1 |
 
-The Lagrangian variant uses a higher learning rate and more PPO epochs per update to compensate for the harder optimization landscape when SUMO safety is disabled.
+The Lagrangian variant uses stronger velocity tracking (`weight_v=5`) and lower control penalty (`weight_u=0.1`) to reduce catch-up lag when the head vehicle changes speed. Value function clipping stabilizes the critic during longer training runs.
+
+### 4.1 Reward smoothing: time-averaged v_eq
+
+The DeeP-LCC reward penalizes velocity deviation from an equilibrium speed $v_\text{eq}$. Initially, $v_\text{eq}$ was the head vehicle's instantaneous speed — but the head changes speed every 15 seconds, causing sudden reward spikes that prevented convergence.
+
+The fix: $v_\text{eq}$ is now a **20-second rolling average** of the head vehicle's speed. This smooths over speed transitions and gives the agent a learnable, gradually shifting target. The desired spacing $s^*$ is fixed at 20 m (no longer dynamic).
+
+See the [Exploration Log, Section 4](exploration/lagrangian_ppo_reward_tuning.md#4-fix-applied--smoothed-v_eq--fixed-s_star) for implementation details and before/after comparisons.
 
 ### Config file
 
 Source: `rl_mixed_traffic/conf/lagrangian_ppo_train.yaml`
 
-Key environment flags that differ from standard PPO:
+Key environment and agent flags that differ from standard PPO:
 
 ```yaml
 env:
   enable_safety_layer: true
   disable_sumo_safety: true
   spacing_min: 5.0
+  weight_v: 5.0               # stronger velocity tracking
+  weight_s: 0.5
+  weight_u: 0.1               # less control penalty
 
 agent:
+  clip_vloss: true
+  vf_clip_coef: 0.2
   enable_lagrangian: true
   lambda_init: 0.0
   lambda_lr: 0.01
@@ -137,18 +152,30 @@ uv run rl_mixed_traffic/lagrangian_ppo_train.py
 
 Output goes to `lagrangian_ppo_results/`. The training loop tracks three additional metrics beyond standard PPO: `lambda` (current multiplier value), `mean_violation` (average spacing violation per rollout), and `safety_clip_rate` (fraction of steps where the safety layer clipped the action).
 
-## 5. Results and Limitations
+## 5. Results
 
-### Outcome
+### Post-fix results
 
-The agent still collides under speed mode 0, even with both the safety layer and Lagrangian penalty active.
+After applying the smoothed $v_\text{eq}$ fix and reward weight rebalancing, the agent achieves functional car-following with no crashes.
 
-### Why it fails
+| Metric | Result |
+| ------ | ------ |
+| Speed tracking | CAV follows head within 1-3 m/s across speed transitions (5-15 m/s range) |
+| Acceleration | Smooth, modulated (0 to +1.5 m/s²), clear response to speed changes |
+| Spacing | Stable 5-20 m for entire episode (~4700 steps), near $s^* = 20\;\text{m}$ |
+| Returns | MA(10) rises to ~3500 by episode 80, plateaus at 3000-3800 |
+| Entropy | Healthy explore-then-exploit curve (1.65 peak, settles to 1.50) |
+| Crashes | **None** — full-episode car-following achieved |
+| Lambda | Stays at 0 (see [Why lambda never engages](exploration/lagrangian_ppo_reward_tuning.md#6-why-the-lagrangian-multiplier-never-engages)) |
 
-The safety layer uses a **one-step prediction horizon** ($\Delta t = 0.1\;\text{s}$). In fast-closing scenarios — where the lead vehicle brakes suddenly — 0.1 seconds of lookahead is not enough to prevent a collision. By the time the predicted spacing falls below $s_\text{min}$, the vehicles are already too close for a single-step correction to avoid contact.
+### Remaining behaviors
 
-The Lagrangian penalty cannot compensate for a fundamentally inadequate safety model. It can only shape the reward signal — it cannot override physics.
+- **Catch-up lag (~2-3 s):** After head speed changes, the CAV takes a few seconds to match. The 20 s averaging window inherently delays $v_\text{eq}$. Increased `weight_v` (5.0) reduces but does not eliminate this.
+- **Slight positive acceleration bias:** The agent accelerates more than it brakes. The $u^2$ penalty is symmetric, but positive acceleration is more useful for catching up.
+- **Value loss instability:** Critic loss rises in later updates. Value function clipping (`clip_vloss=true`) mitigates this.
 
-### Insight
+### Pre-fix results (historical)
 
-This experiment led to the deeper realization documented in [Reward Redesign](reward-redesign.md): the root cause is not insufficient safety mechanisms but the **negative-only reward structure**. With rewards always $\leq 0$, the agent is incentivized to crash early (terminating the episode escapes accumulated negative reward). The fix is to transform the reward into a non-negative $[0, 1]$ range where collision termination is always the worst outcome.
+Before the smoothed $v_\text{eq}$ fix, the agent collided under speed mode 0. The root cause was the **negative-only reward structure** combined with instantaneous $v_\text{eq}$ causing reward whiplash. With rewards always $\leq 0$, the agent was incentivized to crash early (terminating the episode escapes accumulated negative reward).
+
+This insight led to the reward redesign documented in [Reward Redesign](reward-redesign.md) and detailed in the [Exploration Log](exploration/lagrangian_ppo_reward_tuning.md).

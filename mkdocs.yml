@@ -23,6 +23,7 @@ theme:
     - content.code.copy
 
 markdown_extensions:
+  - tables
   - admonition
   - pymdownx.highlight
   - pymdownx.superfences
@@ -40,3 +41,6 @@ nav:
   - Algorithms: algorithms.md
   - PPO Refactoring: ppo-refactor.md
   - Redesign Reward: reward-redesign.md
+  - Lagrangian PPO: lagrangian-ppo.md
+  - Exploration:
+    - Reward Tuning: exploration/lagrangian_ppo_reward_tuning.md
