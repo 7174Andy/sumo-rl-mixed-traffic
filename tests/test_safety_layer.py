@@ -1,7 +1,6 @@
 """Pure-math tests for SafetyLayer (no SUMO required)."""
 
 import pytest
-import math
 
 from rl_mixed_traffic.env.safety_layer import SafetyLayer
 

@@ -6,7 +6,6 @@ and restricts the acceleration if it would violate the minimum spacing threshold
 Pure math — no SUMO dependency — so it's easily unit-testable.
 """
 
-import numpy as np
 
 
 class SafetyLayer:

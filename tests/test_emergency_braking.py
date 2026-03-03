@@ -4,7 +4,6 @@ No SUMO needed — only validates the four-phase speed profile.
 """
 
 import pytest
-import math
 
 # Patch out traci before importing the controller module, since the module
 # does a top-level ``import traci`` which requires SUMO_HOME.

@@ -33,6 +33,9 @@ def make_env(
     enable_safety_layer: bool = True,
     disable_sumo_safety: bool = True,
     spacing_min: float = 5.0,
+    weight_v: float = 1.0,
+    weight_s: float = 0.5,
+    weight_u: float = 0.2,
 ):
     """Create the ring road environment with safety layer for Lagrangian PPO.
 
@@ -45,6 +48,9 @@ def make_env(
         enable_safety_layer: Enable the hard-constraint safety layer.
         disable_sumo_safety: Disable SUMO's built-in safety checks (setSpeedMode(0)).
         spacing_min: Minimum allowed spacing in meters.
+        weight_v: Velocity tracking weight in DeeP-LCC reward.
+        weight_s: Spacing error weight in DeeP-LCC reward.
+        weight_u: Control effort weight in DeeP-LCC reward.
 
     Returns:
         Wrapped environment with 5-tuple step output.
@@ -62,6 +68,9 @@ def make_env(
         enable_safety_layer=enable_safety_layer,
         disable_sumo_safety=disable_sumo_safety,
         spacing_min=spacing_min,
+        weight_v=weight_v,
+        weight_s=weight_s,
+        weight_u=weight_u,
     )
     env = FourToFiveTupleWrapper(env)
     env = gym.wrappers.ClipAction(env)
@@ -88,6 +97,9 @@ def train(cfg: DictConfig):
     enable_safety_layer = OmegaConf.select(cfg, "env.enable_safety_layer", default=True)
     disable_sumo_safety = OmegaConf.select(cfg, "env.disable_sumo_safety", default=True)
     spacing_min = OmegaConf.select(cfg, "env.spacing_min", default=5.0)
+    weight_v = OmegaConf.select(cfg, "env.weight_v", default=1.0)
+    weight_s = OmegaConf.select(cfg, "env.weight_s", default=0.5)
+    weight_u = OmegaConf.select(cfg, "env.weight_u", default=0.2)
 
     env = make_env(
         sumocfg_path=sumocfg_path,
@@ -98,6 +110,9 @@ def train(cfg: DictConfig):
         enable_safety_layer=enable_safety_layer,
         disable_sumo_safety=disable_sumo_safety,
         spacing_min=spacing_min,
+        weight_v=weight_v,
+        weight_s=weight_s,
+        weight_u=weight_u,
     )
 
     if num_agents > 1:
@@ -121,19 +136,28 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
         batch_size=cfg.agent.batch_size,
         entropy_coef=cfg.agent.entropy_coef,
         value_coef=cfg.agent.value_coef,
+        clip_vloss=OmegaConf.select(cfg, "agent.clip_vloss", default=False),
+        vf_clip_coef=OmegaConf.select(cfg, "agent.vf_clip_coef", default=0.2),
     )
+    anneal_lr = OmegaConf.select(cfg, "agent.anneal_lr", default=True)
+    ppo_cfg.anneal_lr = anneal_lr
+
     agent = PPOAgent(
         obs_dim=obs_dim,
         action_dim=action_dim,
         config=ppo_cfg,
         continuous=True,
+        total_steps=cfg.total_steps,
+        rollout_steps=cfg.rollout_steps,
     )
 
-    # Lagrangian multiplier
+    # Lagrangian multiplier with dual (PID-style) update
     enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
     lambda_val = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
     lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
     lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
+    # Violation tolerance: lambda decreases when mean violation < tolerance
+    violation_tolerance = OmegaConf.select(cfg, "agent.violation_tolerance", default=0.5)
 
     metrics_history = {
         "policy_loss": [],
@@ -143,6 +167,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
         "lambda": [],
         "mean_violation": [],
         "safety_clip_rate": [],
+        "lr": [],
     }
 
     s, _ = env.reset()
@@ -161,6 +186,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
           f"SUMO safety disabled: {env.unwrapped.disable_sumo_safety}")
     print(f"Lagrangian: {enable_lagrangian}, lambda_init={lambda_val}, "
           f"lambda_lr={lambda_lr}, lambda_max={lambda_max}")
+    print(f"LR annealing: {anneal_lr}, max_updates={agent.max_updates}")
     print(f"Rollout steps: {cfg.rollout_steps}")
     print(f"Config: {ppo_cfg}")
     print("-" * 80)
@@ -209,11 +235,13 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
                 s, _ = env.reset()
                 ep_ret, ep_len = 0.0, 0
 
-        # Update Lagrange multiplier
+        # Update Lagrange multiplier (dual update with tolerance)
+        # lambda increases when violation > tolerance, decreases when below
         if enable_lagrangian and rollout_violations:
             mean_violation = float(np.mean(rollout_violations))
             lambda_val = float(np.clip(
-                lambda_val + lambda_lr * mean_violation, 0.0, lambda_max
+                lambda_val + lambda_lr * (mean_violation - violation_tolerance),
+                0.0, lambda_max,
             ))
         else:
             mean_violation = 0.0
@@ -246,6 +274,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
                 f"Policy Loss: {metrics['policy_loss']:>7.4f} | "
                 f"Value Loss: {metrics['value_loss']:>7.4f} | "
                 f"Entropy: {metrics['entropy']:>6.4f} | "
+                f"LR: {metrics.get('lr', 0):.2e} | "
                 f"Lambda: {lambda_val:>6.4f} | "
                 f"Violation: {mean_violation:>6.4f} | "
                 f"Clip Rate: {safety_clip_rate:>5.3f}"
@@ -290,19 +319,27 @@ def _train_multi_agent(
         batch_size=cfg.agent.batch_size,
         entropy_coef=cfg.agent.entropy_coef,
         value_coef=cfg.agent.value_coef,
+        clip_vloss=OmegaConf.select(cfg, "agent.clip_vloss", default=False),
+        vf_clip_coef=OmegaConf.select(cfg, "agent.vf_clip_coef", default=0.2),
     )
+    anneal_lr = OmegaConf.select(cfg, "agent.anneal_lr", default=True)
+    ppo_cfg.anneal_lr = anneal_lr
+
     agent = PPOAgent(
         obs_dim=obs_dim,
         action_dim=action_dim,
         config=ppo_cfg,
         continuous=True,
+        total_steps=cfg.total_steps,
+        rollout_steps=cfg.rollout_steps,
     )
 
-    # Lagrangian multiplier
+    # Lagrangian multiplier with dual (PID-style) update
     enable_lagrangian = OmegaConf.select(cfg, "agent.enable_lagrangian", default=True)
     lambda_val = OmegaConf.select(cfg, "agent.lambda_init", default=0.0)
     lambda_lr = OmegaConf.select(cfg, "agent.lambda_lr", default=0.01)
     lambda_max = OmegaConf.select(cfg, "agent.lambda_max", default=10.0)
+    violation_tolerance = OmegaConf.select(cfg, "agent.violation_tolerance", default=0.5)
 
     metrics_history = {
         "policy_loss": [],
@@ -312,6 +349,7 @@ def _train_multi_agent(
         "lambda": [],
         "mean_violation": [],
         "safety_clip_rate": [],
+        "lr": [],
     }
 
     agent_ids = env.agent_ids
@@ -333,6 +371,7 @@ def _train_multi_agent(
           f"SUMO safety disabled: {env.unwrapped.disable_sumo_safety}")
     print(f"Lagrangian: {enable_lagrangian}, lambda_init={lambda_val}, "
           f"lambda_lr={lambda_lr}, lambda_max={lambda_max}")
+    print(f"LR annealing: {anneal_lr}, max_updates={agent.max_updates}")
     print(f"Rollout steps: {cfg.rollout_steps}")
     print(f"Config: {ppo_cfg}")
     print("-" * 80)
@@ -399,11 +438,12 @@ def _train_multi_agent(
                 obs_dict, _ = env.reset()
                 ep_ret, ep_len = 0.0, 0
 
-        # Update Lagrange multiplier
+        # Update Lagrange multiplier (dual update with tolerance)
         if enable_lagrangian and rollout_violations:
             mean_violation = float(np.mean(rollout_violations))
             lambda_val = float(np.clip(
-                lambda_val + lambda_lr * mean_violation, 0.0, lambda_max
+                lambda_val + lambda_lr * (mean_violation - violation_tolerance),
+                0.0, lambda_max,
             ))
         else:
             mean_violation = 0.0
@@ -438,6 +478,7 @@ def _train_multi_agent(
                 f"Policy Loss: {metrics['policy_loss']:>7.4f} | "
                 f"Value Loss: {metrics['value_loss']:>7.4f} | "
                 f"Entropy: {metrics['entropy']:>6.4f} | "
+                f"LR: {metrics.get('lr', 0):.2e} | "
                 f"Lambda: {lambda_val:>6.4f} | "
                 f"Violation: {mean_violation:>6.4f} | "
                 f"Clip Rate: {safety_clip_rate:>5.3f}"

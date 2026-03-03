@@ -13,6 +13,11 @@ class PPOConfig:
     entropy_coef: float = 0.01
     value_coef: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    anneal_lr: bool = True
+
+    # Value function clipping (PPO-style)
+    clip_vloss: bool = False
+    vf_clip_coef: float = 0.2
 
     # Lagrangian PPO fields
     enable_lagrangian: bool = False

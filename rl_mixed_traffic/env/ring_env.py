@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 import gymnasium as gym
 from gymnasium.spaces import Box
@@ -67,7 +69,7 @@ class RingRoadEnv(gym.Env):
         s_star: float = 20.0,
         weight_v: float = 1,
         weight_s: float = 0.5,
-        weight_u: float = 0.1,
+        weight_u: float = 0.2,
         spacing_min: float = 5.0,
         enable_safety_layer: bool = False,
         disable_sumo_safety: bool = False,
@@ -146,6 +148,10 @@ class RingRoadEnv(gym.Env):
         # Cache for global state (refreshed each step)
         self._cached_global_state = None
 
+        # 20-second averaging window for equilibrium velocity (DeeP-LCC paper Section VI)
+        _v_eq_window = int(round(20.0 / self.step_length))  # 200 steps at dt=0.1s
+        self._head_speed_buffer: deque[float] = deque(maxlen=_v_eq_window)
+
     @property
     def action_space(self):
         if self.num_agents > 1:
@@ -168,6 +174,13 @@ class RingRoadEnv(gym.Env):
         # Single-agent: original behavior
         self.obs_var_labels = ["Velocity", "Absolute_pos"]
         return Box(low=0.0, high=1.0, shape=(2 * self.num_vehicles,), dtype=np.float32)
+
+    @property
+    def v_eq(self) -> float:
+        """Time-averaged equilibrium velocity from head vehicle speed buffer."""
+        if len(self._head_speed_buffer) > 0:
+            return float(np.mean(self._head_speed_buffer))
+        return self.v_star
 
     def open_traci(self):
         if not traci.isLoaded():
@@ -361,6 +374,7 @@ class RingRoadEnv(gym.Env):
         self.last_jerk = 0.0
         self._last_head_update_step = 0
         self._cached_global_state = None
+        self._head_speed_buffer.clear()
         self.head_vehicle_controller.reset()
         self.prev_accels = {aid: 0.0 for aid in self.agent_ids}
         self.cmd_speeds = {aid: 0.0 for aid in self.agent_ids}
@@ -493,6 +507,10 @@ class RingRoadEnv(gym.Env):
         traci.simulationStep()
         self.step_count += 1
 
+        # Record head speed for time-averaged v_eq
+        if self.head_id in traci.vehicle.getIDList():
+            self._head_speed_buffer.append(traci.vehicle.getSpeed(self.head_id))
+
         self._cached_global_state = None  # invalidate cache
         obs = self.get_state()
         reward = self.compute_lcc_reward()
@@ -540,6 +558,10 @@ class RingRoadEnv(gym.Env):
 
         traci.simulationStep()
         self.step_count += 1
+
+        # Record head speed for time-averaged v_eq
+        if self.head_id in traci.vehicle.getIDList():
+            self._head_speed_buffer.append(traci.vehicle.getSpeed(self.head_id))
 
         self._cached_global_state = None  # invalidate cache
         self.get_state()  # populate cache
@@ -635,12 +657,10 @@ class RingRoadEnv(gym.Env):
         if self.agent_id not in active_ids:
             return 0.0
 
-        # Equilibrium velocity
-        v_eq = self.v_star
-
-        # Calculate s_star using OVM-type spacing policy
-        v_ratio = max(0.0, min(v_eq / self.v_max, 1.0))
-        s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
+        # Equilibrium velocity — 20s time-averaged (DeeP-LCC paper)
+        v_eq = self.v_eq
+        # Fixed design-choice spacing (DeeP-LCC paper)
+        s_star = self.s_star
 
         # --- System-level velocity error: ALL vehicles except head ---
         J_velocity = 0.0
@@ -675,12 +695,10 @@ class RingRoadEnv(gym.Env):
         """
         active_ids = traci.vehicle.getIDList()
 
-        # Equilibrium velocity
-        v_eq = self.v_star
-
-        # Compute s_star using OVM-type spacing policy
-        v_ratio = max(0.0, min(v_eq / self.v_max, 1.0))
-        s_star = np.arccos(1 - v_ratio * 2) / np.pi * (35 - 5) + 5
+        # Equilibrium velocity — 20s time-averaged (DeeP-LCC paper)
+        v_eq = self.v_eq
+        # Fixed design-choice spacing (DeeP-LCC paper)
+        s_star = self.s_star
 
         # --- System-level velocity error: ALL vehicles except head ---
         J_velocity = 0.0

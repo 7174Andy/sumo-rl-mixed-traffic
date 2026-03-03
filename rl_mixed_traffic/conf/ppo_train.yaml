@@ -1,4 +1,4 @@
-total_steps: 600_000
+total_steps: 800_000
 rollout_steps: 2048
 save_freq: 50_000
 gui: false
@@ -17,13 +17,15 @@ scenario:
   brake_duration: 3.0
   hold_duration: 10.0
   recover_duration: 5.0
+  v_min: 5.0
+  v_max: 20.0
 
 agent:
-  lr: 3e-4
+  lr: 1e-4
   gamma: 0.99
   lam: 0.95
-  clip_epsilon: 0.2
-  k_epochs: 10
+  clip_epsilon: 0.15
+  k_epochs: 6
   batch_size: 64
   entropy_coef: 0.01
   value_coef: 0.5

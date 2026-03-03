@@ -119,12 +119,13 @@ def evaluate(agent_path: str, gui: bool = True, plot_speeds: bool = True, scenar
                 head_accels.append(0.0)
 
             # Track CAV spacing (gap to leader)
+            # Cap at ring_length (or 50 m fallback) to filter sentinel values
+            # from leader-detection failures at episode boundaries
+            max_gap = raw_env.ring_length if raw_env.ring_length else 50.0
             for aid in raw_env.agent_ids:
                 if aid in traci.vehicle.getIDList():
                     gap = raw_env._get_gap_to_leader(aid)
-                    # Cap at ring length to avoid sentinel values
-                    if raw_env.ring_length is not None:
-                        gap = min(gap, raw_env.ring_length)
+                    gap = min(gap, max_gap)
                     cav_spacings[aid].append(gap)
                 else:
                     cav_spacings[aid].append(0.0)

@@ -44,6 +44,8 @@ class PPOAgent(BaseAgent):
         action_dim: int,
         config: PPOConfig,
         continuous: bool = True,
+        total_steps: int = 0,
+        rollout_steps: int = 2048,
     ):
         self.config = config
         self.obs_dim = obs_dim
@@ -58,6 +60,16 @@ class PPOAgent(BaseAgent):
 
         # Optimizer
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=config.lr)
+
+        # LR scheduler: linear annealing from initial lr to 0
+        self.max_updates = max(total_steps // rollout_steps, 1) if total_steps > 0 else 1
+        if config.anneal_lr and total_steps > 0:
+            lr_lambda = lambda update: 1.0 - (update / self.max_updates)
+        else:
+            lr_lambda = lambda update: 1.0
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+            self.optimizer, lr_lambda=lr_lambda
+        )
 
         # Rollout buffer
         self.buffer = RolloutBuffer(
@@ -214,6 +226,11 @@ class PPOAgent(BaseAgent):
         advantages = torch.as_tensor(advantages, dtype=torch.float32, device=self.device)
         returns = torch.as_tensor(returns, dtype=torch.float32, device=self.device)
 
+        # Convert buffer values to tensor for value function clipping
+        old_values = torch.as_tensor(
+            np.array(self.buffer.values), dtype=torch.float32, device=self.device
+        )
+
         # Normalize advantages (improves training stability)
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -265,9 +282,20 @@ class PPOAgent(BaseAgent):
                 )
                 policy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
 
-                # Value loss (MSE between predicted and actual returns)
+                # Value loss
                 values = values.squeeze(-1)
-                value_loss = nn.functional.mse_loss(values, mb_returns)
+                if self.config.clip_vloss:
+                    mb_old_values = old_values[mb_indices]
+                    v_clipped = mb_old_values + torch.clamp(
+                        values - mb_old_values,
+                        -self.config.vf_clip_coef,
+                        self.config.vf_clip_coef,
+                    )
+                    v_loss_unclipped = (values - mb_returns) ** 2
+                    v_loss_clipped = (v_clipped - mb_returns) ** 2
+                    value_loss = 0.5 * torch.max(v_loss_unclipped, v_loss_clipped).mean()
+                else:
+                    value_loss = nn.functional.mse_loss(values, mb_returns)
 
                 # Entropy bonus (encourages exploration)
                 entropy_loss = -entropy.mean()
@@ -304,12 +332,16 @@ class PPOAgent(BaseAgent):
         self.buffer.clear()
         self.update_count += 1
 
+        # Step LR scheduler after each update
+        self.scheduler.step()
+
         # Return training metrics
         return {
             "policy_loss": np.mean(policy_losses),
             "value_loss": np.mean(value_losses),
             "entropy": np.mean(entropies),
             "clipfrac": np.mean(clipfracs),
+            "lr": self.optimizer.param_groups[0]["lr"],
         }
 
     def update(self, *args: Any, **kwargs: Any) -> Optional[Dict[str, float]]:
@@ -340,6 +372,7 @@ class PPOAgent(BaseAgent):
         checkpoint = {
             "network": self.network.state_dict(),
             "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
             "total_steps": self.total_steps,
             "update_count": self.update_count,
             "config": self.get_config(),
@@ -365,6 +398,10 @@ class PPOAgent(BaseAgent):
         # Load optimizer if available
         if "optimizer" in ckpt:
             self.optimizer.load_state_dict(ckpt["optimizer"])
+
+        # Load scheduler if available
+        if "scheduler" in ckpt:
+            self.scheduler.load_state_dict(ckpt["scheduler"])
 
         # Load training state
         self.total_steps = ckpt.get("total_steps", 0)
