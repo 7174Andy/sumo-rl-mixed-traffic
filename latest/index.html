@@ -514,6 +514,122 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="lagrangian-ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exploration/lagrangian_ppo_reward_tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -663,6 +779,12 @@
 <p><strong>DQN:</strong></p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_train.py
 </code></pre></div>
+<p><strong>PPO:</strong></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_train.py
+</code></pre></div>
+<p><strong>Lagrangian PPO:</strong></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_train.py
+</code></pre></div>
 <h3 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h3>
 <p><strong>Q-Learning:</strong></p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/q_eval_policy.py
@@ -670,10 +792,17 @@
 <p><strong>DQN:</strong></p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_eval.py
 </code></pre></div>
+<p><strong>PPO:</strong></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_eval.py
+</code></pre></div>
+<p><strong>Lagrangian PPO:</strong></p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_eval.py
+</code></pre></div>
 <h2 id="design-notes">Design Notes<a class="headerlink" href="#design-notes" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="reward-redesign/">Reward Redesign</a> — investigation into the SUMO safety override problem and the proposed non-negative reward solution</li>
 <li><a href="lagrangian-ppo/">Lagrangian PPO</a> — safety-constrained training with a physics-based safety layer and adaptive Lagrange multiplier</li>
+<li><a href="exploration/lagrangian_ppo_reward_tuning/">Exploration Log: Lagrangian PPO Reward Tuning</a> — detailed experiment log covering v_eq smoothing, weight tuning, and training diagnostics</li>
 </ul>
 
 

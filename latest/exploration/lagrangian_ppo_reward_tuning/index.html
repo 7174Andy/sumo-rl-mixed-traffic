@@ -1,0 +1,1224 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reinforcement learning for traffic flow optimization using SUMO">
+      
+      
+      
+      
+        <link rel="prev" href="../../lagrangian-ppo/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+    
+    
+      
+        <title>Reward Tuning - SUMO RL Mixed Traffic</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lagrangian-ppo-reward-tuning-exploration-log" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SUMO RL Mixed Traffic" class="md-header__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SUMO RL Mixed Traffic
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reward Tuning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SUMO RL Mixed Traffic" class="md-nav__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SUMO RL Mixed Traffic
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../problem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Problem Formulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ppo-refactor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reward-redesign/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redesign Reward
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../lagrangian-ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-round-1-standard-ppo-baseline-pre-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Round 1 — Standard PPO Baseline (Pre-Fix)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-round-1-lagrangian-ppo-pre-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Round 1 — Lagrangian PPO (Pre-Fix)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fix-applied-smoothed-v_eq-fixed-s_star" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Fix Applied — Smoothed v_eq + Fixed s_star
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Fix Applied — Smoothed v_eq + Fixed s_star">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-rl_mixed_trafficenvring_envpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to rl_mixed_traffic/env/ring_env.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-round-2-lagrangian-ppo-post-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Round 2 — Lagrangian PPO (Post-Fix)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Round 2 — Lagrangian PPO (Post-Fix)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remaining-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remaining behaviors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-why-the-lagrangian-multiplier-never-engages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Why the Lagrangian Multiplier Never Engages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-current-status-and-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Current Status and Next Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Current Status and Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#potential-improvements-not-yet-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Potential improvements (not yet applied)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-files-modified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key files modified
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-round-1-standard-ppo-baseline-pre-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Round 1 — Standard PPO Baseline (Pre-Fix)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-round-1-lagrangian-ppo-pre-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Round 1 — Lagrangian PPO (Pre-Fix)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fix-applied-smoothed-v_eq-fixed-s_star" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Fix Applied — Smoothed v_eq + Fixed s_star
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Fix Applied — Smoothed v_eq + Fixed s_star">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-rl_mixed_trafficenvring_envpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to rl_mixed_traffic/env/ring_env.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-round-2-lagrangian-ppo-post-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Round 2 — Lagrangian PPO (Post-Fix)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Round 2 — Lagrangian PPO (Post-Fix)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remaining-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remaining behaviors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-why-the-lagrangian-multiplier-never-engages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Why the Lagrangian Multiplier Never Engages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-current-status-and-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Current Status and Next Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Current Status and Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#potential-improvements-not-yet-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Potential improvements (not yet applied)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-files-modified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key files modified
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lagrangian-ppo-reward-tuning-exploration-log">Lagrangian PPO Reward Tuning — Exploration Log<a class="headerlink" href="#lagrangian-ppo-reward-tuning-exploration-log" title="Permanent link">&para;</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Related documentation</p>
+<ul>
+<li><a href="../../lagrangian-ppo/">Lagrangian PPO</a> — main design doc with architecture, config tables, and results summary</li>
+<li><a href="../../reward-redesign/">Reward Redesign</a> — the non-negative reward transformation that resolved the crash-to-escape problem</li>
+</ul>
+</div>
+<h2 id="1-overview">1. Overview<a class="headerlink" href="#1-overview" title="Permanent link">&para;</a></h2>
+<p><strong>Goal:</strong> Train a Lagrangian PPO agent for safe car-following on a ring road.</p>
+<p><strong>Setup:</strong>
+- 4 vehicles: 1 head vehicle (<code>car0</code>) + 1 CAV agent (<code>car1</code>) + 2 HDVs
+- Head vehicle changes speed randomly every 15s (range 5–20 m/s)
+- Reward: DeeP-LCC cost-based (velocity error + spacing error + control penalty)
+- Key config flags: <code>disable_sumo_safety=True</code>, <code>enable_safety_layer=True</code></p>
+<p><strong>Reward function</strong> (<code>ring_env.py:645</code>, <code>compute_lcc_reward</code>):</p>
+<div class="highlight"><pre><span></span><code>J = weight_v * sum((v_i - v_eq)^2)     # all vehicles except head
+  + weight_s * clip(gap - s_star, ±20)^2  # CAV only
+  + weight_u * accel^2                     # CAV only
+
+reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
+</code></pre></div>
+<p>Default weights: <code>weight_v=1</code>, <code>weight_s=0.5</code>, <code>weight_u=0.2</code>, <code>s_star=20m</code>.</p>
+<hr />
+<h2 id="2-round-1-standard-ppo-baseline-pre-fix">2. Round 1 — Standard PPO Baseline (Pre-Fix)<a class="headerlink" href="#2-round-1-standard-ppo-baseline-pre-fix" title="Permanent link">&para;</a></h2>
+<p><strong>Config:</strong> <code>ppo_train.yaml</code>, <code>disable_sumo_safety=False</code> (SUMO Krauss safety model active)</p>
+<p><strong>Observations from evaluation plots:</strong>
+- Speed tracking looks reasonable — CAV appears to follow head vehicle transitions
+- Acceleration is constant at +2.0 m/s² with no modulation
+- Returns: negative (−30k → −5k range), trained with old <code>compute_reward()</code>
+- Spacing: 5–15m range, crash at step ~4300</p>
+<p><strong>Root cause:</strong> SUMO's Krauss car-following model performs the actual safe following. The agent simply outputs "accelerate" every step, and Krauss overrides it to prevent collisions. The agent learned to free-ride on SUMO's built-in safety rather than developing its own policy.</p>
+<p><strong>Verdict:</strong> Not real learning — the agent exploits SUMO's safety guarantees.</p>
+<hr />
+<h2 id="3-round-1-lagrangian-ppo-pre-fix">3. Round 1 — Lagrangian PPO (Pre-Fix)<a class="headerlink" href="#3-round-1-lagrangian-ppo-pre-fix" title="Permanent link">&para;</a></h2>
+<p><strong>Config:</strong> <code>lagrangian_ppo_train.yaml</code>, <code>disable_sumo_safety=True</code></p>
+<p>With SUMO safety disabled, the agent must learn car-following from scratch.</p>
+<p><strong>Observations:</strong>
+| Metric | Behavior |
+|--------|----------|
+| Speed tracking | Poor — CAV lags 2–5 m/s behind head, stalls to ~1 m/s |
+| Spacing | Oscillates 0–200m, spike to 960m |
+| Acceleration | Near-zero — agent learned "do nothing" |
+| Returns | 500–4000, no convergence over 450 episodes |
+| Entropy | Increasing (1.45 → 1.8) — policy randomizing |
+| Value loss | Increasing — critic getting worse |
+| Lambda | Flat at ~0 |</p>
+<p><strong>Root cause — Reward whiplash from instantaneous v_eq:</strong></p>
+<p>Before the fix, <code>v_eq</code> was computed directly from the head vehicle's current speed. When the head vehicle jumps (e.g., 15 → 7 m/s), <code>v_eq</code> changes instantly, creating:</p>
+<ol>
+<li><strong>Velocity error spikes:</strong> Every vehicle is suddenly "wrong" relative to the new target</li>
+<li><strong>Moving goalpost:</strong> <code>s_star</code> was also dynamic (OVM-based), shifting with <code>v_eq</code></li>
+<li><strong>Noisy reward signal:</strong> Large reward swings at every head speed change prevent gradient convergence</li>
+<li><strong>Agent gives up:</strong> The policy converges to near-zero acceleration (safest strategy when reward is unpredictable)</li>
+</ol>
+<p>The entropy increase confirms this — the policy is randomizing rather than exploiting, a hallmark of a reward signal that doesn't carry learnable structure.</p>
+<hr />
+<h2 id="4-fix-applied-smoothed-v_eq-fixed-s_star">4. Fix Applied — Smoothed v_eq + Fixed s_star<a class="headerlink" href="#4-fix-applied-smoothed-v_eq-fixed-s_star" title="Permanent link">&para;</a></h2>
+<p><strong>Reference:</strong> DeeP-LCC paper (arXiv 2203.10639), Section VI.</p>
+<h3 id="changes-to-rl_mixed_trafficenvring_envpy">Changes to <code>rl_mixed_traffic/env/ring_env.py</code><a class="headerlink" href="#changes-to-rl_mixed_trafficenvring_envpy" title="Permanent link">&para;</a></h3>
+<p><strong>1. Head speed buffer</strong> (line 151–153):
+<div class="highlight"><pre><span></span><code><span class="n">_v_eq_window</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="mf">20.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_length</span><span class="p">))</span>  <span class="c1"># 200 steps at dt=0.1s</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">_head_speed_buffer</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="n">_v_eq_window</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>2. v_eq property</strong> (line 178–183):
+<div class="highlight"><pre><span></span><code><span class="nd">@property</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">v_eq</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time-averaged equilibrium velocity from head vehicle speed buffer.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_head_speed_buffer</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_head_speed_buffer</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">v_star</span>
+</code></pre></div></p>
+<p><strong>3. Buffer recording</strong> — head speed appended after each <code>simulationStep()</code> call in both <code>_step_single</code> (line 512) and <code>_step_multi</code> (line 564):
+<div class="highlight"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">_head_speed_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">traci</span><span class="o">.</span><span class="n">vehicle</span><span class="o">.</span><span class="n">getSpeed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">head_id</span><span class="p">))</span>
+</code></pre></div></p>
+<p><strong>4. Reward functions updated</strong> — both <code>compute_lcc_reward()</code> (line 661) and <code>compute_multi_agent_lcc_reward()</code> (line 699) now use:
+- <code>self.v_eq</code> (20s time-averaged) instead of instantaneous head speed
+- <code>self.s_star</code> (fixed 20m) instead of dynamic OVM-based s_star</p>
+<p><strong>Why this works:</strong>
+- The 20s averaging window smooths over head speed changes (which occur every 15s)
+- v_eq transitions gradually, giving the agent a learnable signal
+- Fixed s_star eliminates the moving-goalpost problem
+- J_max normalization remains valid (worst-case bounds unchanged)</p>
+<hr />
+<h2 id="5-round-2-lagrangian-ppo-post-fix">5. Round 2 — Lagrangian PPO (Post-Fix)<a class="headerlink" href="#5-round-2-lagrangian-ppo-post-fix" title="Permanent link">&para;</a></h2>
+<p><strong>Config:</strong> Same <code>lagrangian_ppo_train.yaml</code>, retrained for 800k steps.</p>
+<h3 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Speed tracking</td>
+<td><strong>Good</strong> — CAV follows head within 1–3 m/s across all speed transitions (5–15 m/s range)</td>
+</tr>
+<tr>
+<td>Acceleration</td>
+<td><strong>Smooth, modulated</strong> — range 0 to +1.5 m/s², clear response to speed changes</td>
+</tr>
+<tr>
+<td>Spacing</td>
+<td><strong>Stable 5–20m</strong> for entire episode (~4700 steps), near s_star=20m</td>
+</tr>
+<tr>
+<td>Returns</td>
+<td>MA(10) rises to ~3500 by episode 80, plateaus at 3000–3800</td>
+</tr>
+<tr>
+<td>Entropy</td>
+<td>Rose to 1.65, then declined to 1.50 (healthy explore → exploit curve)</td>
+</tr>
+<tr>
+<td>Lambda</td>
+<td>Still flat at 0 (see Section 6)</td>
+</tr>
+<tr>
+<td>Value loss</td>
+<td>Concerning rise in later updates (critic struggling)</td>
+</tr>
+<tr>
+<td>Crashes</td>
+<td><strong>None</strong> — full-episode car-following achieved</td>
+</tr>
+</tbody>
+</table>
+<h3 id="remaining-behaviors">Remaining behaviors<a class="headerlink" href="#remaining-behaviors" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Catching-up lag (~2–3s):</strong> After head speed changes, the CAV takes a few seconds to match. This is partly by design — the 20s averaging window inherently delays v_eq, and the reward doesn't explicitly penalize transient tracking error.</li>
+<li><strong>Slight positive acceleration bias:</strong> The agent tends to accelerate more than brake. Likely because the DeeP-LCC cost penalizes control input symmetrically (<code>u^2</code>), but positive acceleration is more useful for catching up.</li>
+<li><strong>End-of-episode spacing spike:</strong> Normal — the head vehicle exits the simulation before the episode ends, causing the gap measurement to jump.</li>
+</ul>
+<hr />
+<h2 id="6-why-the-lagrangian-multiplier-never-engages">6. Why the Lagrangian Multiplier Never Engages<a class="headerlink" href="#6-why-the-lagrangian-multiplier-never-engages" title="Permanent link">&para;</a></h2>
+<p>The Lagrangian dual update (<code>lagrangian_ppo_train.py:224–228</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="n">lambda_val</span> <span class="o">+=</span> <span class="n">lambda_lr</span> <span class="o">*</span> <span class="p">(</span><span class="n">mean_violation</span> <span class="o">-</span> <span class="n">violation_tolerance</span><span class="p">)</span>
+</code></pre></div>
+<p>With actual values from training:
+<div class="highlight"><pre><span></span><code>lambda += 0.01 * (0.03 - 0.1) = -0.0007 → clipped to 0
+</code></pre></div></p>
+<p>Lambda can only grow when <code>mean_violation &gt; violation_tolerance</code> (0.1m per config). But the safety layer clips unsafe accelerations <strong>before</strong> they reach SUMO, keeping violations at 0.02–0.04m — well below the tolerance.</p>
+<p><strong>The safety layer and Lagrangian work against each other:</strong></p>
+<ol>
+<li>Safety layer prevents violations (hard constraint at execution time)</li>
+<li>Violations stay near zero → lambda stays at zero</li>
+<li>Lagrangian penalty = <code>0 * violation = 0</code> → no safety learning signal</li>
+<li>The policy learns car-following purely from the DeeP-LCC reward, with no learned safety behavior</li>
+</ol>
+<p><strong>Possible fixes (not yet applied):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lower <code>violation_tolerance</code> (e.g., 0.01)</td>
+<td>Lambda engages even with small violations; may over-penalize</td>
+</tr>
+<tr>
+<td>Use safety layer clip rate as constraint signal</td>
+<td>Penalizes the policy for <em>attempting</em> unsafe actions, not just outcomes</td>
+</tr>
+<tr>
+<td>Disable safety layer, rely solely on Lagrangian</td>
+<td>Riskier during training — real collisions possible</td>
+</tr>
+<tr>
+<td>Keep current setup (safety layer + DeeP-LCC)</td>
+<td>Simplest; safety is guaranteed by the layer, not learned</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-current-status-and-next-steps">7. Current Status and Next Steps<a class="headerlink" href="#7-current-status-and-next-steps" title="Permanent link">&para;</a></h2>
+<h3 id="whats-working">What's working<a class="headerlink" href="#whats-working" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Smoothed v_eq fix resolved the convergence problem</li>
+<li>Agent achieves functional car-following with no crashes</li>
+<li>Acceleration is modulated and responsive (not constant or zero)</li>
+<li>Spacing stays in a reasonable range near the 20m target</li>
+</ul>
+<h3 id="potential-improvements-not-yet-applied">Potential improvements (not yet applied)<a class="headerlink" href="#potential-improvements-not-yet-applied" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Weight rebalancing:</strong> Increase <code>weight_v</code> (1 → 5) and decrease <code>weight_u</code> (0.2 → 0.1) to reduce catch-up lag and let the agent use more aggressive acceleration</li>
+<li><strong>Longer training:</strong> Returns may still be improving at 800k steps</li>
+<li><strong>Value loss instability:</strong> Critic loss rises in later updates — may need learning rate decay or separate critic LR</li>
+<li><strong>Lagrangian engagement:</strong> Decide whether to tune the Lagrangian mechanism or accept the safety-layer-only approach</li>
+</ul>
+<h3 id="key-files-modified">Key files modified<a class="headerlink" href="#key-files-modified" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rl_mixed_traffic/env/ring_env.py</code></td>
+<td>Added <code>_head_speed_buffer</code>, <code>v_eq</code> property, smoothed reward</td>
+</tr>
+<tr>
+<td><code>rl_mixed_traffic/conf/lagrangian_ppo_train.yaml</code></td>
+<td>Training config for Lagrangian PPO</td>
+</tr>
+<tr>
+<td><code>rl_mixed_traffic/conf/ppo_train.yaml</code></td>
+<td>Training config for standard PPO baseline</td>
+</tr>
+<tr>
+<td><code>rl_mixed_traffic/lagrangian_ppo_train.py</code></td>
+<td>Lagrangian dual update loop</td>
+</tr>
+</tbody>
+</table>
+<h3 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="../../lagrangian-ppo/">Lagrangian PPO design doc</a> — architecture overview, updated config tables, and results summary</li>
+<li><a href="../../reward-redesign/">Reward Redesign</a> — the non-negative reward transformation</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

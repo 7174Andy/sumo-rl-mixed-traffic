@@ -11,6 +11,10 @@
       
       
       
+        <link rel="prev" href="../reward-redesign/">
+      
+      
+        <link rel="next" href="../exploration/lagrangian_ppo_reward_tuning/">
       
       
         
@@ -21,7 +25,7 @@
     
     
       
-        <title>Lagrangian PPO: Safety-Constrained Training - SUMO RL Mixed Traffic</title>
+        <title>Lagrangian PPO - SUMO RL Mixed Traffic</title>
       
     
     
@@ -108,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Lagrangian PPO: Safety-Constrained Training
+              Lagrangian PPO
             
           </span>
         </div>
@@ -382,6 +386,402 @@
   
 
     
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Motivation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-safety-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Safety Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Safety Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#physics-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Physics model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clipping-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clipping rule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-lagrangian-reward-augmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Lagrangian Reward Augmentation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Lagrangian Reward Augmentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constraint-violation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraint violation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#augmented-reward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Augmented reward
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lambda-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lambda update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-training-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Training Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Training Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-ppo-vs-lagrangian-ppo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard PPO vs Lagrangian PPO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#41-reward-smoothing-time-averaged-v_eq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Reward smoothing: time-averaged v_eq
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-fix-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-fix results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remaining-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remaining behaviors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pre-fix-results-historical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-fix results (historical)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exploration/lagrangian_ppo_reward_tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -554,6 +954,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#41-reward-smoothing-time-averaged-v_eq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Reward smoothing: time-averaged v_eq
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#config-file" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -581,22 +992,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-results-and-limitations" class="md-nav__link">
+  <a href="#5-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Results and Limitations
+        5. Results
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="5. Results and Limitations">
+    <nav class="md-nav" aria-label="5. Results">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#outcome" class="md-nav__link">
+  <a href="#post-fix-results" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Outcome
+        Post-fix results
       
     </span>
   </a>
@@ -604,10 +1015,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-it-fails" class="md-nav__link">
+  <a href="#remaining-behaviors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it fails
+        Remaining behaviors
       
     </span>
   </a>
@@ -615,10 +1026,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#insight" class="md-nav__link">
+  <a href="#pre-fix-results-historical" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Insight
+        Pre-fix results (historical)
       
     </span>
   </a>
@@ -771,27 +1182,32 @@ r_\text{aug} = r_\text{base} - \lambda \cdot c_t
 <tr>
 <td>Total steps</td>
 <td>800,000</td>
-<td>600,000</td>
+<td>1,500,000</td>
 </tr>
 <tr>
 <td>Rollout steps</td>
-<td>2,048</td>
-<td>2,048</td>
+<td>4,096</td>
+<td>4,096</td>
 </tr>
 <tr>
 <td>Learning rate</td>
-<td>1e-4</td>
+<td>3e-4</td>
 <td>3e-4</td>
 </tr>
 <tr>
 <td>Clip epsilon</td>
 <td>0.15</td>
-<td>0.2</td>
+<td>0.15</td>
 </tr>
 <tr>
 <td>PPO epochs</td>
 <td>6</td>
-<td>10</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Value function clipping</td>
+<td>No</td>
+<td>Yes (<code>vf_clip_coef=0.2</code>)</td>
 </tr>
 <tr>
 <td>SUMO speed mode</td>
@@ -808,18 +1224,32 @@ r_\text{aug} = r_\text{base} - \lambda \cdot c_t
 <td>No</td>
 <td>Yes</td>
 </tr>
+<tr>
+<td><code>weight_v</code> / <code>weight_s</code> / <code>weight_u</code></td>
+<td>1.0 / 0.5 / 0.2</td>
+<td>5.0 / 0.5 / 0.1</td>
+</tr>
 </tbody>
 </table>
-<p>The Lagrangian variant uses a higher learning rate and more PPO epochs per update to compensate for the harder optimization landscape when SUMO safety is disabled.</p>
+<p>The Lagrangian variant uses stronger velocity tracking (<code>weight_v=5</code>) and lower control penalty (<code>weight_u=0.1</code>) to reduce catch-up lag when the head vehicle changes speed. Value function clipping stabilizes the critic during longer training runs.</p>
+<h3 id="41-reward-smoothing-time-averaged-v_eq">4.1 Reward smoothing: time-averaged v_eq<a class="headerlink" href="#41-reward-smoothing-time-averaged-v_eq" title="Permanent link">&para;</a></h3>
+<p>The DeeP-LCC reward penalizes velocity deviation from an equilibrium speed <span class="arithmatex">\(v_\text{eq}\)</span>. Initially, <span class="arithmatex">\(v_\text{eq}\)</span> was the head vehicle's instantaneous speed — but the head changes speed every 15 seconds, causing sudden reward spikes that prevented convergence.</p>
+<p>The fix: <span class="arithmatex">\(v_\text{eq}\)</span> is now a <strong>20-second rolling average</strong> of the head vehicle's speed. This smooths over speed transitions and gives the agent a learnable, gradually shifting target. The desired spacing <span class="arithmatex">\(s^*\)</span> is fixed at 20 m (no longer dynamic).</p>
+<p>See the <a href="../exploration/lagrangian_ppo_reward_tuning/#4-fix-applied--smoothed-v_eq--fixed-s_star">Exploration Log, Section 4</a> for implementation details and before/after comparisons.</p>
 <h3 id="config-file">Config file<a class="headerlink" href="#config-file" title="Permanent link">&para;</a></h3>
 <p>Source: <code>rl_mixed_traffic/conf/lagrangian_ppo_train.yaml</code></p>
-<p>Key environment flags that differ from standard PPO:</p>
+<p>Key environment and agent flags that differ from standard PPO:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">env</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enable_safety_layer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">disable_sumo_safety</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">spacing_min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span>
+<span class="w">  </span><span class="nt">weight_v</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span><span class="w">               </span><span class="c1"># stronger velocity tracking</span>
+<span class="w">  </span><span class="nt">weight_s</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+<span class="w">  </span><span class="nt">weight_u</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span><span class="w">               </span><span class="c1"># less control penalty</span>
 
 <span class="nt">agent</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">clip_vloss</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">vf_clip_coef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
 <span class="w">  </span><span class="nt">enable_lagrangian</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">lambda_init</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
 <span class="w">  </span><span class="nt">lambda_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.01</span>
@@ -829,14 +1259,56 @@ r_\text{aug} = r_\text{base} - \lambda \cdot c_t
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_train.py
 </code></pre></div>
 <p>Output goes to <code>lagrangian_ppo_results/</code>. The training loop tracks three additional metrics beyond standard PPO: <code>lambda</code> (current multiplier value), <code>mean_violation</code> (average spacing violation per rollout), and <code>safety_clip_rate</code> (fraction of steps where the safety layer clipped the action).</p>
-<h2 id="5-results-and-limitations">5. Results and Limitations<a class="headerlink" href="#5-results-and-limitations" title="Permanent link">&para;</a></h2>
-<h3 id="outcome">Outcome<a class="headerlink" href="#outcome" title="Permanent link">&para;</a></h3>
-<p>The agent still collides under speed mode 0, even with both the safety layer and Lagrangian penalty active.</p>
-<h3 id="why-it-fails">Why it fails<a class="headerlink" href="#why-it-fails" title="Permanent link">&para;</a></h3>
-<p>The safety layer uses a <strong>one-step prediction horizon</strong> (<span class="arithmatex">\(\Delta t = 0.1\;\text{s}\)</span>). In fast-closing scenarios — where the lead vehicle brakes suddenly — 0.1 seconds of lookahead is not enough to prevent a collision. By the time the predicted spacing falls below <span class="arithmatex">\(s_\text{min}\)</span>, the vehicles are already too close for a single-step correction to avoid contact.</p>
-<p>The Lagrangian penalty cannot compensate for a fundamentally inadequate safety model. It can only shape the reward signal — it cannot override physics.</p>
-<h3 id="insight">Insight<a class="headerlink" href="#insight" title="Permanent link">&para;</a></h3>
-<p>This experiment led to the deeper realization documented in <a href="../reward-redesign/">Reward Redesign</a>: the root cause is not insufficient safety mechanisms but the <strong>negative-only reward structure</strong>. With rewards always <span class="arithmatex">\(\leq 0\)</span>, the agent is incentivized to crash early (terminating the episode escapes accumulated negative reward). The fix is to transform the reward into a non-negative <span class="arithmatex">\([0, 1]\)</span> range where collision termination is always the worst outcome.</p>
+<h2 id="5-results">5. Results<a class="headerlink" href="#5-results" title="Permanent link">&para;</a></h2>
+<h3 id="post-fix-results">Post-fix results<a class="headerlink" href="#post-fix-results" title="Permanent link">&para;</a></h3>
+<p>After applying the smoothed <span class="arithmatex">\(v_\text{eq}\)</span> fix and reward weight rebalancing, the agent achieves functional car-following with no crashes.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Speed tracking</td>
+<td>CAV follows head within 1-3 m/s across speed transitions (5-15 m/s range)</td>
+</tr>
+<tr>
+<td>Acceleration</td>
+<td>Smooth, modulated (0 to +1.5 m/s²), clear response to speed changes</td>
+</tr>
+<tr>
+<td>Spacing</td>
+<td>Stable 5-20 m for entire episode (~4700 steps), near <span class="arithmatex">\(s^* = 20\;\text{m}\)</span></td>
+</tr>
+<tr>
+<td>Returns</td>
+<td>MA(10) rises to ~3500 by episode 80, plateaus at 3000-3800</td>
+</tr>
+<tr>
+<td>Entropy</td>
+<td>Healthy explore-then-exploit curve (1.65 peak, settles to 1.50)</td>
+</tr>
+<tr>
+<td>Crashes</td>
+<td><strong>None</strong> — full-episode car-following achieved</td>
+</tr>
+<tr>
+<td>Lambda</td>
+<td>Stays at 0 (see <a href="../exploration/lagrangian_ppo_reward_tuning/#6-why-the-lagrangian-multiplier-never-engages">Why lambda never engages</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="remaining-behaviors">Remaining behaviors<a class="headerlink" href="#remaining-behaviors" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Catch-up lag (~2-3 s):</strong> After head speed changes, the CAV takes a few seconds to match. The 20 s averaging window inherently delays <span class="arithmatex">\(v_\text{eq}\)</span>. Increased <code>weight_v</code> (5.0) reduces but does not eliminate this.</li>
+<li><strong>Slight positive acceleration bias:</strong> The agent accelerates more than it brakes. The <span class="arithmatex">\(u^2\)</span> penalty is symmetric, but positive acceleration is more useful for catching up.</li>
+<li><strong>Value loss instability:</strong> Critic loss rises in later updates. Value function clipping (<code>clip_vloss=true</code>) mitigates this.</li>
+</ul>
+<h3 id="pre-fix-results-historical">Pre-fix results (historical)<a class="headerlink" href="#pre-fix-results-historical" title="Permanent link">&para;</a></h3>
+<p>Before the smoothed <span class="arithmatex">\(v_\text{eq}\)</span> fix, the agent collided under speed mode 0. The root cause was the <strong>negative-only reward structure</strong> combined with instantaneous <span class="arithmatex">\(v_\text{eq}\)</span> causing reward whiplash. With rewards always <span class="arithmatex">\(\leq 0\)</span>, the agent was incentivized to crash early (terminating the episode escapes accumulated negative reward).</p>
+<p>This insight led to the reward redesign documented in <a href="../reward-redesign/">Reward Redesign</a> and detailed in the <a href="../exploration/lagrangian_ppo_reward_tuning/">Exploration Log</a>.</p>
 
 
 
