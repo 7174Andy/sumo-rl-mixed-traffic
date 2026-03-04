@@ -106,7 +106,7 @@ class RingRoadEnv(gym.Env):
         self.enable_safety_layer = enable_safety_layer
         self.disable_sumo_safety = disable_sumo_safety
         self.safety_layer = (
-            SafetyLayer(s_min=spacing_min, dt=sumo_config.step_length)
+            SafetyLayer(s_min=spacing_min, s_max=spacing_max, dt=sumo_config.step_length)
             if enable_safety_layer
             else None
         )
@@ -367,18 +367,14 @@ class RingRoadEnv(gym.Env):
         return d_gap, v_leader - v_ego
 
     def get_spacing_violation(self) -> float:
-        """Compute total normalised spacing violation across all agent vehicles.
+        """Compute total normalised s_min violation across all agent vehicles.
 
-        Two constraints are enforced, each normalised by its own scale so
-        both contribute comparably to the Lagrangian penalty:
+        s_min (too close to physical leader):
+            max(0, s_min - gap_to_leader) / s_min
+        Range [0, 1]: 0 at boundary, 1.0 when gap = 0.
 
-        1. s_min (too close to physical leader):
-               max(0, s_min - gap_to_leader) / s_min
-           Range [0, 1]: 0 at boundary, 1.0 when gap = 0.
-
-        2. s_max (too far from head vehicle):
-               max(0, gap_to_head - s_max) / s_max
-           Range [0, ~5]: 0 at boundary, scales with distance.
+        s_max is enforced as a hard constraint by the safety layer,
+        not as a Lagrangian penalty.
 
         Returns:
             Sum of dimensionless violations across agents.
@@ -389,12 +385,8 @@ class RingRoadEnv(gym.Env):
         for aid in self.agent_ids:
             if aid not in active_ids:
                 continue
-            # s_min: too close to physical leader (normalised by s_min)
             gap_leader = self._get_gap_to_leader(aid)
             total_violation += max(0.0, self.spacing_min - gap_leader) / self.spacing_min
-            # s_max: too far from head vehicle (normalised by s_max)
-            gap_head = self._get_gap_to_head(aid)
-            total_violation += max(0.0, gap_head - self.spacing_max) / self.spacing_max
         return total_violation
 
     def reset(self, seed: int | None = None, options: dict = None):
@@ -527,7 +519,14 @@ class RingRoadEnv(gym.Env):
         safety_clipped = False
         if self.safety_layer is not None and self.agent_id in traci.vehicle.getIDList():
             gap, rel_vel = self._get_leader_info(self.agent_id)
-            a, safety_clipped = self.safety_layer.filter(a, gap, rel_vel)
+            gap_head = self._get_gap_to_head(self.agent_id)
+            v_ego = traci.vehicle.getSpeed(self.agent_id)
+            v_head = traci.vehicle.getSpeed(self.head_id) if self.head_id in traci.vehicle.getIDList() else v_ego
+            a, safety_clipped = self.safety_layer.filter(
+                a, gap, rel_vel,
+                gap_to_head=gap_head,
+                rel_vel_head=v_head - v_ego,
+            )
 
         # Jerk calculation
         dt = self.step_length
@@ -552,6 +551,11 @@ class RingRoadEnv(gym.Env):
         obs = self.get_state()
         reward = self.compute_lcc_reward()
         done = self.terminal()
+
+        # Strong negative signal on collision so the policy learns to avoid crashes
+        if traci.simulation.getCollidingVehiclesNumber() > 0:
+            reward = -1.0
+
         info = {"safety_clipped": safety_clipped}
 
         return obs, reward, done, info
@@ -580,7 +584,14 @@ class RingRoadEnv(gym.Env):
             # Safety layer: filter accel if enabled
             if self.safety_layer is not None and aid in active_ids:
                 gap, rel_vel = self._get_leader_info(aid)
-                a, clipped = self.safety_layer.filter(a, gap, rel_vel)
+                gap_head = self._get_gap_to_head(aid)
+                v_ego = traci.vehicle.getSpeed(aid)
+                v_head = traci.vehicle.getSpeed(self.head_id) if self.head_id in active_ids else v_ego
+                a, clipped = self.safety_layer.filter(
+                    a, gap, rel_vel,
+                    gap_to_head=gap_head,
+                    rel_vel_head=v_head - v_ego,
+                )
                 any_safety_clipped = any_safety_clipped or clipped
 
             self.prev_accels[aid] = a
@@ -610,6 +621,11 @@ class RingRoadEnv(gym.Env):
 
         reward = self.compute_multi_agent_lcc_reward()
         done = self.terminal()
+
+        # Strong negative signal on collision so the policy learns to avoid crashes
+        if traci.simulation.getCollidingVehiclesNumber() > 0:
+            reward = -1.0
+
         info = {"safety_clipped": any_safety_clipped}
 
         return obs_dict, reward, done, info

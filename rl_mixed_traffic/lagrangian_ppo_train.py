@@ -128,6 +128,7 @@ def train(cfg: DictConfig):
 def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
     """Single-agent Lagrangian PPO training loop."""
     returns = []
+    aug_returns = []
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
 
@@ -180,7 +181,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
     }
 
     s, _ = env.reset()
-    ep_ret, ep_len = 0.0, 0
+    ep_ret, ep_len, ep_ret_aug = 0.0, 0, 0.0
     step_count = 0
 
     max_accel = float(env.unwrapped.max_accel)
@@ -221,6 +222,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
             rollout_violations.append(violation)
 
             # Augmented reward: r_base - lambda * violation
+            # (only s_min; s_max is enforced by the safety layer)
             if enable_lagrangian:
                 r_augmented = r_base - lambda_val * violation
             else:
@@ -230,6 +232,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
 
             s = s_next
             ep_ret += r_base  # Track base reward for fair comparison
+            ep_ret_aug += r_augmented  # Track what the value function actually sees
             ep_len += 1
             step_count += 1
             episode_done = done or truncated
@@ -237,13 +240,15 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
 
             if episode_done:
                 print(
-                    f"Step: {step_count:>7d} | Episode Return: {ep_ret:>8.2f} | "
+                    f"Step: {step_count:>7d} | Base Return: {ep_ret:>8.2f} | "
+                    f"Aug Return: {ep_ret_aug:>8.2f} | "
                     f"Episode Length: {ep_len:>4d} | Lambda: {lambda_val:.4f} | "
                     f"Updates: {agent.update_count}"
                 )
                 returns.append(ep_ret)
+                aug_returns.append(ep_ret_aug)
                 s, _ = env.reset()
-                ep_ret, ep_len = 0.0, 0
+                ep_ret, ep_len, ep_ret_aug = 0.0, 0, 0.0
 
         # Update Lagrange multiplier (dual update with tolerance)
         # lambda increases when violation > tolerance, decreases when below
@@ -308,7 +313,7 @@ def _train_single_agent(cfg: DictConfig, env, orig_cwd: str):
     print(f"Training completed! Total episodes: {len(returns)}")
     print(f"Final agent saved to: {out_dir / 'ppo_agent.pth'}")
 
-    return returns, out_dir
+    return returns, aug_returns, out_dir
 
 
 def _train_multi_agent(
@@ -316,6 +321,7 @@ def _train_multi_agent(
 ):
     """Multi-agent Lagrangian PPO training loop with shared policy and shared reward."""
     returns = []
+    aug_returns = []
 
     obs_dim = env.observation_space.shape[0]
     action_dim = 1
@@ -371,7 +377,7 @@ def _train_multi_agent(
     agent_ids = env.agent_ids
 
     obs_dict, _ = env.reset()
-    ep_ret, ep_len = 0.0, 0
+    ep_ret, ep_len, ep_ret_aug = 0.0, 0, 0.0
     step_count = 0
 
     max_accel = float(env.unwrapped.max_accel)
@@ -443,19 +449,22 @@ def _train_multi_agent(
 
             obs_dict = obs_dict_next
             ep_ret += r_base
+            ep_ret_aug += r_augmented
             ep_len += 1
             step_count += 1
             last_done = episode_done
 
             if episode_done:
                 print(
-                    f"Step: {step_count:>7d} | Episode Return: {ep_ret:>8.2f} | "
+                    f"Step: {step_count:>7d} | Base Return: {ep_ret:>8.2f} | "
+                    f"Aug Return: {ep_ret_aug:>8.2f} | "
                     f"Episode Length: {ep_len:>4d} | Lambda: {lambda_val:.4f} | "
                     f"Updates: {agent.update_count}"
                 )
                 returns.append(ep_ret)
+                aug_returns.append(ep_ret_aug)
                 obs_dict, _ = env.reset()
-                ep_ret, ep_len = 0.0, 0
+                ep_ret, ep_len, ep_ret_aug = 0.0, 0, 0.0
 
         # Update Lagrange multiplier (dual update with tolerance)
         if enable_lagrangian and rollout_violations:
@@ -522,16 +531,16 @@ def _train_multi_agent(
     print(f"Agents: {num_agents} CAVs with shared policy")
     print(f"Final agent saved to: {out_dir / 'ppo_agent.pth'}")
 
-    return returns, out_dir
+    return returns, aug_returns, out_dir
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="lagrangian_ppo_train")
 def main(cfg: DictConfig):
-    returns, out_dir = train(cfg)
+    returns, aug_returns, out_dir = train(cfg)
     plot_returns(
-        returns,
+        aug_returns,
         out_path=str(out_dir / "lagrangian_ppo_training_returns.png"),
-        title="Lagrangian PPO Training Returns",
+        title="Lagrangian PPO Augmented Returns",
     )
 
 

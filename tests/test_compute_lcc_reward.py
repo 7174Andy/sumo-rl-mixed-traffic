@@ -380,13 +380,15 @@ class TestSpacingViolation:
         # s_max violation: max(0, 3 - 40) / 40 = 0.0
         assert violation == pytest.approx(0.4)
 
-    def test_smax_violation_only(self):
-        """Exploit scenario: HDV ahead at ~s_star, car0 far away."""
+    def test_no_smin_violation_when_far_from_head(self):
+        """No s_min violation when leader gap is fine, even if far from head.
+
+        s_max is enforced by safety layer, not Lagrangian penalty.
+        """
         env = _make_env(spacing_min=5.0, spacing_max=40.0)
 
         # car1 (CAV) at 10, car2 (HDV) at 35, car0 at 200
         # Physical leader is car2 at gap=20 (fine for s_min)
-        # gap_to_head = (200-10)%230 - 5 = 185 (exceeds s_max)
         _setup_vehicles(
             {
                 "car0": {"speed": 15.0, "distance": 200.0, "length": CAR_LENGTH},
@@ -398,15 +400,14 @@ class TestSpacingViolation:
 
         violation = env.get_spacing_violation()
         # s_min violation: max(0, 5 - 20) / 5 = 0
-        # s_max violation: max(0, 185 - 40) / 40 = 3.625
-        assert violation == pytest.approx(3.625)
+        assert violation == pytest.approx(0.0)
 
-    def test_combined_smin_and_smax(self):
-        """Both constraints violated simultaneously (multi-agent)."""
+    def test_smin_only_multi_agent(self):
+        """Only s_min violations contribute (multi-agent). s_max is in safety layer."""
         env = _make_env(num_agents=2, spacing_min=5.0, spacing_max=40.0)
 
-        # car1: leader gap=3 (violates s_min), gap_to_head=3 (within s_max)
-        # car2: leader gap=20 (fine), gap_to_head=180 (violates s_max)
+        # car1: leader gap=3 (violates s_min)
+        # car2: leader gap=20 (fine)
         _setup_vehicles(
             {
                 "car0": {"speed": 15.0, "distance": 58.0, "length": CAR_LENGTH},
@@ -421,10 +422,10 @@ class TestSpacingViolation:
         )
 
         violation = env.get_spacing_violation()
-        # car1: s_min=max(0,5-3)/5=0.4, s_max=max(0, 3-40)/40=0
-        # car2: s_min=max(0,5-20)/5=0, s_max=max(0, 183-40)/40=3.575
-        # total = 0.4 + 3.575 = 3.975
-        assert violation == pytest.approx(3.975)
+        # car1: s_min=max(0,5-3)/5=0.4
+        # car2: s_min=max(0,5-20)/5=0
+        # total = 0.4
+        assert violation == pytest.approx(0.4)
 
     def test_no_violation_at_smax_boundary(self):
         """Gap exactly at s_max → zero violation."""
@@ -444,13 +445,11 @@ class TestSpacingViolation:
         # s_max: max(0, 40-40) = 0
         assert violation == pytest.approx(0.0)
 
-    def test_multi_agent_violations_sum(self):
-        """Violations sum across all agents."""
+    def test_multi_agent_smin_violations_sum(self):
+        """s_min violations sum across all agents."""
         env = _make_env(num_agents=2, spacing_min=5.0, spacing_max=40.0)
 
-        # Both agents too far from car0
-        # car1 at 10, car0 at 100: gap_to_head = (100-10)%230 - 5 = 85
-        # car2 at 50, car0 at 100: gap_to_head = (100-50)%230 - 5 = 45
+        # Both agents too close to their leaders
         _setup_vehicles(
             {
                 "car0": {"speed": 15.0, "distance": 100.0, "length": CAR_LENGTH},
@@ -458,16 +457,16 @@ class TestSpacingViolation:
                 "car2": {"speed": 10.0, "distance": 50.0, "length": CAR_LENGTH},
             },
             {
-                "car1": ("car2", 20.0),
-                "car2": ("car0", 20.0),
+                "car1": ("car2", 2.0),   # violates s_min: (5-2)/5 = 0.6
+                "car2": ("car0", 3.0),   # violates s_min: (5-3)/5 = 0.4
             },
         )
 
         violation = env.get_spacing_violation()
-        # car1: s_min=max(0,5-20)/5=0, s_max=max(0, 85-40)/40=1.125
-        # car2: s_min=max(0,5-20)/5=0, s_max=max(0, 45-40)/40=0.125
-        # total = 1.25
-        assert violation == pytest.approx(1.25)
+        # car1: max(0, 5-2)/5 = 0.6
+        # car2: max(0, 5-3)/5 = 0.4
+        # total = 1.0
+        assert violation == pytest.approx(1.0)
 
     def test_inactive_agent_skipped(self):
         """Absent agent doesn't contribute to violation."""
@@ -648,11 +647,10 @@ class TestCAVAsLeader:
 
     # -- spacing violation --
 
-    def test_smax_violation_when_cav_overtakes(self):
-        """CAV barely ahead of car0 → gap_to_head wraps → large s_max violation.
+    def test_no_smin_violation_when_cav_overtakes(self):
+        """CAV ahead of car0 → leader gap wraps to ~215 m → no s_min violation.
 
-        CAV at 110, car0 at 100: gap_to_head = (100-110)%230 - 5 = 215.
-        s_max violation = max(0, 215 - 40) / 40 = 4.375.
+        s_max is enforced by the safety layer, not by get_spacing_violation().
         """
         env = _make_env(spacing_min=5.0, spacing_max=40.0)
 
@@ -666,16 +664,12 @@ class TestCAVAsLeader:
 
         violation = env.get_spacing_violation()
         # s_min: max(0, 5 - 215) / 5 = 0
-        # s_max: max(0, 215 - 40) / 40 = 4.375
-        assert violation == pytest.approx(4.375)
+        assert violation == pytest.approx(0.0)
 
-    def test_smax_violation_with_hdv_between(self):
-        """HDV between CAV and car0 in forward dir: leader gap is small,
-        but gap_to_head still wraps → s_max fires.
+    def test_no_smin_violation_with_hdv_between(self):
+        """HDV between CAV and car0: leader gap is 35 m → no s_min violation.
 
-        car1 at 110, car2 at 150, car0 at 100.
-        leader = car2, gap = 35 (no s_min issue).
-        gap_to_head = (100-110)%230 - 5 = 215 → s_max = 4.375.
+        s_max is enforced by safety layer, not Lagrangian penalty.
         """
         env = _make_env(spacing_min=5.0, spacing_max=40.0)
 
@@ -690,15 +684,13 @@ class TestCAVAsLeader:
 
         violation = env.get_spacing_violation()
         # s_min: max(0, 5 - 35) / 5 = 0
-        # s_max: max(0, 215 - 40) / 40 = 4.375
-        assert violation == pytest.approx(4.375)
+        assert violation == pytest.approx(0.0)
 
-    def test_lagrangian_penalty_makes_overtake_strongly_negative(self):
-        """Demonstrate the Lagrangian penalty crushes the base reward.
+    def test_lagrangian_smin_penalty_when_cav_too_close(self):
+        """Lagrangian penalises s_min violation when CAV is too close to leader.
 
-        Base reward ≈ 0.66 (spacing error clipped to 20).
-        Normalised violation = 4.375.
-        lambda = 1.0 → augmented = 0.66 - 1.0 * 4.375 = -3.72.
+        leader gap = 2 m → s_min violation = (5 - 2) / 5 = 0.6.
+        lambda = 1.0 → augmented = r_base - 1.0 * 0.6.
         """
         env = _make_env(spacing_min=5.0, spacing_max=40.0)
         env.prev_accel = 0.0
@@ -706,9 +698,9 @@ class TestCAVAsLeader:
         _setup_vehicles(
             {
                 "car0": {"speed": 15.0, "distance": 100.0, "length": CAR_LENGTH},
-                "car1": {"speed": 15.0, "distance": 110.0, "length": CAR_LENGTH},
+                "car1": {"speed": 15.0, "distance": 93.0, "length": CAR_LENGTH},
             },
-            {},
+            {"car1": ("car0", 2.0)},
         )
 
         r_base = env.compute_lcc_reward()
@@ -718,8 +710,8 @@ class TestCAVAsLeader:
         r_augmented = r_base - lambda_val * violation
 
         assert r_base > 0.0, "base reward is still positive"
-        assert violation > 4.0, "normalised violation is significant"
-        assert r_augmented < 0.0, "augmented reward is strongly negative"
+        assert violation == pytest.approx(0.6), "s_min violation = (5-2)/5"
+        assert r_augmented < r_base, "augmented reward reduced by penalty"
 
     def test_no_violation_when_cav_just_behind_car0(self):
         """CAV behind car0 by 25 m — normal following, no overtake.

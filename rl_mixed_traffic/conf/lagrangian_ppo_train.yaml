@@ -1,7 +1,7 @@
 total_steps: 1_500_000
 rollout_steps: 4096
 save_freq: 50_000
-gui: false
+gui: true
 out_dir: lagrangian_ppo_results
 
 env:
@@ -11,6 +11,7 @@ env:
   enable_safety_layer: true
   disable_sumo_safety: true
   spacing_min: 5.0
+  spacing_max: 40.0               # max gap to head vehicle (2 * s_star)
   weight_v: 5.0               # stronger velocity tracking (was 1.0)
   weight_s: 0.5
   weight_u: 0.1               # less control penalty (was 0.2)
@@ -36,7 +37,7 @@ agent:
   clip_vloss: true
   vf_clip_coef: 0.2
   enable_lagrangian: true
-  lambda_init: 0.0
-  lambda_lr: 0.01
+  lambda_init: 1.0
+  lambda_lr: 0.05
   lambda_max: 10.0
-  violation_tolerance: 0.01
+  violation_tolerance: 0.1
