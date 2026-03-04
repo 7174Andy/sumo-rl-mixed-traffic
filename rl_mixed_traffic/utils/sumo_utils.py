@@ -9,13 +9,13 @@ import time
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "tools"
     sys.path.append(str(tools))
-else:
-    raise EnvironmentError(
-        "Please set the SUMO_HOME environment variable to your SUMO install path."
-    )
 
 import traci
-from sumolib import checkBinary  # finds sumo / sumo-gui binary
+
+try:
+    from sumolib import checkBinary
+except ImportError:
+    checkBinary = None
 
 
 def close_traci():
@@ -114,6 +114,7 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
     Sorting by ID ensures each index in the observation vector always corresponds
     to the same vehicle, stabilizing the input mapping for RL training.
     """
+
     ids = [vid for vid in traci.vehicle.getIDList()]
     if not ids:
         return [], [], []
@@ -143,6 +144,7 @@ def get_vehicles_pos_speed(ring_length: float) -> Tuple[list, list, list]:
 
 def run_simulation(sim: SumoConfig, num_steps: int):
     """Run a SUMO simulation for a given number of steps."""
+
     start_traci(sim)
     for step in range(num_steps):
         traci.simulationStep()

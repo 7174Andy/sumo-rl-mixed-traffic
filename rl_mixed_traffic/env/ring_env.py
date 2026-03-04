@@ -21,10 +21,6 @@ from rl_mixed_traffic.env.safety_layer import SafetyLayer
 if "SUMO_HOME" in os.environ:
     tools = Path(os.environ["SUMO_HOME"]) / "share" / "sumo" / "tools"
     sys.path.append(str(tools))
-else:
-    raise EnvironmentError(
-        "Please set the SUMO_HOME environment variable to your SUMO install path."
-    )
 
 import traci
 

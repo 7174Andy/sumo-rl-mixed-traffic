@@ -6,6 +6,27 @@ At equilibrium (J=0) reward is 1.0; at worst case (J=J_max) reward is 0.0.
 Mocks traci calls to test the reward math in isolation (no SUMO needed).
 """
 
+import types
+import sys
+import os
+
+# Set a dummy SUMO_HOME so the modules can be imported without SUMO installed.
+os.environ.setdefault("SUMO_HOME", "/tmp/fake_sumo")
+
+_fake_traci = types.ModuleType("traci")
+_fake_traci.vehicle = types.SimpleNamespace(
+    getIDList=lambda: [],
+    getSpeed=lambda vid: 0.0,
+    getDistance=lambda vid: 0.0,
+    getLength=lambda vid: 5.0,
+    getLeader=lambda vid: None,
+)
+sys.modules.setdefault("traci", _fake_traci)
+
+_fake_sumolib = types.ModuleType("sumolib")
+_fake_sumolib.checkBinary = lambda x: x
+sys.modules.setdefault("sumolib", _fake_sumolib)
+
 import pytest
 from unittest.mock import patch
 
