@@ -1,8 +1,9 @@
 # Lagrangian PPO Reward Tuning — Exploration Log
 
 !!! note "Related documentation"
-    - [Lagrangian PPO](../lagrangian-ppo.md) — main design doc with architecture, config tables, and results summary
+    - [Lagrangian PPO](../lagrangian-ppo.md) — main design doc with architecture, config tables, results summary, and **Section 6: Design Iterations** (chronological summary of all major changes)
     - [Reward Redesign](../reward-redesign.md) — the non-negative reward transformation that resolved the crash-to-escape problem
+    - [Problem Formulation: CMDP](../problem.md#15-constrained-mdp-cmdp-formulation) — formal CMDP with $s_\text{min}$ / $s_\text{max}$ constraints
 
 ## 1. Overview
 
@@ -24,7 +25,7 @@ J = weight_v * sum((v_i - v_eq)^2)     # all vehicles except head
 reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
 ```
 
-Default weights: `weight_v=1`, `weight_s=0.5`, `weight_u=0.2`, `s_star=20m`.
+Initial weights: `weight_v=1`, `weight_s=0.5`, `weight_u=0.2`, `s_star=20m`. (Later rebalanced to `weight_v=5.0`, `weight_u=0.1` — see Section 7.)
 
 ---
 
@@ -140,25 +141,27 @@ self._head_speed_buffer.append(traci.vehicle.getSpeed(self.head_id))
 
 ## 6. Why the Lagrangian Multiplier Never Engages
 
-The Lagrangian dual update (`lagrangian_ppo_train.py:224–228`):
+The Lagrangian dual update (`lagrangian_ppo_train.py`):
 
 ```python
 lambda_val += lambda_lr * (mean_violation - violation_tolerance)
 ```
 
-With actual values from training:
+With actual values from training (current config: `lambda_init=1.0`, `lambda_lr=0.05`, `violation_tolerance=0.1`):
 ```
-lambda += 0.01 * (0.03 - 0.1) = -0.0007 → clipped to 0
+lambda += 0.05 * (0.03 - 0.1) = -0.0035 → lambda decreases each rollout
 ```
 
-Lambda can only grow when `mean_violation > violation_tolerance` (0.1m per config). But the safety layer clips unsafe accelerations **before** they reach SUMO, keeping violations at 0.02–0.04m — well below the tolerance.
+Even starting from `lambda_init=1.0`, the multiplier decays toward zero because the safety layer clips unsafe accelerations **before** they reach SUMO, keeping normalised violations at 0.02-0.04 — well below the tolerance of 0.1.
 
 **The safety layer and Lagrangian work against each other:**
 
 1. Safety layer prevents violations (hard constraint at execution time)
-2. Violations stay near zero → lambda stays at zero
-3. Lagrangian penalty = `0 * violation = 0` → no safety learning signal
+2. Violations stay near zero → dual update is negative → $\lambda$ decreases
+3. $\lambda$ decays to zero → Lagrangian penalty vanishes → no safety learning signal
 4. The policy learns car-following purely from the DeeP-LCC reward, with no learned safety behavior
+
+Note: earlier experiments used `lambda_init=0.0` and `lambda_lr=0.01`, which meant $\lambda$ never moved from zero at all. Increasing to `lambda_init=1.0` and `lambda_lr=0.05` provides initial penalty pressure, but the same decay dynamic takes over once training stabilizes.
 
 **Possible fixes (not yet applied):**
 
@@ -171,29 +174,35 @@ Lambda can only grow when `mean_violation > violation_tolerance` (0.1m per confi
 
 ---
 
-## 7. Current Status and Next Steps
+## 7. Current Status
 
 ### What's working
-- Smoothed v_eq fix resolved the convergence problem
+- Smoothed $v_\text{eq}$ fix resolved the convergence problem
 - Agent achieves functional car-following with no crashes
 - Acceleration is modulated and responsive (not constant or zero)
-- Spacing stays in a reasonable range near the 20m target
+- Spacing stays in a reasonable range near the 20 m target
+- Safety layer enforces both $s_\text{min}$ and $s_\text{max}$ as hard constraints
 
-### Potential improvements (not yet applied)
-- **Weight rebalancing:** Increase `weight_v` (1 → 5) and decrease `weight_u` (0.2 → 0.1) to reduce catch-up lag and let the agent use more aggressive acceleration
-- **Longer training:** Returns may still be improving at 800k steps
-- **Value loss instability:** Critic loss rises in later updates — may need learning rate decay or separate critic LR
-- **Lagrangian engagement:** Decide whether to tune the Lagrangian mechanism or accept the safety-layer-only approach
+### Applied improvements (since this log was written)
+
+These items were originally listed as "potential improvements" and have since been implemented. See [Lagrangian PPO Section 6](../lagrangian-ppo.md#6-design-iterations) for the full iteration history.
+
+- **Weight rebalancing** (applied): `weight_v` increased from 1.0 to 5.0, `weight_u` decreased from 0.2 to 0.1. Reduces catch-up lag.
+- **Longer training** (applied): Total steps increased from 800k to 1,500,000.
+- **Value function clipping** (applied): `clip_vloss=true` with `vf_clip_coef=0.2` mitigates value loss instability.
+- **$s_\text{max}$ hard constraint** (applied): Added to safety layer to prevent CAV from drifting away from head vehicle (see Iteration 5).
+- **Collision penalty** (applied): `reward = -1.0` on collision (see Iteration 6).
+- **Lambda tuning** (applied): `lambda_init` increased from 0.0 to 1.0, `lambda_lr` from 0.01 to 0.05. $\lambda$ still decays to zero due to safety layer effectiveness (Section 6).
+
+### Open questions
+- **Lagrangian engagement:** The Lagrangian multiplier remains ineffective due to the safety layer paradox (Section 6). Whether to tune the mechanism further or accept the safety-layer-only approach is an open research question.
+- **Value loss oscillations:** Improved with clipping but not fully resolved.
+- **Catch-up lag:** Reduced by weight rebalancing but inherent to the 20 s averaging window.
 
 ### Key files modified
 | File | Change |
 |------|--------|
-| `rl_mixed_traffic/env/ring_env.py` | Added `_head_speed_buffer`, `v_eq` property, smoothed reward |
-| `rl_mixed_traffic/conf/lagrangian_ppo_train.yaml` | Training config for Lagrangian PPO |
-| `rl_mixed_traffic/conf/ppo_train.yaml` | Training config for standard PPO baseline |
-| `rl_mixed_traffic/lagrangian_ppo_train.py` | Lagrangian dual update loop |
-
-### Related documentation
-
-- [Lagrangian PPO design doc](../lagrangian-ppo.md) — architecture overview, updated config tables, and results summary
-- [Reward Redesign](../reward-redesign.md) — the non-negative reward transformation
+| `rl_mixed_traffic/env/ring_env.py` | Added `_head_speed_buffer`, `v_eq` property, smoothed reward, collision penalty, normalised violations |
+| `rl_mixed_traffic/env/safety_layer.py` | Added $s_\text{max}$ constraint (clip UP), conflict resolution |
+| `rl_mixed_traffic/conf/lagrangian_ppo_train.yaml` | Training config for Lagrangian PPO (updated weights, lambda, spacing_max) |
+| `rl_mixed_traffic/lagrangian_ppo_train.py` | Lagrangian dual update loop, augmented return tracking |

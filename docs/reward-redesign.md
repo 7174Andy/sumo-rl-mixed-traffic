@@ -73,9 +73,9 @@ $$
 a_\text{safe} = \frac{2(s - s_\text{min} + v_\text{rel} \cdot \Delta t)}{\Delta t^2}
 $$
 
-Then $a_\text{filtered} = \min(a, a_\text{safe})$. A Lagrange multiplier was added to penalize spacing violations during training (`lambda_init=0.0`, `lambda_lr=0.01`, `lambda_max=10.0`).
+Then $a_\text{filtered} = \min(a, a_\text{safe})$. A Lagrange multiplier was added to penalize spacing violations during training.
 
-**Result**: the agent still collides. The same one-step prediction horizon is insufficient, and the Lagrangian penalty cannot compensate for a fundamentally inadequate safety model.
+**Result at the time**: the agent still collided. However, this was due to the **negative-only reward structure** (Section 5), not the safety layer itself. After the reward redesign, the same safety layer + Lagrangian approach works — see [Lagrangian PPO](lagrangian-ppo.md) for the current implementation with both $s_\text{min}$ and $s_\text{max}$ constraints.
 
 ## 5. The Deeper Problem: Negative-Only Rewards
 
