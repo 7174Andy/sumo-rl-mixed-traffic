@@ -643,15 +643,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-current-status-and-next-steps" class="md-nav__link">
+  <a href="#7-current-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Current Status and Next Steps
+        7. Current Status
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="7. Current Status and Next Steps">
+    <nav class="md-nav" aria-label="7. Current Status">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -666,10 +666,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#potential-improvements-not-yet-applied" class="md-nav__link">
+  <a href="#applied-improvements-since-this-log-was-written" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Potential improvements (not yet applied)
+        Applied improvements (since this log was written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
       
     </span>
   </a>
@@ -681,17 +692,6 @@
     <span class="md-ellipsis">
       
         Key files modified
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#related-documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related documentation
       
     </span>
   </a>
@@ -857,15 +857,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-current-status-and-next-steps" class="md-nav__link">
+  <a href="#7-current-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Current Status and Next Steps
+        7. Current Status
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="7. Current Status and Next Steps">
+    <nav class="md-nav" aria-label="7. Current Status">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -880,10 +880,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#potential-improvements-not-yet-applied" class="md-nav__link">
+  <a href="#applied-improvements-since-this-log-was-written" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Potential improvements (not yet applied)
+        Applied improvements (since this log was written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
       
     </span>
   </a>
@@ -895,17 +906,6 @@
     <span class="md-ellipsis">
       
         Key files modified
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#related-documentation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related documentation
       
     </span>
   </a>
@@ -941,8 +941,9 @@
 <div class="admonition note">
 <p class="admonition-title">Related documentation</p>
 <ul>
-<li><a href="../../lagrangian-ppo/">Lagrangian PPO</a> — main design doc with architecture, config tables, and results summary</li>
+<li><a href="../../lagrangian-ppo/">Lagrangian PPO</a> — main design doc with architecture, config tables, results summary, and <strong>Section 6: Design Iterations</strong> (chronological summary of all major changes)</li>
 <li><a href="../../reward-redesign/">Reward Redesign</a> — the non-negative reward transformation that resolved the crash-to-escape problem</li>
+<li><a href="../../problem/#15-constrained-mdp-cmdp-formulation">Problem Formulation: CMDP</a> — formal CMDP with <span class="arithmatex">\(s_\text{min}\)</span> / <span class="arithmatex">\(s_\text{max}\)</span> constraints</li>
 </ul>
 </div>
 <h2 id="1-overview">1. Overview<a class="headerlink" href="#1-overview" title="Permanent link">&para;</a></h2>
@@ -959,7 +960,7 @@
 
 reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
 </code></pre></div>
-<p>Default weights: <code>weight_v=1</code>, <code>weight_s=0.5</code>, <code>weight_u=0.2</code>, <code>s_star=20m</code>.</p>
+<p>Initial weights: <code>weight_v=1</code>, <code>weight_s=0.5</code>, <code>weight_u=0.2</code>, <code>s_star=20m</code>. (Later rebalanced to <code>weight_v=5.0</code>, <code>weight_u=0.1</code> — see Section 7.)</p>
 <hr />
 <h2 id="2-round-1-standard-ppo-baseline-pre-fix">2. Round 1 — Standard PPO Baseline (Pre-Fix)<a class="headerlink" href="#2-round-1-standard-ppo-baseline-pre-fix" title="Permanent link">&para;</a></h2>
 <p><strong>Config:</strong> <code>ppo_train.yaml</code>, <code>disable_sumo_safety=False</code> (SUMO Krauss safety model active)</p>
@@ -1074,20 +1075,21 @@ reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
 </ul>
 <hr />
 <h2 id="6-why-the-lagrangian-multiplier-never-engages">6. Why the Lagrangian Multiplier Never Engages<a class="headerlink" href="#6-why-the-lagrangian-multiplier-never-engages" title="Permanent link">&para;</a></h2>
-<p>The Lagrangian dual update (<code>lagrangian_ppo_train.py:224–228</code>):</p>
+<p>The Lagrangian dual update (<code>lagrangian_ppo_train.py</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="n">lambda_val</span> <span class="o">+=</span> <span class="n">lambda_lr</span> <span class="o">*</span> <span class="p">(</span><span class="n">mean_violation</span> <span class="o">-</span> <span class="n">violation_tolerance</span><span class="p">)</span>
 </code></pre></div>
-<p>With actual values from training:
-<div class="highlight"><pre><span></span><code>lambda += 0.01 * (0.03 - 0.1) = -0.0007 → clipped to 0
+<p>With actual values from training (current config: <code>lambda_init=1.0</code>, <code>lambda_lr=0.05</code>, <code>violation_tolerance=0.1</code>):
+<div class="highlight"><pre><span></span><code>lambda += 0.05 * (0.03 - 0.1) = -0.0035 → lambda decreases each rollout
 </code></pre></div></p>
-<p>Lambda can only grow when <code>mean_violation &gt; violation_tolerance</code> (0.1m per config). But the safety layer clips unsafe accelerations <strong>before</strong> they reach SUMO, keeping violations at 0.02–0.04m — well below the tolerance.</p>
+<p>Even starting from <code>lambda_init=1.0</code>, the multiplier decays toward zero because the safety layer clips unsafe accelerations <strong>before</strong> they reach SUMO, keeping normalised violations at 0.02-0.04 — well below the tolerance of 0.1.</p>
 <p><strong>The safety layer and Lagrangian work against each other:</strong></p>
 <ol>
 <li>Safety layer prevents violations (hard constraint at execution time)</li>
-<li>Violations stay near zero → lambda stays at zero</li>
-<li>Lagrangian penalty = <code>0 * violation = 0</code> → no safety learning signal</li>
+<li>Violations stay near zero → dual update is negative → <span class="arithmatex">\(\lambda\)</span> decreases</li>
+<li><span class="arithmatex">\(\lambda\)</span> decays to zero → Lagrangian penalty vanishes → no safety learning signal</li>
 <li>The policy learns car-following purely from the DeeP-LCC reward, with no learned safety behavior</li>
 </ol>
+<p>Note: earlier experiments used <code>lambda_init=0.0</code> and <code>lambda_lr=0.01</code>, which meant <span class="arithmatex">\(\lambda\)</span> never moved from zero at all. Increasing to <code>lambda_init=1.0</code> and <code>lambda_lr=0.05</code> provides initial penalty pressure, but the same decay dynamic takes over once training stabilizes.</p>
 <p><strong>Possible fixes (not yet applied):</strong></p>
 <table>
 <thead>
@@ -1116,20 +1118,30 @@ reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
 </tbody>
 </table>
 <hr />
-<h2 id="7-current-status-and-next-steps">7. Current Status and Next Steps<a class="headerlink" href="#7-current-status-and-next-steps" title="Permanent link">&para;</a></h2>
+<h2 id="7-current-status">7. Current Status<a class="headerlink" href="#7-current-status" title="Permanent link">&para;</a></h2>
 <h3 id="whats-working">What's working<a class="headerlink" href="#whats-working" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Smoothed v_eq fix resolved the convergence problem</li>
+<li>Smoothed <span class="arithmatex">\(v_\text{eq}\)</span> fix resolved the convergence problem</li>
 <li>Agent achieves functional car-following with no crashes</li>
 <li>Acceleration is modulated and responsive (not constant or zero)</li>
-<li>Spacing stays in a reasonable range near the 20m target</li>
+<li>Spacing stays in a reasonable range near the 20 m target</li>
+<li>Safety layer enforces both <span class="arithmatex">\(s_\text{min}\)</span> and <span class="arithmatex">\(s_\text{max}\)</span> as hard constraints</li>
 </ul>
-<h3 id="potential-improvements-not-yet-applied">Potential improvements (not yet applied)<a class="headerlink" href="#potential-improvements-not-yet-applied" title="Permanent link">&para;</a></h3>
+<h3 id="applied-improvements-since-this-log-was-written">Applied improvements (since this log was written)<a class="headerlink" href="#applied-improvements-since-this-log-was-written" title="Permanent link">&para;</a></h3>
+<p>These items were originally listed as "potential improvements" and have since been implemented. See <a href="../../lagrangian-ppo/#6-design-iterations">Lagrangian PPO Section 6</a> for the full iteration history.</p>
 <ul>
-<li><strong>Weight rebalancing:</strong> Increase <code>weight_v</code> (1 → 5) and decrease <code>weight_u</code> (0.2 → 0.1) to reduce catch-up lag and let the agent use more aggressive acceleration</li>
-<li><strong>Longer training:</strong> Returns may still be improving at 800k steps</li>
-<li><strong>Value loss instability:</strong> Critic loss rises in later updates — may need learning rate decay or separate critic LR</li>
-<li><strong>Lagrangian engagement:</strong> Decide whether to tune the Lagrangian mechanism or accept the safety-layer-only approach</li>
+<li><strong>Weight rebalancing</strong> (applied): <code>weight_v</code> increased from 1.0 to 5.0, <code>weight_u</code> decreased from 0.2 to 0.1. Reduces catch-up lag.</li>
+<li><strong>Longer training</strong> (applied): Total steps increased from 800k to 1,500,000.</li>
+<li><strong>Value function clipping</strong> (applied): <code>clip_vloss=true</code> with <code>vf_clip_coef=0.2</code> mitigates value loss instability.</li>
+<li><strong><span class="arithmatex">\(s_\text{max}\)</span> hard constraint</strong> (applied): Added to safety layer to prevent CAV from drifting away from head vehicle (see Iteration 5).</li>
+<li><strong>Collision penalty</strong> (applied): <code>reward = -1.0</code> on collision (see Iteration 6).</li>
+<li><strong>Lambda tuning</strong> (applied): <code>lambda_init</code> increased from 0.0 to 1.0, <code>lambda_lr</code> from 0.01 to 0.05. <span class="arithmatex">\(\lambda\)</span> still decays to zero due to safety layer effectiveness (Section 6).</li>
+</ul>
+<h3 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Lagrangian engagement:</strong> The Lagrangian multiplier remains ineffective due to the safety layer paradox (Section 6). Whether to tune the mechanism further or accept the safety-layer-only approach is an open research question.</li>
+<li><strong>Value loss oscillations:</strong> Improved with clipping but not fully resolved.</li>
+<li><strong>Catch-up lag:</strong> Reduced by weight rebalancing but inherent to the 20 s averaging window.</li>
 </ul>
 <h3 id="key-files-modified">Key files modified<a class="headerlink" href="#key-files-modified" title="Permanent link">&para;</a></h3>
 <table>
@@ -1142,27 +1154,22 @@ reward = max(J_max - J, 0) / J_max    ∈ [0, 1]
 <tbody>
 <tr>
 <td><code>rl_mixed_traffic/env/ring_env.py</code></td>
-<td>Added <code>_head_speed_buffer</code>, <code>v_eq</code> property, smoothed reward</td>
+<td>Added <code>_head_speed_buffer</code>, <code>v_eq</code> property, smoothed reward, collision penalty, normalised violations</td>
+</tr>
+<tr>
+<td><code>rl_mixed_traffic/env/safety_layer.py</code></td>
+<td>Added <span class="arithmatex">\(s_\text{max}\)</span> constraint (clip UP), conflict resolution</td>
 </tr>
 <tr>
 <td><code>rl_mixed_traffic/conf/lagrangian_ppo_train.yaml</code></td>
-<td>Training config for Lagrangian PPO</td>
-</tr>
-<tr>
-<td><code>rl_mixed_traffic/conf/ppo_train.yaml</code></td>
-<td>Training config for standard PPO baseline</td>
+<td>Training config for Lagrangian PPO (updated weights, lambda, spacing_max)</td>
 </tr>
 <tr>
 <td><code>rl_mixed_traffic/lagrangian_ppo_train.py</code></td>
-<td>Lagrangian dual update loop</td>
+<td>Lagrangian dual update loop, augmented return tracking</td>
 </tr>
 </tbody>
 </table>
-<h3 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h3>
-<ul>
-<li><a href="../../lagrangian-ppo/">Lagrangian PPO design doc</a> — architecture overview, updated config tables, and results summary</li>
-<li><a href="../../reward-redesign/">Reward Redesign</a> — the non-negative reward transformation</li>
-</ul>
 
 
 

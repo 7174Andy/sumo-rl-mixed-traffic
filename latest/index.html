@@ -327,6 +327,89 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#design-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Journey
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Design Journey">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Problem Formulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-algorithm-progression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithm Progression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-the-sumo-safety-override-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The SUMO Safety Override Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ppo-implementation-lessons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. PPO Implementation Lessons
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-lagrangian-ppo-main-design-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Lagrangian PPO (Main Design Document)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-experiment-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Experiment Log
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#getting-started" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -384,17 +467,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Notes
-      
-    </span>
-  </a>
   
 </li>
       
@@ -668,6 +740,89 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#design-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Journey
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Design Journey">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Problem Formulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-algorithm-progression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithm Progression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-the-sumo-safety-override-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The SUMO Safety Override Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ppo-implementation-lessons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. PPO Implementation Lessons
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-lagrangian-ppo-main-design-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Lagrangian PPO (Main Design Document)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-experiment-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Experiment Log
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#getting-started" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -728,17 +883,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#design-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Notes
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -762,7 +906,54 @@
 <h1 id="sumo-rl-mixed-traffic">SUMO RL Mixed Traffic<a class="headerlink" href="#sumo-rl-mixed-traffic" title="Permanent link">&para;</a></h1>
 <p>Reinforcement learning for traffic flow optimization using SUMO (Simulation of Urban Mobility).</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>This project implements RL agents that control a single autonomous vehicle in a ring road scenario to maximize traffic flow by learning optimal speed control policies.</p>
+<p>This project implements RL agents that control a single Connected Autonomous Vehicle (CAV) on a ring road shared with human-driven vehicles. The CAV must learn a speed-control policy that safely follows a lead vehicle through random speed transitions, maintaining safe spacing while minimizing velocity tracking error and control effort.</p>
+<p>Three RL algorithms were developed iteratively — tabular Q-learning, DQN, and PPO — each addressing limitations of the previous approach. The final system uses <strong>Lagrangian PPO</strong> with a physics-based safety layer and constrained optimization to achieve crash-free car-following without relying on SUMO's built-in safety model.</p>
+<h2 id="design-journey">Design Journey<a class="headerlink" href="#design-journey" title="Permanent link">&para;</a></h2>
+<p>The documents below are ordered to tell the story of the project's evolution. A reviewer unfamiliar with the project should read them in this order.</p>
+<h3 id="1-problem-formulation">1. Problem Formulation<a class="headerlink" href="#1-problem-formulation" title="Permanent link">&para;</a></h3>
+<p><strong><a href="problem/">Problem Formulation</a></strong> — defines the ring road environment, state/action/reward spaces, and the MDP. Also contains the <strong>Constrained MDP (CMDP)</strong> reformulation with <span class="arithmatex">\(s_\text{min}\)</span> / <span class="arithmatex">\(s_\text{max}\)</span> spacing constraints and Lagrangian relaxation (Section 1.5).</p>
+<h3 id="2-algorithm-progression">2. Algorithm Progression<a class="headerlink" href="#2-algorithm-progression" title="Permanent link">&para;</a></h3>
+<p><strong><a href="algorithms/">Algorithms</a></strong> — reference documentation for the three RL algorithms tried:</p>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Action Space</th>
+<th>Key Limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q-Learning</td>
+<td>Discrete (20 bins)</td>
+<td>Curse of dimensionality; can't scale to more vehicles</td>
+</tr>
+<tr>
+<td>DQN</td>
+<td>Discrete (21 bins)</td>
+<td>Discretization limits control smoothness</td>
+</tr>
+<tr>
+<td>PPO</td>
+<td>Continuous (Gaussian)</td>
+<td>Requires careful reward design to learn safely</td>
+</tr>
+</tbody>
+</table>
+<p>Each algorithm's failure mode motivated the next approach.</p>
+<h3 id="3-the-sumo-safety-override-problem">3. The SUMO Safety Override Problem<a class="headerlink" href="#3-the-sumo-safety-override-problem" title="Permanent link">&para;</a></h3>
+<p><strong><a href="reward-redesign/">Reward Redesign</a></strong> — the pivotal investigation. All three algorithms independently converged to "always accelerate" because SUMO's Krauss model silently overrides 99.1% of agent commands. The document traces two failed fixes (speed mode 0 + AEB, Lagrangian PPO with safety layer) before identifying the root cause: <strong>negative-only rewards incentivize the agent to crash early</strong> to escape accumulated penalty. The solution: transform the DeeP-LCC cost into a non-negative <span class="arithmatex">\([0, 1]\)</span> reward following EnduRL's approach.</p>
+<h3 id="4-ppo-implementation-lessons">4. PPO Implementation Lessons<a class="headerlink" href="#4-ppo-implementation-lessons" title="Permanent link">&para;</a></h3>
+<p><strong><a href="ppo-refactor/">PPO Refactoring</a></strong> — documents an attempt to modernize the PPO code using CleanRL conventions (raw Gaussian policy, <code>NormalizeReward</code> wrapper). The refactoring caused training instability due to the environment's discontinuous reward landscape (<span class="arithmatex">\(-100\)</span> safety penalty). Key lesson: <strong>tanh action squashing provides critical implicit regularization</strong> in environments with hard safety constraints. The final implementation uses a hybrid approach keeping CleanRL's initialization and activations while restoring tanh squashing.</p>
+<h3 id="5-lagrangian-ppo-main-design-document">5. Lagrangian PPO (Main Design Document)<a class="headerlink" href="#5-lagrangian-ppo-main-design-document" title="Permanent link">&para;</a></h3>
+<p><strong><a href="lagrangian-ppo/">Lagrangian PPO</a></strong> — the current approach. Disables SUMO safety entirely (speed mode 0) and replaces it with:</p>
+<ul>
+<li><strong>Hard constraint</strong>: a physics-based safety layer that clips accelerations to maintain <span class="arithmatex">\(s_\text{min}\)</span> (don't crash) and <span class="arithmatex">\(s_\text{max}\)</span> (don't drift)</li>
+<li><strong>Soft penalty</strong>: a Lagrange multiplier that penalizes <span class="arithmatex">\(s_\text{min}\)</span> violations in the reward signal</li>
+</ul>
+<p>Contains the full algorithm description, training configuration, results, and <strong>Section 6: Design Iterations</strong> — a chronological record of the 4 major design changes made during development (CAV slow-down exploit, value loss explosion, <span class="arithmatex">\(s_\text{max}\)</span> hard constraint, collision penalty).</p>
+<h3 id="6-experiment-log">6. Experiment Log<a class="headerlink" href="#6-experiment-log" title="Permanent link">&para;</a></h3>
+<p><strong><a href="exploration/lagrangian_ppo_reward_tuning/">Exploration Log: Lagrangian PPO Reward Tuning</a></strong> — the raw experimental record. Documents pre-fix vs post-fix training runs, the smoothed <span class="arithmatex">\(v_\text{eq}\)</span> fix, and an analysis of why the Lagrangian multiplier never engages (the safety layer prevents violations, keeping <span class="arithmatex">\(\lambda\)</span> at zero).</p>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
 <h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
 <ul>
@@ -773,37 +964,24 @@
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync
 </code></pre></div>
 <h3 id="training">Training<a class="headerlink" href="#training" title="Permanent link">&para;</a></h3>
-<p><strong>Q-Learning:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/q_train.py
-</code></pre></div>
-<p><strong>DQN:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_train.py
-</code></pre></div>
-<p><strong>PPO:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_train.py
-</code></pre></div>
-<p><strong>Lagrangian PPO:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_train.py
+<div class="highlight"><pre><span></span><code><span class="c1"># Q-Learning (tabular)</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/q_train.py
+
+<span class="c1"># DQN</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_train.py
+
+<span class="c1"># PPO (standard)</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_train.py
+
+<span class="c1"># Lagrangian PPO (current approach)</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_train.py
 </code></pre></div>
 <h3 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h3>
-<p><strong>Q-Learning:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/q_eval_policy.py
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/q_eval_policy.py<span class="w">      </span><span class="c1"># Q-Learning</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_eval.py<span class="w">            </span><span class="c1"># DQN</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_eval.py<span class="w">            </span><span class="c1"># PPO</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_eval.py<span class="w"> </span><span class="c1"># Lagrangian PPO</span>
 </code></pre></div>
-<p><strong>DQN:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/dqn_eval.py
-</code></pre></div>
-<p><strong>PPO:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/ppo_eval.py
-</code></pre></div>
-<p><strong>Lagrangian PPO:</strong></p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/lagrangian_ppo_eval.py
-</code></pre></div>
-<h2 id="design-notes">Design Notes<a class="headerlink" href="#design-notes" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="reward-redesign/">Reward Redesign</a> — investigation into the SUMO safety override problem and the proposed non-negative reward solution</li>
-<li><a href="lagrangian-ppo/">Lagrangian PPO</a> — safety-constrained training with a physics-based safety layer and adaptive Lagrange multiplier</li>
-<li><a href="exploration/lagrangian_ppo_reward_tuning/">Exploration Log: Lagrangian PPO Reward Tuning</a> — detailed experiment log covering v_eq smoothing, weight tuning, and training diagnostics</li>
-</ul>
 
 
 

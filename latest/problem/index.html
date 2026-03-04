@@ -445,6 +445,78 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#15-constrained-mdp-cmdp-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Constrained MDP (CMDP) Formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.5 Constrained MDP (CMDP) Formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Objective
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lagrangian-relaxation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lagrangian relaxation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enforcement-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -787,6 +859,78 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#15-constrained-mdp-cmdp-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Constrained MDP (CMDP) Formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1.5 Constrained MDP (CMDP) Formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Objective
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lagrangian-relaxation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lagrangian relaxation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enforcement-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -942,6 +1086,122 @@ R = \frac{R_v + R_s + R_u + R_{\text{safety}}}{100}
 </tr>
 </tbody>
 </table>
+<hr />
+<h2 id="15-constrained-mdp-cmdp-formulation">1.5 Constrained MDP (CMDP) Formulation<a class="headerlink" href="#15-constrained-mdp-cmdp-formulation" title="Permanent link">&para;</a></h2>
+<p>The standard MDP formulation treats spacing violations as reward penalties. This conflates safety with performance — the agent can trade off collision risk against velocity tracking if the penalty weights are not tuned carefully.</p>
+<p>A cleaner formulation is to separate the objective from the constraints using a <strong>Constrained Markov Decision Process (CMDP)</strong>:</p>
+<h3 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h3>
+<p>Maximize the expected cumulative DeeP-LCC reward:</p>
+<div class="arithmatex">\[
+\max_\pi \; \mathbb{E}_\pi \left[\sum_{t=0}^{T} \gamma^t \, r(s_t, a_t)\right]
+\]</div>
+<p>where <span class="arithmatex">\(r(s_t, a_t)\)</span> is the DeeP-LCC reward (velocity error + spacing error + control effort, Section 1.4).</p>
+<h3 id="constraints">Constraints<a class="headerlink" href="#constraints" title="Permanent link">&para;</a></h3>
+<p>Two spacing constraints must be satisfied in expectation:</p>
+<p><strong>Constraint 1 — Minimum spacing</strong> (<span class="arithmatex">\(s_\text{min}\)</span>): the bumper-to-bumper gap to the physical leader must stay above a safe following distance.</p>
+<div class="arithmatex">\[
+\mathbb{E}_\pi \left[\sum_{t=0}^{T} \gamma^t \, c_1(s_t, a_t)\right] \leq d_1
+\]</div>
+<p>where:</p>
+<div class="arithmatex">\[
+c_1(s_t, a_t) = \max\!\bigl(0,\; s_\text{min} - s_t^{\text{leader}}\bigr) / s_\text{min}
+\]</div>
+<p><strong>Constraint 2 — Maximum spacing</strong> (<span class="arithmatex">\(s_\text{max}\)</span>): the gap to the head vehicle must stay below a threshold to prevent the CAV from drifting away and exploiting the reward structure.</p>
+<div class="arithmatex">\[
+\mathbb{E}_\pi \left[\sum_{t=0}^{T} \gamma^t \, c_2(s_t, a_t)\right] \leq d_2
+\]</div>
+<p>where:</p>
+<div class="arithmatex">\[
+c_2(s_t, a_t) = \max\!\bigl(0,\; s_t^{\text{head}} - s_\text{max}\bigr) / s_\text{max}
+\]</div>
+<p>Both cost functions are normalised to <span class="arithmatex">\([0, 1]\)</span> so the Lagrange multipliers operate on a consistent scale regardless of the physical units.</p>
+<h3 id="lagrangian-relaxation">Lagrangian relaxation<a class="headerlink" href="#lagrangian-relaxation" title="Permanent link">&para;</a></h3>
+<p>The CMDP is solved via Lagrangian relaxation, converting the constrained problem into an unconstrained one with adaptive penalty multipliers:</p>
+<div class="arithmatex">\[
+r_\text{aug}(s_t, a_t) = r(s_t, a_t) - \lambda_1 \cdot c_1(s_t, a_t) - \lambda_2 \cdot c_2(s_t, a_t)
+\]</div>
+<p>The multipliers <span class="arithmatex">\(\lambda_i\)</span> are updated via dual gradient ascent at each rollout:</p>
+<div class="arithmatex">\[
+\lambda_i \leftarrow \text{clip}\!\left(\lambda_i + \alpha_\lambda \cdot (\bar{c}_i - d_i),\; 0,\; \lambda_\text{max}\right)
+\]</div>
+<p>where <span class="arithmatex">\(\bar{c}_i\)</span> is the mean cost over the rollout and <span class="arithmatex">\(d_i\)</span> is the violation tolerance.</p>
+<h3 id="enforcement-strategy">Enforcement strategy<a class="headerlink" href="#enforcement-strategy" title="Permanent link">&para;</a></h3>
+<p>In practice, the two constraints are enforced differently:</p>
+<table>
+<thead>
+<tr>
+<th>Constraint</th>
+<th>Soft (Lagrangian)</th>
+<th>Hard (Safety Layer)</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(s_\text{min}\)</span> (too close)</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Both mechanisms: hard clip prevents collision, soft penalty shapes policy</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(s_\text{max}\)</span> (too far)</td>
+<td>No</td>
+<td>Yes</td>
+<td>Lagrangian penalty alone was too slow (400k+ steps still drifting); hard constraint prevents exploit immediately</td>
+</tr>
+</tbody>
+</table>
+<p>The safety layer is a physics-based filter that clips accelerations before they reach SUMO (see <a href="../lagrangian-ppo/#2-safety-layer">Lagrangian PPO: Safety Layer</a>). It operates independently of the Lagrangian penalty — the hard constraint prevents violations from occurring, while the soft penalty shapes the policy gradient to learn behaviors that avoid needing the constraint. In practice, the safety layer is so effective that the Lagrangian multiplier decays to zero (see <a href="../exploration/lagrangian_ppo_reward_tuning/#6-why-the-lagrangian-multiplier-never-engages">exploration log analysis</a>).</p>
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Symbol</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Min spacing</td>
+<td><span class="arithmatex">\(s_\text{min}\)</span></td>
+<td>5.0 m</td>
+<td>Minimum bumper-to-bumper gap to leader</td>
+</tr>
+<tr>
+<td>Max spacing</td>
+<td><span class="arithmatex">\(s_\text{max}\)</span></td>
+<td>40.0 m</td>
+<td>Maximum gap to head vehicle (<span class="arithmatex">\(2 \times s^*\)</span>)</td>
+</tr>
+<tr>
+<td>Violation tolerance</td>
+<td><span class="arithmatex">\(d_i\)</span></td>
+<td>0.1</td>
+<td>Threshold below which <span class="arithmatex">\(\lambda\)</span> decreases</td>
+</tr>
+<tr>
+<td>Multiplier LR</td>
+<td><span class="arithmatex">\(\alpha_\lambda\)</span></td>
+<td>0.05</td>
+<td>Dual gradient step size</td>
+</tr>
+<tr>
+<td>Initial <span class="arithmatex">\(\lambda\)</span></td>
+<td><span class="arithmatex">\(\lambda_0\)</span></td>
+<td>1.0</td>
+<td>Starting multiplier value</td>
+</tr>
+<tr>
+<td>Max <span class="arithmatex">\(\lambda\)</span></td>
+<td><span class="arithmatex">\(\lambda_\text{max}\)</span></td>
+<td>10.0</td>
+<td>Upper bound on multiplier</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <p>[1] Wang, J., Zheng, Y., Li, K., &amp; Xu, Q. (2023). DeeP-LCC: Data-EnablEd Predictive Leading Cruise Control in Mixed Traffic Flow. IEEE Transactions on Control Systems Technology, 31(6), 2760–2776. doi:10.1109/tcst.2023.3288636</p>
 

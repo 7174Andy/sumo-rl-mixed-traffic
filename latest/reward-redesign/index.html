@@ -1074,8 +1074,8 @@ Min actual accel: -2.3625 m/s²
 <div class="arithmatex">\[
 a_\text{safe} = \frac{2(s - s_\text{min} + v_\text{rel} \cdot \Delta t)}{\Delta t^2}
 \]</div>
-<p>Then <span class="arithmatex">\(a_\text{filtered} = \min(a, a_\text{safe})\)</span>. A Lagrange multiplier was added to penalize spacing violations during training (<code>lambda_init=0.0</code>, <code>lambda_lr=0.01</code>, <code>lambda_max=10.0</code>).</p>
-<p><strong>Result</strong>: the agent still collides. The same one-step prediction horizon is insufficient, and the Lagrangian penalty cannot compensate for a fundamentally inadequate safety model.</p>
+<p>Then <span class="arithmatex">\(a_\text{filtered} = \min(a, a_\text{safe})\)</span>. A Lagrange multiplier was added to penalize spacing violations during training.</p>
+<p><strong>Result at the time</strong>: the agent still collided. However, this was due to the <strong>negative-only reward structure</strong> (Section 5), not the safety layer itself. After the reward redesign, the same safety layer + Lagrangian approach works — see <a href="../lagrangian-ppo/">Lagrangian PPO</a> for the current implementation with both <span class="arithmatex">\(s_\text{min}\)</span> and <span class="arithmatex">\(s_\text{max}\)</span> constraints.</p>
 <h2 id="5-the-deeper-problem-negative-only-rewards">5. The Deeper Problem: Negative-Only Rewards<a class="headerlink" href="#5-the-deeper-problem-negative-only-rewards" title="Permanent link">&para;</a></h2>
 <p>Both approaches above treated the safety problem as the root cause, but the real issue is the <strong>reward structure</strong>. The DeeP-LCC reward function (at <code>ring_env.py:615</code>) computes:</p>
 <div class="arithmatex">\[
