@@ -1,85 +1,98 @@
 # Traffic Simulation with SUMO and Reinforcement Learning
 
-This repository contains a traffic simulation environment using SUMO (Simulation of Urban MObility) integrated with reinforcement learning techniques. The project implements RL agents that control a single autonomous vehicle in a ring road scenario to maximize traffic flow by learning optimal speed control policies. Three RL approaches are implemented: tabular Q-learning, Deep Q-Networks (DQN), and Proximal Policy Optimization (PPO).
+[![CI](https://github.com/7174Andy/sumo-rl-mixed-traffic/actions/workflows/ci.yml/badge.svg)](https://github.com/7174Andy/sumo-rl-mixed-traffic/actions/workflows/ci.yml)
+[![Docs](https://github.com/7174Andy/sumo-rl-mixed-traffic/actions/workflows/docs.yml/badge.svg)](https://7174andy.github.io/sumo-rl-mixed-traffic/)
+
+This project implements reinforcement learning agents that control one or more connected autonomous vehicles (CAVs) on a ring road to optimize traffic flow. The environment wraps SUMO (Simulation of Urban MObility) via TraCI and exposes a Gymnasium interface. Four RL approaches are implemented: tabular Q-learning, Deep Q-Networks (DQN), Proximal Policy Optimization (PPO), and Lagrangian PPO for constrained optimization with safety guarantees.
 
 ## Directory Structure
 
 ```
 /
-├───.gitignore
-├───.python-version
-├───pyproject.toml
-├───README.md
-├───configs/
-│   └───ring/
-│       ├───circle.net.xml      # Network file for the ring road
-│       ├───circle.rou.xml      # Route file for the vehicles
-│       └───simulation.sumocfg  # Main SUMO configuration for the ring scenario
-├───rl_mixed_traffic/
-│   ├───agents/
-│   │   ├───q_agent.py          # Q-learning agent implementation
-│   │   ├───dqn_agent.py        # DQN agent implementation
-│   │   └───ppo_agent.py        # PPO agent implementation
-│   ├───configs/
-│   │   ├───sumo_config.py      # SUMO simulation parameters
-│   │   ├───q_config.py         # Q-learning hyperparameters
-│   │   ├───dqn_config.py       # DQN hyperparameters
-│   │   └───ppo_config.py       # PPO hyperparameters
-│   ├───env/
-│   │   ├───ring_env.py         # Gymnasium environment for the SUMO ring road
-│   │   └───discretizer.py      # State/action discretization for tabular methods
-│   ├───dqn/
-│   │   ├───network.py          # DQN neural network architecture
-│   │   └───replay_mem.py       # Experience replay buffer
-│   ├───ppo/
-│   │   ├───network.py          # PPO actor-critic network architecture
-│   │   └───rollout_buffer.py   # PPO rollout buffer for trajectory collection
-│   ├───utils/
-│   │   ├───plot_utils.py       # Utilities for plotting results
-│   │   └───sumo_utils.py       # Utilities for interacting with SUMO/TraCI
-│   ├───q_train.py              # Q-learning training script
-│   ├───q_eval_policy.py        # Q-learning evaluation script
-│   ├───dqn_train.py            # DQN training script
-│   ├───dqn_eval.py             # DQN evaluation script
-│   ├───ppo_train.py            # PPO training script
-│   └───ppo_eval.py             # PPO evaluation script
-├───output/                     # Q-learning results
-│   ├───q_table.pkl
-│   ├───returns.csv
-│   └───returns.png
-├───dqn_results/                # DQN results
-│   ├───dqn_agent.pth
-│   ├───dqn_training_returns.png
-│   └───dqn_training_losses.png
-├───ppo_results/                # PPO results
-│   ├───ppo_agent.pth
-│   └───ppo_training_returns.png
-└───tests/
+├── configs/
+│   └── ring/
+│       ├── circle.net.xml           # Ring road network topology
+│       ├── circle.rou.xml           # Vehicle routes and insertion
+│       └── simulation.sumocfg       # Main SUMO configuration
+├── rl_mixed_traffic/
+│   ├── agents/
+│   │   ├── base_agent.py            # Abstract base class for all agents
+│   │   ├── q_agent.py               # Q-learning agent
+│   │   ├── dqn_agent.py             # DQN agent
+│   │   └── ppo_agent.py             # PPO agent
+│   ├── configs/
+│   │   ├── sumo_config.py           # SUMO simulation parameters
+│   │   ├── q_config.py              # Q-learning hyperparameters
+│   │   ├── dqn_config.py            # DQN hyperparameters
+│   │   └── ppo_config.py            # PPO hyperparameters (+ Lagrangian support)
+│   ├── conf/                        # Hydra YAML configs
+│   │   ├── q_train.yaml
+│   │   ├── dqn_train.yaml
+│   │   ├── ppo_train.yaml
+│   │   └── lagrangian_ppo_train.yaml
+│   ├── env/
+│   │   ├── ring_env.py              # RingRoadEnv (single & multi-agent)
+│   │   ├── discretizer.py           # State/action discretization
+│   │   ├── head_vehicle_controller.py  # Head vehicle controllers
+│   │   ├── safety_layer.py          # Hard-constraint safety layer
+│   │   ├── scenario.py              # Head controller factory
+│   │   ├── reward.py                # Reward utilities
+│   │   └── wrappers.py              # Gymnasium wrappers
+│   ├── dqn/
+│   │   ├── network.py               # DQN neural network
+│   │   └── replay_mem.py            # Experience replay buffer
+│   ├── ppo/
+│   │   ├── network.py               # PPO actor-critic network
+│   │   └── rollout_buffer.py        # Rollout buffer
+│   ├── utils/
+│   │   ├── sumo_utils.py            # SUMO/TraCI utilities
+│   │   └── plot_utils.py            # Plotting utilities
+│   ├── scripts/
+│   │   └── classic_controller.py    # Classical control baseline
+│   ├── q_train.py                   # Q-learning training
+│   ├── q_eval_policy.py             # Q-learning evaluation
+│   ├── dqn_train.py                 # DQN training
+│   ├── dqn_eval.py                  # DQN evaluation
+│   ├── ppo_train.py                 # PPO training
+│   ├── ppo_eval.py                  # PPO evaluation
+│   ├── lagrangian_ppo_train.py      # Lagrangian PPO training
+│   └── lagrangian_ppo_eval.py       # Lagrangian PPO evaluation
+├── tests/
+│   ├── test_compute_lcc_reward.py   # DeeP-LCC reward tests
+│   ├── test_discretizer.py          # Discretizer tests
+│   ├── test_safety_layer.py         # Safety layer tests
+│   ├── test_head_vehicle_controller.py
+│   ├── test_emergency_braking.py
+│   ├── test_scenario.py
+│   ├── test_network.py
+│   ├── test_ppo_agent.py
+│   └── test_wrappers.py
+└── docs/                            # MkDocs documentation source
 ```
 
 ## Installation
 
-1.  **Install SUMO:**
-    Download and install SUMO from the official website: [https://www.eclipse.org/sumo/](https://www.eclipse.org/sumo/).
+1. **Install SUMO:**
+   Download and install SUMO from the official website: [https://www.eclipse.org/sumo/](https://www.eclipse.org/sumo/).
 
-2.  **Set SUMO_HOME:**
-    You must set the `SUMO_HOME` environment variable to your SUMO installation path. For example:
+2. **Set SUMO_HOME:**
+   You must set the `SUMO_HOME` environment variable to your SUMO installation path. For example:
 
-    ```bash
-    export SUMO_HOME="/path/to/your/sumo/installation"
-    ```
+   ```bash
+   export SUMO_HOME="/path/to/your/sumo/installation"
+   ```
 
-3.  **Install Python Dependencies:**
-    This project requires Python 3.13+ and uses `uv` for dependency management. Install dependencies with:
-    ```bash
-    uv sync
-    ```
+3. **Install Python Dependencies:**
+   This project requires Python 3.12+ and uses `uv` for dependency management. Install dependencies with:
+   ```bash
+   uv sync
+   ```
 
 ## How to Use
 
 ### Training Agents
 
-Three RL algorithms are available for training:
+Four RL algorithms are available:
 
 #### Q-Learning (Tabular)
 
@@ -111,33 +124,26 @@ uv run rl_mixed_traffic/ppo_train.py
 - Uses continuous action space with Gaussian policy
 - Outputs: `ppo_results/ppo_agent.pth`, `ppo_results/ppo_training_returns.png`, `ppo_results/ppo_training_metrics.png`
 
+#### Lagrangian PPO (Constrained RL)
+
+```bash
+uv run rl_mixed_traffic/lagrangian_ppo_train.py
+```
+
+- PPO with Lagrangian relaxation for enforcing spacing constraints
+- Configurable via Hydra: override parameters with `key=value` on the command line
+- Outputs: `lagrangian_ppo_results/`
+
 ### Evaluating Trained Policies
 
-Once you have a trained agent, you can evaluate its performance using the corresponding evaluation script:
-
-#### Q-Learning
-
 ```bash
-uv run rl_mixed_traffic/q_eval_policy.py
+uv run rl_mixed_traffic/q_eval_policy.py         # Q-learning
+uv run rl_mixed_traffic/dqn_eval.py               # DQN
+uv run rl_mixed_traffic/ppo_eval.py               # PPO
+uv run rl_mixed_traffic/lagrangian_ppo_eval.py    # Lagrangian PPO
 ```
 
-Loads trained Q-table from `output/q_table.pkl` and runs with GUI enabled.
-
-#### DQN
-
-```bash
-uv run rl_mixed_traffic/dqn_eval.py
-```
-
-Loads trained DQN model from `dqn_results/dqn_agent.pth` and runs with GUI enabled.
-
-#### PPO
-
-```bash
-uv run rl_mixed_traffic/ppo_eval.py
-```
-
-Loads trained PPO model from `ppo_results/ppo_agent.pth` and runs with GUI enabled.
+Each script loads the corresponding trained model and runs with GUI enabled.
 
 ### Running Tests
 
@@ -157,26 +163,64 @@ The SUMO simulation settings are in the `configs/ring/` directory:
 
 ### Algorithm Configuration
 
-Each RL algorithm has a dedicated configuration file in `rl_mixed_traffic/configs/`:
+Each RL algorithm has a dataclass config in `rl_mixed_traffic/configs/` and Hydra YAML overrides in `rl_mixed_traffic/conf/`:
 
 - `sumo_config.py`: SUMO simulation parameters (step length, GUI settings)
 - `q_config.py`: Q-learning hyperparameters (learning rate, epsilon decay, discount factor)
-- `dqn_config.py`: DQN hyperparameters (learning rate, batch size, buffer size, target network update frequency)
-- `ppo_config.py`: PPO hyperparameters (learning rate, clip ratio, GAE parameters, entropy coefficient)
+- `dqn_config.py`: DQN hyperparameters (learning rate, batch size, buffer size, target network update)
+- `ppo_config.py`: PPO hyperparameters (learning rate, clip ratio, GAE, entropy coefficient, Lagrangian multiplier)
 
 ## Environment Details
 
-**Observation Space**: Normalized velocities and positions of all vehicles concatenated as `[v_norm_0..N, p_norm_0..N]` where values are in [0, 1].
+### Observation Space
 
-**Action Space**:
+Normalized velocities and positions of all vehicles concatenated as `[v_norm_0..N, p_norm_0..N]` where values are in [0, 1]. In multi-agent mode, each agent receives the global state augmented with its normalized agent index.
 
-- Q-learning/DQN: Discretized acceleration commands
-- PPO: Continuous acceleration in m/s² (bounded by [-3.0, 3.0])
+### Action Space
 
-**Reward Function**: Multi-component reward balancing safety, efficiency, and comfort:
+- **Q-learning / DQN**: Discretized acceleration commands via `DiscretizeActionWrapper`
+- **PPO / Lagrangian PPO**: Continuous acceleration in m/s² (bounded by [-3.0, 3.0])
 
-1. **TTC Penalty**: Penalizes time-to-collision < 0.6s with lead vehicle
-2. **Headway Distance Penalty**: Penalizes gaps > 15m to encourage closer following
-3. **Jerk Penalty**: Penalizes rapid acceleration changes for comfort
+### Reward Function (DeeP-LCC)
 
-See [CLAUDE.md](CLAUDE.md) for detailed implementation details and architecture information.
+The reward is based on the DeeP-LCC formulation, transforming a quadratic cost into a bounded [0, 1] reward:
+
+```
+r = max(J_max - J, 0) / J_max
+```
+
+where the cost J combines three components:
+
+1. **Velocity error**: `weight_v * sum((v_i - v_star)^2)` for all non-head vehicles
+2. **Spacing error**: `weight_s * (gap - s_star)^2` between the CAV and its leader
+3. **Control penalty**: `weight_u * accel^2` to discourage aggressive inputs
+
+At equilibrium (all vehicles at `v_star`, gap = `s_star`, zero acceleration), the reward is 1.0.
+
+### Safety Layer
+
+An optional physics-based safety layer clips unsafe accelerations to enforce hard constraints:
+
+- **s_min constraint**: Prevents the CAV from getting too close to its leader
+- **s_max constraint**: Prevents the CAV from falling too far behind the head vehicle
+
+Enable with `enable_safety_layer=True` when constructing the environment.
+
+### Head Vehicle Controllers
+
+The head vehicle (`car0`) behavior is configurable via scenarios:
+
+- **Random**: Speed changes randomly every 15 seconds (default)
+- **Emergency Braking**: Cruise → brake → hold → recover cycle for testing safety
+- **EUDC**: European Urban Driving Cycle for realistic speed profiles
+
+### Multi-Agent Support
+
+`RingRoadEnv` supports controlling multiple CAVs:
+
+- **Single-agent** (`num_agents=1`): Standard Gymnasium interface
+- **Multi-agent** (`num_agents>1`): Returns observation dictionaries and shared reward
+
+## Documentation
+
+Full documentation is available at [7174andy.github.io/sumo-rl-mixed-traffic](https://7174andy.github.io/sumo-rl-mixed-traffic/).
