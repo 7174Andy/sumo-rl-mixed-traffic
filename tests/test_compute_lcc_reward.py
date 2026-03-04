@@ -7,7 +7,6 @@ Mocks traci calls to test the reward math in isolation (no SUMO needed).
 """
 
 import pytest
-import numpy as np
 from unittest.mock import patch
 
 from rl_mixed_traffic.env.ring_env import RingRoadEnv
