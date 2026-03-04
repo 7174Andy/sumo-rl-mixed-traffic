@@ -168,6 +168,30 @@ After applying the smoothed $v_\text{eq}$ fix and reward weight rebalancing, the
 | Crashes | **None** — full-episode car-following achieved |
 | Lambda | Stays at 0 (see [Why lambda never engages](exploration/lagrangian_ppo_reward_tuning.md#6-why-the-lagrangian-multiplier-never-engages)) |
 
+### Training curves
+
+![Lagrangian PPO Training Returns](assets/images/lagrangian_ppo_training_returns.png)
+
+*Episode returns are bimodal early in training — the agent either follows successfully (~3500+) or loses the head vehicle and accumulates low reward (~200-1000). By episode 50 the MA(10) stabilizes in the 3000-3800 range. The persistent variance (drops to ~700 around episodes 100-120) reflects the stochastic head vehicle speed profile: some random speed sequences are inherently harder to track. Returns do not collapse, confirming the non-negative reward structure prevents the crash-to-escape incentive.*
+
+![Lagrangian PPO Training Metrics](assets/images/lagrangian_ppo_training_metrics.png)
+
+*Top-left: Policy loss stays small (0-0.01) with occasional spikes — stable optimization. Top-right: Value loss starts high (~30) and decreases to ~10 but shows noisy oscillations in later updates, motivating the addition of value function clipping. Middle-left: Entropy peaks at ~1.6 around update 75, then declines to ~1.4 — a healthy explore-then-exploit trajectory. Middle-right: Clip fraction rises steadily from 0.02 to 0.12, indicating the policy is making larger updates as it improves. Bottom-left: Lambda stays at effectively zero for the entire run — the safety layer prevents violations from exceeding the tolerance (see Section 6 of the [exploration log](exploration/lagrangian_ppo_reward_tuning.md#6-why-the-lagrangian-multiplier-never-engages)). Bottom-right: Mean spacing violation (red) hovers at 0.02-0.04 m, well below the 5 m threshold; safety clip rate (yellow) fluctuates at 2-6%, confirming the safety layer intervenes infrequently.*
+
+### Evaluation
+
+![Vehicle Speeds](assets/images/lagrangian_ppo_vehicle_speeds.png)
+
+*The CAV (orange) tracks the head vehicle (blue) through ~15 random speed transitions over the full episode (~4800 steps). Tracking is tightest in steady-state regions (e.g., steps 1000-1200 at ~7.5 m/s). Catch-up lag of 2-3 seconds is visible after sharp head speed increases — the CAV overshoots slightly before settling, a consequence of the 20 s v_eq averaging window smoothing the target. The agent handles both upward and downward transitions. The drop to 0 m/s at step ~4700 is the head vehicle exiting the simulation at episode end.*
+
+![Vehicle Accelerations](assets/images/lagrangian_ppo_vehicle_accelerations.png)
+
+*The head vehicle (blue) applies instantaneous speed changes via `setSpeed()`, producing sharp acceleration spikes (up to +2 m/s² and -3 m/s²). The CAV (orange) responds with smooth, modulated acceleration in the 0 to +1.5 m/s² range. Negative CAV accelerations (braking) are rare and gentle, showing the positive acceleration bias noted in the results table. The CAV's acceleration profile is continuous and jerk-limited — a direct result of the $u^2$ control penalty in the DeeP-LCC reward discouraging abrupt changes.*
+
+![CAV Spacing](assets/images/lagrangian_ppo_cav_spacing.png)
+
+*Bumper-to-bumper gap stays in the 5-25 m range for the entire episode (steps 0-4500), well above the 5 m safety threshold. Small oscillations (5-20 m) correlate with head speed transitions — the gap briefly widens when the head accelerates and the CAV catches up. The spike to ~950 m at step ~4700 is an artifact: the head vehicle is removed from the simulation at episode end, and the gap measurement wraps around the ring circumference. No spacing violations occur during normal operation.*
+
 ### Remaining behaviors
 
 - **Catch-up lag (~2-3 s):** After head speed changes, the CAV takes a few seconds to match. The 20 s averaging window inherently delays $v_\text{eq}$. Increased `weight_v` (5.0) reduces but does not eliminate this.
