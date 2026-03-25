@@ -793,6 +793,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#training-loss-trial-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Loss (Trial 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-control-action-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Control Action Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#trial-1-random-only-training-data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -819,6 +841,28 @@
     <span class="md-ellipsis">
       
         Trial 3: Increased brake fraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-cost-comparison-trial-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Cost Comparison (Trial 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-progression-across-trials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Progression Across Trials
       
     </span>
   </a>
@@ -1253,6 +1297,10 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 </ol>
 <h3 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h3>
 <p>Three training configurations were tested to improve closed-loop robustness. All use the same 260-dim MLP (256→128→2) architecture.</p>
+<h4 id="training-loss-trial-3">Training Loss (Trial 3)<a class="headerlink" href="#training-loss-trial-3" title="Permanent link">&para;</a></h4>
+<p><img alt="Training Loss" src="../deep_lcc_results/nnmpc_training_loss.png" /></p>
+<h4 id="dataset-control-action-distribution">Dataset Control Action Distribution<a class="headerlink" href="#dataset-control-action-distribution" title="Permanent link">&para;</a></h4>
+<p><img alt="Dataset Distribution" src="../deep_lcc_results/dataset_distribution.png" /></p>
 <h4 id="trial-1-random-only-training-data">Trial 1: Random-only training data<a class="headerlink" href="#trial-1-random-only-training-data" title="Permanent link">&para;</a></h4>
 <p>Training data: 100 episodes, 50% ±1 / 30% ±3 / 20% ±5 random perturbations.</p>
 <p><strong>Offline:</strong> MSE=0.000896, MAE=0.020, Max error=0.318</p>
@@ -1391,6 +1439,10 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 </tbody>
 </table>
 <p><strong>Finding:</strong> More brake data does not help. The brake scenario is fundamentally hard for the NN due to error compounding at extreme states (see Limitations below).</p>
+<h4 id="closed-loop-cost-comparison-trial-3">Closed-Loop Cost Comparison (Trial 3)<a class="headerlink" href="#closed-loop-cost-comparison-trial-3" title="Permanent link">&para;</a></h4>
+<p><img alt="Closed-Loop Comparison" src="../deep_lcc_results/closed_loop_comparison.png" /></p>
+<h4 id="performance-progression-across-trials">Performance Progression Across Trials<a class="headerlink" href="#performance-progression-across-trials" title="Permanent link">&para;</a></h4>
+<p><img alt="Trial Progression" src="../deep_lcc_results/trial_progression.png" /></p>
 <h3 id="limitations-of-nn-deep-lcc">Limitations of NN Deep-LCC<a class="headerlink" href="#limitations-of-nn-deep-lcc" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
