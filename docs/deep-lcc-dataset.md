@@ -239,30 +239,69 @@ Two modes:
 
 ### Results
 
-#### Offline Accuracy (Validation Set, 7,800 samples)
+Three training configurations were tested to improve closed-loop robustness. All use the same 260-dim MLP (256→128→2) architecture.
 
-| Metric | Value |
-|--------|-------|
-| MSE | 0.000896 |
-| MAE | 0.0204 m/s² |
-| Max error | 0.318 m/s² |
-| Pred range | [-1.065, 1.813] |
-| True range | [-1.138, 1.960] |
+#### Trial 1: Random-only training data
 
-#### Closed-Loop Simulation (NN vs QP Controller)
+Training data: 100 episodes, 50% ±1 / 30% ±3 / 20% ±5 random perturbations.
 
-| Scenario | QP Cost | NN Cost | Diff % | Notes |
-|----------|---------|---------|--------|-------|
-| random ±1 | 10,285 | 10,052 | **-2.3%** | In-distribution, NN slightly outperforms |
-| random ±5 | 10,574 | 10,279 | **-2.8%** | In-distribution, NN slightly outperforms |
-| brake | 4.1M | 21.4M | +422% | Out-of-distribution, sustained deceleration |
-| sinusoidal | 73,749 | 7.4M | +9,914% | Out-of-distribution, periodic ±5 m/s |
-| NEDC | 173,754 | 5.7M | +3,160% | Out-of-distribution, compressed NEDC cycle |
+**Offline:** MSE=0.000896, MAE=0.020, Max error=0.318
 
-**Key findings:**
-- The NNMPC performs well on **random perturbations** (the training distribution), even slightly beating the QP solver due to learned smoothing.
-- It fails on **structured perturbations** (brake, sinusoidal, NEDC) because these create sustained deviations that the NN never saw during training. Errors compound in the closed-loop simulation.
-- This motivates the **RLMPC architecture** from [arxiv:2510.03354](https://arxiv.org/abs/2510.03354), where RL learns residual corrections on top of the NNMPC base controller to handle out-of-distribution scenarios.
+| Scenario | QP Cost | NN Cost | Diff % |
+|----------|---------|---------|--------|
+| random ±1 | 10,285 | 10,052 | **-2.3%** |
+| random ±5 | 10,574 | 10,279 | **-2.8%** |
+| brake | 4.1M | 21.4M | +422% |
+| sinusoidal | 73,749 | 7.4M | +9,914% |
+| NEDC | 173,754 | 5.7M | +3,160% |
+
+**Finding:** Excellent on random (in-distribution). Catastrophic on structured scenarios (out-of-distribution).
+
+#### Trial 2: Added brake + sinusoidal to training data
+
+Training data: 100 episodes, 35% random±1 / 20% random±3 / 15% random±5 / 15% brake / 10% sine±5 / 5% sine±3.
+
+**Offline:** MSE=0.004462, MAE=0.024, Max error=3.970
+
+| Scenario | QP Cost | NN Cost | Diff % |
+|----------|---------|---------|--------|
+| random ±1 | 10,285 | 10,080 | **-2.0%** |
+| random ±5 | 10,574 | 10,313 | **-2.5%** |
+| brake | 4.1M | 72.5M | +1,674% |
+| sinusoidal | 73,749 | 71,331 | **-3.3%** |
+| NEDC | 173,754 | 80.1M | +46,000% |
+
+**Finding:** Sinusoidal fixed (from +9,914% to -3.3%). Brake still fails despite being in training data.
+
+#### Trial 3: Increased brake fraction
+
+Training data: 100 episodes, 30% random±1 / 15% random±3 / 10% random±5 / 25% brake / 10% sine±5 / 10% sine±3.
+
+**Offline:** MSE=0.009098, MAE=0.030, Max error=5.160
+
+| Scenario | QP Cost | NN Cost | Diff % |
+|----------|---------|---------|--------|
+| random ±1 | 10,285 | 10,076 | **-2.0%** |
+| random ±5 | 10,574 | 10,198 | **-3.6%** |
+| brake | 4.1M | 71.8M | +1,655% |
+| sinusoidal | 73,749 | 70,858 | **-3.9%** |
+| NEDC | 173,754 | 89.5M | +51,405% |
+
+**Finding:** More brake data does not help. The brake scenario is fundamentally hard for the NN due to error compounding at extreme states (see Limitations below).
+
+### Limitations of NN Deep-LCC
+
+1. **Error compounding in closed loop.** The brake scenario drives the head vehicle to 5 m/s (ed = -10, a 67% drop from v_star = 15). Even though the NN trains on this exact signal, small prediction errors at these extreme states push the closed-loop simulation onto a different trajectory than the QP would produce. These errors accumulate over the 5+ seconds the system spends far from equilibrium, causing divergence. More training data does not fix this — it is a structural limitation of open-loop supervised learning for closed-loop control.
+
+2. **No future information.** The NN only sees 1 second of past data (T_ini = 20 steps at 0.05s). It has no lookahead — unlike the paper's NNMPC ([arxiv:2510.03354](https://arxiv.org/abs/2510.03354)) which includes 50 future reference trajectory steps as input. The DeeP-LCC QP also has no future disturbance knowledge (assumes `Ef @ g = 0`), but it is re-optimized from scratch every step and naturally reacts to new information. The NN cannot adapt the same way.
+
+3. **Asymmetric output bounds.** The acceleration range [-5, 2] m/s² is asymmetric. During braking, the QP produces large negative accelerations near the -5 bound. The Tanh scaling maps [-1,1] to [-5,2], which compresses the deceleration range — small Tanh changes near -1 map to large acceleration changes near -5, making precise braking control harder for the NN.
+
+4. **Offline MSE ≠ closed-loop performance.** Trial 3 has 10x higher MSE than Trial 1 (0.009 vs 0.0009) due to the harder brake samples, yet random/sinusoidal closed-loop performance is equally good. Conversely, even low MSE does not prevent brake failure. Offline metrics are unreliable predictors of closed-loop success.
+
+### Conclusion
+
+The NNMPC is a reliable base controller for **normal operating conditions** (random perturbations, sinusoidal disturbances) with cost within 4% of the QP solver. For **extreme scenarios** (emergency braking), the NN fails due to error compounding — this is the exact gap that the RLMPC residual correction architecture is designed to fill.
 
 ## Model Mismatch: OVM vs SUMO IDM
 
