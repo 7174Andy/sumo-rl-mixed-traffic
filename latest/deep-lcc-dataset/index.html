@@ -793,10 +793,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#offline-accuracy-validation-set-7800-samples" class="md-nav__link">
+  <a href="#trial-1-random-only-training-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Offline Accuracy (Validation Set, 7,800 samples)
+        Trial 1: Random-only training data
       
     </span>
   </a>
@@ -804,10 +804,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#closed-loop-simulation-nn-vs-qp-controller" class="md-nav__link">
+  <a href="#trial-2-added-brake-sinusoidal-to-training-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Closed-Loop Simulation (NN vs QP Controller)
+        Trial 2: Added brake + sinusoidal to training data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trial-3-increased-brake-fraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trial 3: Increased brake fraction
       
     </span>
   </a>
@@ -816,6 +827,28 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limitations-of-nn-deep-lcc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations of NN Deep-LCC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
   
 </li>
         
@@ -1219,38 +1252,10 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 <li><strong>Closed-loop simulation:</strong> run NN controller in the OVM simulation loop, compare trajectory cost against the QP controller on multiple scenarios</li>
 </ol>
 <h3 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h3>
-<h4 id="offline-accuracy-validation-set-7800-samples">Offline Accuracy (Validation Set, 7,800 samples)<a class="headerlink" href="#offline-accuracy-validation-set-7800-samples" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>MSE</td>
-<td>0.000896</td>
-</tr>
-<tr>
-<td>MAE</td>
-<td>0.0204 m/s²</td>
-</tr>
-<tr>
-<td>Max error</td>
-<td>0.318 m/s²</td>
-</tr>
-<tr>
-<td>Pred range</td>
-<td>[-1.065, 1.813]</td>
-</tr>
-<tr>
-<td>True range</td>
-<td>[-1.138, 1.960]</td>
-</tr>
-</tbody>
-</table>
-<h4 id="closed-loop-simulation-nn-vs-qp-controller">Closed-Loop Simulation (NN vs QP Controller)<a class="headerlink" href="#closed-loop-simulation-nn-vs-qp-controller" title="Permanent link">&para;</a></h4>
+<p>Three training configurations were tested to improve closed-loop robustness. All use the same 260-dim MLP (256→128→2) architecture.</p>
+<h4 id="trial-1-random-only-training-data">Trial 1: Random-only training data<a class="headerlink" href="#trial-1-random-only-training-data" title="Permanent link">&para;</a></h4>
+<p>Training data: 100 episodes, 50% ±1 / 30% ±3 / 20% ±5 random perturbations.</p>
+<p><strong>Offline:</strong> MSE=0.000896, MAE=0.020, Max error=0.318</p>
 <table>
 <thead>
 <tr>
@@ -1258,7 +1263,6 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 <th>QP Cost</th>
 <th>NN Cost</th>
 <th>Diff %</th>
-<th>Notes</th>
 </tr>
 </thead>
 <tbody>
@@ -1267,42 +1271,143 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 <td>10,285</td>
 <td>10,052</td>
 <td><strong>-2.3%</strong></td>
-<td>In-distribution, NN slightly outperforms</td>
 </tr>
 <tr>
 <td>random ±5</td>
 <td>10,574</td>
 <td>10,279</td>
 <td><strong>-2.8%</strong></td>
-<td>In-distribution, NN slightly outperforms</td>
 </tr>
 <tr>
 <td>brake</td>
 <td>4.1M</td>
 <td>21.4M</td>
 <td>+422%</td>
-<td>Out-of-distribution, sustained deceleration</td>
 </tr>
 <tr>
 <td>sinusoidal</td>
 <td>73,749</td>
 <td>7.4M</td>
 <td>+9,914%</td>
-<td>Out-of-distribution, periodic ±5 m/s</td>
 </tr>
 <tr>
 <td>NEDC</td>
 <td>173,754</td>
 <td>5.7M</td>
 <td>+3,160%</td>
-<td>Out-of-distribution, compressed NEDC cycle</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Key findings:</strong>
-- The NNMPC performs well on <strong>random perturbations</strong> (the training distribution), even slightly beating the QP solver due to learned smoothing.
-- It fails on <strong>structured perturbations</strong> (brake, sinusoidal, NEDC) because these create sustained deviations that the NN never saw during training. Errors compound in the closed-loop simulation.
-- This motivates the <strong>RLMPC architecture</strong> from <a href="https://arxiv.org/abs/2510.03354">arxiv:2510.03354</a>, where RL learns residual corrections on top of the NNMPC base controller to handle out-of-distribution scenarios.</p>
+<p><strong>Finding:</strong> Excellent on random (in-distribution). Catastrophic on structured scenarios (out-of-distribution).</p>
+<h4 id="trial-2-added-brake-sinusoidal-to-training-data">Trial 2: Added brake + sinusoidal to training data<a class="headerlink" href="#trial-2-added-brake-sinusoidal-to-training-data" title="Permanent link">&para;</a></h4>
+<p>Training data: 100 episodes, 35% random±1 / 20% random±3 / 15% random±5 / 15% brake / 10% sine±5 / 5% sine±3.</p>
+<p><strong>Offline:</strong> MSE=0.004462, MAE=0.024, Max error=3.970</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>QP Cost</th>
+<th>NN Cost</th>
+<th>Diff %</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>random ±1</td>
+<td>10,285</td>
+<td>10,080</td>
+<td><strong>-2.0%</strong></td>
+</tr>
+<tr>
+<td>random ±5</td>
+<td>10,574</td>
+<td>10,313</td>
+<td><strong>-2.5%</strong></td>
+</tr>
+<tr>
+<td>brake</td>
+<td>4.1M</td>
+<td>72.5M</td>
+<td>+1,674%</td>
+</tr>
+<tr>
+<td>sinusoidal</td>
+<td>73,749</td>
+<td>71,331</td>
+<td><strong>-3.3%</strong></td>
+</tr>
+<tr>
+<td>NEDC</td>
+<td>173,754</td>
+<td>80.1M</td>
+<td>+46,000%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Finding:</strong> Sinusoidal fixed (from +9,914% to -3.3%). Brake still fails despite being in training data.</p>
+<h4 id="trial-3-increased-brake-fraction">Trial 3: Increased brake fraction<a class="headerlink" href="#trial-3-increased-brake-fraction" title="Permanent link">&para;</a></h4>
+<p>Training data: 100 episodes, 30% random±1 / 15% random±3 / 10% random±5 / 25% brake / 10% sine±5 / 10% sine±3.</p>
+<p><strong>Offline:</strong> MSE=0.009098, MAE=0.030, Max error=5.160</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>QP Cost</th>
+<th>NN Cost</th>
+<th>Diff %</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>random ±1</td>
+<td>10,285</td>
+<td>10,076</td>
+<td><strong>-2.0%</strong></td>
+</tr>
+<tr>
+<td>random ±5</td>
+<td>10,574</td>
+<td>10,198</td>
+<td><strong>-3.6%</strong></td>
+</tr>
+<tr>
+<td>brake</td>
+<td>4.1M</td>
+<td>71.8M</td>
+<td>+1,655%</td>
+</tr>
+<tr>
+<td>sinusoidal</td>
+<td>73,749</td>
+<td>70,858</td>
+<td><strong>-3.9%</strong></td>
+</tr>
+<tr>
+<td>NEDC</td>
+<td>173,754</td>
+<td>89.5M</td>
+<td>+51,405%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Finding:</strong> More brake data does not help. The brake scenario is fundamentally hard for the NN due to error compounding at extreme states (see Limitations below).</p>
+<h3 id="limitations-of-nn-deep-lcc">Limitations of NN Deep-LCC<a class="headerlink" href="#limitations-of-nn-deep-lcc" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Error compounding in closed loop.</strong> The brake scenario drives the head vehicle to 5 m/s (ed = -10, a 67% drop from v_star = 15). Even though the NN trains on this exact signal, small prediction errors at these extreme states push the closed-loop simulation onto a different trajectory than the QP would produce. These errors accumulate over the 5+ seconds the system spends far from equilibrium, causing divergence. More training data does not fix this — it is a structural limitation of open-loop supervised learning for closed-loop control.</p>
+</li>
+<li>
+<p><strong>No future information.</strong> The NN only sees 1 second of past data (T_ini = 20 steps at 0.05s). It has no lookahead — unlike the paper's NNMPC (<a href="https://arxiv.org/abs/2510.03354">arxiv:2510.03354</a>) which includes 50 future reference trajectory steps as input. The DeeP-LCC QP also has no future disturbance knowledge (assumes <code>Ef @ g = 0</code>), but it is re-optimized from scratch every step and naturally reacts to new information. The NN cannot adapt the same way.</p>
+</li>
+<li>
+<p><strong>Asymmetric output bounds.</strong> The acceleration range [-5, 2] m/s² is asymmetric. During braking, the QP produces large negative accelerations near the -5 bound. The Tanh scaling maps [-1,1] to [-5,2], which compresses the deceleration range — small Tanh changes near -1 map to large acceleration changes near -5, making precise braking control harder for the NN.</p>
+</li>
+<li>
+<p><strong>Offline MSE ≠ closed-loop performance.</strong> Trial 3 has 10x higher MSE than Trial 1 (0.009 vs 0.0009) due to the harder brake samples, yet random/sinusoidal closed-loop performance is equally good. Conversely, even low MSE does not prevent brake failure. Offline metrics are unreliable predictors of closed-loop success.</p>
+</li>
+</ol>
+<h3 id="conclusion">Conclusion<a class="headerlink" href="#conclusion" title="Permanent link">&para;</a></h3>
+<p>The NNMPC is a reliable base controller for <strong>normal operating conditions</strong> (random perturbations, sinusoidal disturbances) with cost within 4% of the QP solver. For <strong>extreme scenarios</strong> (emergency braking), the NN fails due to error compounding — this is the exact gap that the RLMPC residual correction architecture is designed to fill.</p>
 <h2 id="model-mismatch-ovm-vs-sumo-idm">Model Mismatch: OVM vs SUMO IDM<a class="headerlink" href="#model-mismatch-ovm-vs-sumo-idm" title="Permanent link">&para;</a></h2>
 <p>The dataset is generated using <strong>OVM</strong> dynamics, but the SUMO ring road uses <strong>IDM</strong> (<code>carFollowModel="IDM"</code> in <code>configs/ring/circle.rou.xml</code>). This creates a sim-to-sim gap when deploying the NNMPC surrogate in SUMO.</p>
 <p>See <a href="#model-mismatch-analysis">Model Mismatch Analysis</a> below for implications and mitigation strategies.</p>
