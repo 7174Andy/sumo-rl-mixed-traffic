@@ -57,15 +57,23 @@ class DeepLCCConfig:
     # Dataset generation
     num_episodes: int = 100
     output_path: str = "deep_lcc_dataset/dataset.npz"
-    # Perturbation amplitude mix: list of (amplitude, fraction) pairs.
-    # Each episode's head-vehicle perturbation is uniform in
-    # [-amplitude, +amplitude] m/s around v_star.
-    perturb_mix: list[tuple[float, float]] = field(
-        default_factory=lambda: [(1.0, 0.5), (3.0, 0.3), (5.0, 0.2)]
+    # Perturbation mix: list of (type, amplitude, fraction) tuples.
+    # Types: "random" (uniform ±amplitude), "brake" (decel/coast/accel),
+    #        "sinusoidal" (sine wave with given amplitude).
+    # Fractions must sum to 1.0.
+    perturb_mix: list[tuple[str, float, float]] = field(
+        default_factory=lambda: [
+            ("random", 1.0, 0.30),
+            ("random", 3.0, 0.15),
+            ("random", 5.0, 0.10),
+            ("brake", 0.0, 0.25),
+            ("sinusoidal", 5.0, 0.10),
+            ("sinusoidal", 3.0, 0.10),
+        ]
     )
 
     def __post_init__(self) -> None:
-        total = sum(frac for _, frac in self.perturb_mix)
+        total = sum(frac for _, _, frac in self.perturb_mix)
         if abs(total - 1.0) > 1e-6:
             raise ValueError(
                 f"perturb_mix fractions must sum to 1.0, got {total}"

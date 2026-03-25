@@ -20,25 +20,76 @@ from rl_mixed_traffic.deep_lcc.precollect import precollect
 from rl_mixed_traffic.deep_lcc.qp_solver import CachedDeepLCCSolver
 
 
-def _assign_episode_amplitudes(
+def _assign_episode_perturbations(
     num_episodes: int,
-    perturb_mix: list[tuple[float, float]],
-) -> list[float]:
-    """Assign a perturbation amplitude to each episode based on the mix ratios.
+    perturb_mix: list[tuple[str, float, float]],
+) -> list[tuple[str, float]]:
+    """Assign a perturbation (type, amplitude) to each episode.
 
     Episodes are assigned in contiguous blocks so the mix is exact
     (up to rounding). Rounding residuals go to the last tier.
     """
-    amplitudes: list[float] = []
+    assignments: list[tuple[str, float]] = []
     remaining = num_episodes
-    for i, (amp, frac) in enumerate(perturb_mix):
+    for i, (ptype, amp, frac) in enumerate(perturb_mix):
         if i == len(perturb_mix) - 1:
             count = remaining
         else:
             count = round(num_episodes * frac)
             remaining -= count
-        amplitudes.extend([amp] * count)
-    return amplitudes
+        assignments.extend([(ptype, amp)] * count)
+    return assignments
+
+
+def _make_perturbation_signal(
+    ptype: str,
+    amplitude: float,
+    total_steps: int,
+    tstep: float,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Generate a head-vehicle perturbation signal for one episode.
+
+    Args:
+        ptype: "random", "brake", or "sinusoidal".
+        amplitude: Perturbation amplitude (m/s for random/sinusoidal, unused for brake).
+        total_steps: Number of simulation steps.
+        tstep: Simulation time step (s).
+        rng: Random number generator.
+
+    Returns:
+        ed_episode: shape (total_steps,), velocity deviation from v_star.
+    """
+    if ptype == "random":
+        return -amplitude + 2.0 * amplitude * rng.random(total_steps)
+
+    elif ptype == "brake":
+        # DeeP-LCC reference brake scenario (per_type=2):
+        # head vehicle brakes at -5 m/s² for 2s, coasts 5s, accelerates at +2 m/s² for 5s
+        ed = np.zeros(total_steps)
+        v_delta = 0.0
+        for k in range(total_steps):
+            t = k * tstep
+            if t < 2.0:
+                a = -5.0
+            elif t < 7.0:
+                a = 0.0
+            elif t < 12.0:
+                a = 2.0
+            else:
+                a = 0.0
+            v_delta += a * tstep
+            v_delta = max(v_delta, -14.0)  # keep head vehicle velocity > 0
+            ed[k] = v_delta
+        return ed
+
+    elif ptype == "sinusoidal":
+        # DeeP-LCC reference sinusoidal (per_type=1): period 10s
+        t = np.arange(total_steps) * tstep
+        return amplitude * np.sin(2.0 * np.pi / 10.0 * t)
+
+    else:
+        raise ValueError(f"Unknown perturbation type: {ptype}")
 
 
 def _build_weight_matrices(
@@ -80,12 +131,13 @@ def run_deep_lcc_episode(
     Q: np.ndarray,
     R: np.ndarray,
     rng: np.random.Generator,
-    perturb_amplitude: float = 1.0,
+    ed_episode: np.ndarray | None = None,
 ) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
     """Run one episode of DeeP-LCC control and collect (state, solution) pairs.
 
     Args:
-        perturb_amplitude: Head vehicle velocity perturbation range (±amplitude m/s).
+        ed_episode: Pre-generated perturbation signal, shape (total_steps,).
+            If None, uses random ±1 m/s (backward compat).
 
     Returns lists of (uini, yini, eini, u_opt) arrays for each valid step.
     """
@@ -128,8 +180,9 @@ def run_deep_lcc_episode(
     y_buffer = np.zeros((p_ctr, T_ini))
     e_buffer = np.zeros(T_ini)
 
-    # Head vehicle disturbance for this episode (random perturbation)
-    ed_episode = -perturb_amplitude + 2.0 * perturb_amplitude * rng.random(total_steps)
+    # Head vehicle disturbance for this episode
+    if ed_episode is None:
+        ed_episode = -1.0 + 2.0 * rng.random(total_steps)
 
     # Collected data
     uini_list = []
@@ -234,9 +287,10 @@ def generate_dataset(
         p_ctr = n_vehicle
 
     Q, R = _build_weight_matrices(config, n_vehicle, m_ctr, p_ctr)
-    episode_amplitudes = _assign_episode_amplitudes(
+    episode_perturbations = _assign_episode_perturbations(
         config.num_episodes, config.perturb_mix,
     )
+    total_steps = int(config.total_time / config.Tstep)
 
     all_uini = []
     all_yini = []
@@ -245,17 +299,20 @@ def generate_dataset(
 
     for episode in trange(config.num_episodes, desc="Generating dataset"):
         ep_seed = seed + episode
-        amp = episode_amplitudes[episode]
+        ptype, amp = episode_perturbations[episode]
 
         # Phase 1: Pre-collect trajectories and build Hankel matrices
         Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=ep_seed)
 
         # Phase 2: Run DeeP-LCC in closed loop
         rng = np.random.default_rng(ep_seed + 10000)
+        ed_episode = _make_perturbation_signal(
+            ptype, amp, total_steps, config.Tstep, rng,
+        )
         uini_list, yini_list, eini_list, u_opt_list = run_deep_lcc_episode(
             Up, Uf, Ep, Ef, Yp, Yf,
             config, ovm_config, Q, R, rng,
-            perturb_amplitude=amp,
+            ed_episode=ed_episode,
         )
 
         all_uini.extend(uini_list)
