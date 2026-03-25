@@ -42,5 +42,6 @@ nav:
   - PPO Refactoring: ppo-refactor.md
   - Redesign Reward: reward-redesign.md
   - Lagrangian PPO: lagrangian-ppo.md
+  - DeeP-LCC / NNMPC: deep-lcc-dataset.md
   - Exploration:
     - Reward Tuning: exploration/lagrangian_ppo_reward_tuning.md

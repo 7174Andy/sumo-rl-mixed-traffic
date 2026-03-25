@@ -243,11 +243,11 @@ Three training configurations were tested to improve closed-loop robustness. All
 
 #### Training Loss (Trial 3)
 
-![Training Loss](../deep_lcc_results/nnmpc_training_loss.png)
+![Training Loss](assets/deep-lcc/nnmpc_training_loss.png)
 
 #### Dataset Control Action Distribution
 
-![Dataset Distribution](../deep_lcc_results/dataset_distribution.png)
+![Dataset Distribution](assets/deep-lcc/dataset_distribution.png)
 
 #### Trial 1: Random-only training data
 
@@ -299,11 +299,11 @@ Training data: 100 episodes, 30% random±1 / 15% random±3 / 10% random±5 / 25%
 
 #### Closed-Loop Cost Comparison (Trial 3)
 
-![Closed-Loop Comparison](../deep_lcc_results/closed_loop_comparison.png)
+![Closed-Loop Comparison](assets/deep-lcc/closed_loop_comparison.png)
 
 #### Performance Progression Across Trials
 
-![Trial Progression](../deep_lcc_results/trial_progression.png)
+![Trial Progression](assets/deep-lcc/trial_progression.png)
 
 ### Limitations of NN Deep-LCC
 
