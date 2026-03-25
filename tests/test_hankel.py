@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from rl_mixed_traffic.deep_lcc.hankel import build_hankel_matrices, hankel_matrix
 

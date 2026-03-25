@@ -124,10 +124,6 @@ def run_closed_loop(
 
     total_steps = int(config.total_time / config.Tstep)
     T_ini = config.T_ini
-    N = config.N
-
-    Q_blk = np.kron(np.eye(N), Q)
-    R_blk = np.kron(np.eye(N), R)
 
     # Initialize vehicles at equilibrium
     S = np.zeros((n_vehicle + 1, 3))
@@ -201,7 +197,6 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
     n_vehicle = ovm_config.n_vehicle
     pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
     m_ctr = len(pos_cav)
-    p_ctr = n_vehicle + m_ctr
 
     Q_v = config.weight_v * np.eye(n_vehicle)
     Q_s = config.weight_s * np.eye(m_ctr)

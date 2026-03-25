@@ -7,7 +7,6 @@ Usage:
     uv run rl_mixed_traffic/deep_lcc/generate_dataset.py
 """
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -155,7 +154,6 @@ def run_deep_lcc_episode(
 
     total_steps = int(config.total_time / config.Tstep)
     T_ini = config.T_ini
-    N = config.N
 
     # Constraint limits
     u_limit = (config.dcel_max, config.acel_max)
