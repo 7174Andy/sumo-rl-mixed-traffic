@@ -1,0 +1,1426 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reinforcement learning for traffic flow optimization using SUMO">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>DeeP-LCC Dataset Generation - SUMO RL Mixed Traffic</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#deep-lcc-dataset-generation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="SUMO RL Mixed Traffic" class="md-header__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SUMO RL Mixed Traffic
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              DeeP-LCC Dataset Generation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SUMO RL Mixed Traffic" class="md-nav__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SUMO RL Mixed Traffic
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../problem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Problem Formulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ppo-refactor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reward-redesign/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redesign Reward
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lagrangian-ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exploration/lagrangian_ppo_reward_tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-deep-lcc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background: DeeP-LCC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Background: DeeP-LCC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-optimization-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Optimization Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ovm-parameters-homogeneous-data_str3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVM Parameters (Homogeneous, data_str=3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deep-lcc-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeeP-LCC Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DeeP-LCC Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#perturbation-amplitude-mixing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perturbation Amplitude Mixing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measurement-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataset-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataset-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nnmpc-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NNMPC Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#offline-accuracy-validation-set-7800-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offline Accuracy (Validation Set, 7,800 samples)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-simulation-nn-vs-qp-controller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Simulation (NN vs QP Controller)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-mismatch-ovm-vs-sumo-idm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Mismatch: OVM vs SUMO IDM
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model Mismatch: OVM vs SUMO IDM">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-mismatch-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Mismatch Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="deep-lcc-dataset-generation">DeeP-LCC Dataset Generation<a class="headerlink" href="#deep-lcc-dataset-generation" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>This module generates (state, solution) pair datasets for training an NNMPC (Neural Network Model Predictive Control) surrogate of DeeP-LCC, following the architecture in <a href="https://arxiv.org/abs/2510.03354">arxiv:2510.03354</a>.</p>
+<p>The pipeline runs entirely in Python using OVM (Optimal Velocity Model) car-following dynamics — no SUMO dependency. It ports the <a href="https://github.com/soc-ucsd/DeeP-LCC">MATLAB DeeP-LCC implementation</a> to produce datasets that can train a neural network to approximate DeeP-LCC's QP solver in real time.</p>
+<h2 id="background-deep-lcc">Background: DeeP-LCC<a class="headerlink" href="#background-deep-lcc" title="Permanent link">&para;</a></h2>
+<p>DeeP-LCC (Data-EnablEd Predictive Leading Cruise Control) is a data-driven predictive controller for connected autonomous vehicles (CAVs) in mixed traffic. Unlike model-based MPC, it uses pre-collected trajectory data organized into Hankel matrices to predict future system behavior without an explicit system model.</p>
+<p><strong>Key reference:</strong> Wang et al., "Data-Driven Predicted Control for Connected and Autonomous Vehicles in Mixed Traffic," IEEE Trans. Control Systems Technology, 2023.</p>
+<h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Pre-collection (offline):</strong> Apply persistently exciting random inputs to the traffic system for <code>T</code> steps. Record control inputs <code>u</code>, external disturbances <code>e</code>, and measured outputs <code>y</code>. Build Hankel matrices from these trajectories.</p>
+</li>
+<li>
+<p><strong>Online control:</strong> At each time step, given the past <code>T_ini</code> steps of data <code>(uini, yini, eini)</code>, solve a QP to find optimal future control actions that minimize a cost function balancing velocity tracking, spacing regulation, and control effort.</p>
+</li>
+<li>
+<p><strong>Receding horizon:</strong> Only the first control action <code>u_opt[0]</code> is applied; then the process repeats.</p>
+</li>
+</ol>
+<h3 id="the-optimization-problem">The Optimization Problem<a class="headerlink" href="#the-optimization-problem" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>minimize:  ||Yf·g||²_Q + ||Uf·g||²_R + λ_g·||g||² + λ_y·||Yp·g - yini||²
+
+subject to:
+  [Up]         [uini]
+  [Ep] · g  =  [eini]     (consistency with past data)
+  [Ef]         [  0 ]      (zero future disturbance assumption)
+
+  dcel_max ≤ Uf·g ≤ acel_max        (acceleration bounds)
+  s_min - s* ≤ Sf·Yf·g ≤ s_max - s* (spacing safety constraints)
+</code></pre></div>
+<p>Where <code>g</code> is the decision variable (Hankel combination weights) and <code>Uf·g</code> / <code>Yf·g</code> recover optimal future control and output trajectories.</p>
+<h2 id="vehicle-configuration">Vehicle Configuration<a class="headerlink" href="#vehicle-configuration" title="Permanent link">&para;</a></h2>
+<p>Matches the DeeP-LCC reference implementation exactly:</p>
+<ul>
+<li><strong>8 following vehicles:</strong> <code>ID = [0, 0, 1, 0, 0, 1, 0, 0]</code></li>
+<li>6 HDVs (human-driven, follow OVM model)</li>
+<li>2 CAVs at positions 3 and 6 (controlled by DeeP-LCC)</li>
+<li><strong>1 head vehicle</strong> with externally perturbed velocity</li>
+<li>Total: 9 vehicles in a platoon</li>
+</ul>
+<h3 id="ovm-parameters-homogeneous-data_str3">OVM Parameters (Homogeneous, data_str=3)<a class="headerlink" href="#ovm-parameters-homogeneous-data_str3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>α (alpha)</td>
+<td>0.6</td>
+<td>Sensitivity to desired velocity</td>
+</tr>
+<tr>
+<td>β (beta)</td>
+<td>0.9</td>
+<td>Sensitivity to relative velocity</td>
+</tr>
+<tr>
+<td>v_max</td>
+<td>30 m/s</td>
+<td>Maximum velocity</td>
+</tr>
+<tr>
+<td>s_st</td>
+<td>5 m</td>
+<td>Minimum stopping distance</td>
+</tr>
+<tr>
+<td>s_go</td>
+<td>25 m</td>
+<td>Free-flow spacing threshold</td>
+</tr>
+<tr>
+<td>v*</td>
+<td>15 m/s</td>
+<td>Equilibrium velocity</td>
+</tr>
+<tr>
+<td>s*</td>
+<td>20 m</td>
+<td>Desired equilibrium spacing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>OVM dynamics:</strong>
+<div class="highlight"><pre><span></span><code>V_d(s) = v_max/2 · (1 - cos(π · (s - s_st) / (s_go - s_st)))
+a = α · (V_d(s) - v_follower) + β · (v_leader - v_follower)
+</code></pre></div></p>
+<p>Acceleration is saturated to <code>[-5, 2]</code> m/s² with safety braking when deceleration demand exceeds the limit.</p>
+<blockquote>
+<p><strong>Note:</strong> The OVM equilibrium spacing (where <code>V_d = v*</code>) is <code>s_eq = 15 m</code> for these parameters, computed as <code>acos(1 - 2·v*/v_max)/π · (s_go - s_st) + s_st</code>. The controller reference <code>s* = 20 m</code> is deliberately larger to maintain safe following distances.</p>
+</blockquote>
+<h2 id="deep-lcc-parameters">DeeP-LCC Parameters<a class="headerlink" href="#deep-lcc-parameters" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T</td>
+<td>2000</td>
+<td>Pre-collection trajectory length</td>
+</tr>
+<tr>
+<td>T_ini</td>
+<td>20</td>
+<td>Past data horizon</td>
+</tr>
+<tr>
+<td>N</td>
+<td>50</td>
+<td>Prediction horizon</td>
+</tr>
+<tr>
+<td>Tstep</td>
+<td>0.05 s</td>
+<td>Simulation time step</td>
+</tr>
+<tr>
+<td>weight_v</td>
+<td>1.0</td>
+<td>Velocity error weight</td>
+</tr>
+<tr>
+<td>weight_s</td>
+<td>0.5</td>
+<td>Spacing error weight</td>
+</tr>
+<tr>
+<td>weight_u</td>
+<td>0.1</td>
+<td>Control effort weight</td>
+</tr>
+<tr>
+<td>λ_g</td>
+<td>1.0</td>
+<td>Regularization on g</td>
+</tr>
+<tr>
+<td>λ_y</td>
+<td>1000</td>
+<td>Output consistency regularization</td>
+</tr>
+<tr>
+<td>acel_max</td>
+<td>2.0 m/s²</td>
+<td>Maximum acceleration</td>
+</tr>
+<tr>
+<td>dcel_max</td>
+<td>-5.0 m/s²</td>
+<td>Maximum deceleration</td>
+</tr>
+<tr>
+<td>spacing_min</td>
+<td>5.0 m</td>
+<td>Minimum safe spacing</td>
+</tr>
+<tr>
+<td>spacing_max</td>
+<td>40.0 m</td>
+<td>Maximum spacing</td>
+</tr>
+<tr>
+<td>perturb_mix</td>
+<td>[(1.0, 0.5), (3.0, 0.3), (5.0, 0.2)]</td>
+<td>Mixed perturbation amplitudes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="perturbation-amplitude-mixing">Perturbation Amplitude Mixing<a class="headerlink" href="#perturbation-amplitude-mixing" title="Permanent link">&para;</a></h3>
+<p>To ensure the dataset covers the full operating range (not just near-equilibrium), the head vehicle perturbation amplitude varies across episodes:</p>
+<table>
+<thead>
+<tr>
+<th>Amplitude</th>
+<th>Fraction</th>
+<th>Head velocity range</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>±1 m/s</td>
+<td>50%</td>
+<td>[14, 16] m/s</td>
+<td>Near-equilibrium behavior</td>
+</tr>
+<tr>
+<td>±3 m/s</td>
+<td>30%</td>
+<td>[12, 18] m/s</td>
+<td>Moderate disturbances</td>
+</tr>
+<tr>
+<td>±5 m/s</td>
+<td>20%</td>
+<td>[10, 20] m/s</td>
+<td>Aggressive disturbances, constraint activation</td>
+</tr>
+</tbody>
+</table>
+<p>Episodes are assigned amplitudes in contiguous blocks. Configure via <code>DeepLCCConfig.perturb_mix</code>.</p>
+<h3 id="measurement-type">Measurement Type<a class="headerlink" href="#measurement-type" title="Permanent link">&para;</a></h3>
+<p>Uses <code>measure_type = 3</code>: velocity errors of all 8 vehicles + spacing errors of 2 CAVs only.</p>
+<p>Output vector dimension: <code>p = n_vehicle + n_cav = 8 + 2 = 10</code>.</p>
+<h2 id="dataset-format">Dataset Format<a class="headerlink" href="#dataset-format" title="Permanent link">&para;</a></h2>
+<p>Saved as <code>.npz</code> with the following arrays:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Shape</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uini</code></td>
+<td><code>(N_samples, m_ctr × T_ini)</code> = <code>(N, 40)</code></td>
+<td>Past CAV accelerations (2 CAVs × 20 steps)</td>
+</tr>
+<tr>
+<td><code>yini</code></td>
+<td><code>(N_samples, p × T_ini)</code> = <code>(N, 200)</code></td>
+<td>Past output measurements (10 outputs × 20 steps)</td>
+</tr>
+<tr>
+<td><code>eini</code></td>
+<td><code>(N_samples, T_ini)</code> = <code>(N, 20)</code></td>
+<td>Past head vehicle velocity disturbance</td>
+</tr>
+<tr>
+<td><code>u_opt</code></td>
+<td><code>(N_samples, m_ctr)</code> = <code>(N, 2)</code></td>
+<td>Optimal first control action (receding horizon)</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td><code>(6,)</code></td>
+<td><code>[v_star, s_star, T_ini, N, lambda_g, lambda_y]</code></td>
+</tr>
+</tbody>
+</table>
+<p>The NN input is <code>(uini, yini, eini)</code> concatenated (260 features); the label is <code>u_opt</code> (2 values).</p>
+<h2 id="pipeline-architecture">Pipeline Architecture<a class="headerlink" href="#pipeline-architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                   For each episode:                         │
+│                                                             │
+│  Phase 1: Pre-Collection (precollect.py)                    │
+│  ┌───────────────────────────────────────────┐              │
+│  │ OVM simulation with random PE inputs      │              │
+│  │ for T=2000 steps                          │              │
+│  │  → ud (CAV accels), ed (head perturb),    │              │
+│  │    yd (measured outputs)                  │              │
+│  │  → Build Hankel matrices                  │              │
+│  │    (Up, Uf, Ep, Ef, Yp, Yf)              │              │
+│  └───────────────────────────────────────────┘              │
+│                        ↓                                    │
+│  Phase 2: DeeP-LCC Closed Loop (generate_dataset.py)        │
+│  ┌───────────────────────────────────────────┐              │
+│  │ OVM simulation with DeeP-LCC controller   │              │
+│  │  → At each step:                          │              │
+│  │    1. Measure (y_k, e_k)                  │              │
+│  │    2. Build state: (uini, yini, eini)     │              │
+│  │    3. Solve QP → u_opt                    │              │
+│  │    4. Record (state, u_opt[0:m]) pair     │              │
+│  │    5. Apply u_opt[0:m] to CAVs            │              │
+│  └───────────────────────────────────────────┘              │
+│                        ↓                                    │
+│  Save dataset.npz                                           │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<h3 id="dataset-generation">Dataset Generation<a class="headerlink" href="#dataset-generation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Generate dataset with default parameters (100 episodes, mixed perturbations)</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/generate_dataset.py
+
+<span class="c1"># Output: deep_lcc_dataset/dataset.npz</span>
+</code></pre></div>
+<h3 id="nnmpc-training">NNMPC Training<a class="headerlink" href="#nnmpc-training" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Train NN to approximate the QP solver</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/nnmpc_train.py
+
+<span class="c1"># Output: deep_lcc_results/nnmpc.pth, deep_lcc_results/nnmpc_training_loss.png</span>
+</code></pre></div>
+<h3 id="nnmpc-evaluation">NNMPC Evaluation<a class="headerlink" href="#nnmpc-evaluation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Evaluate NN vs QP (offline accuracy + closed-loop simulation)</span>
+uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/nnmpc_eval.py
+</code></pre></div>
+<h3 id="programmatic-usage">Programmatic Usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">rl_mixed_traffic.deep_lcc.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeepLCCConfig</span><span class="p">,</span> <span class="n">OVMConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rl_mixed_traffic.deep_lcc.generate_dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_dataset</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">DeepLCCConfig</span><span class="p">(</span><span class="n">num_episodes</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ovm_config</span> <span class="o">=</span> <span class="n">OVMConfig</span><span class="p">()</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">generate_dataset</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">ovm_config</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+<span class="c1"># dataset[&#39;uini&#39;].shape  → (N_samples, 40)</span>
+<span class="c1"># dataset[&#39;u_opt&#39;].shape → (N_samples, 2)</span>
+</code></pre></div>
+<h2 id="module-structure">Module Structure<a class="headerlink" href="#module-structure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>rl_mixed_traffic/deep_lcc/
+├── config.py           # OVMConfig + DeepLCCConfig dataclasses
+├── ovm.py              # OVM car-following dynamics
+├── hankel.py           # Hankel matrix construction
+├── measurement.py      # Output measurement function
+├── qp_solver.py        # DeeP-LCC QP solver (cvxopt dense interior-point)
+├── precollect.py       # Phase 1: trajectory pre-collection
+├── generate_dataset.py # Dataset generation pipeline
+├── nnmpc_config.py     # NNMPC training configuration
+├── nnmpc_network.py    # NNMPC neural network (MLP)
+├── nnmpc_train.py      # Supervised training script
+└── nnmpc_eval.py       # Offline + closed-loop evaluation
+</code></pre></div>
+<h2 id="nnmpc-architecture">NNMPC Architecture<a class="headerlink" href="#nnmpc-architecture" title="Permanent link">&para;</a></h2>
+<p>The NNMPC approximates the DeeP-LCC QP solver with a simple MLP, following the approach in <a href="https://arxiv.org/abs/2510.03354">arxiv:2510.03354</a>.</p>
+<h3 id="network">Network<a class="headerlink" href="#network" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>Input (260) → Linear(256) → ReLU → Linear(128) → ReLU → Linear(2) → Tanh → Scale to [-5, 2]
+</code></pre></div>
+<ul>
+<li><strong>Input:</strong> concatenated <code>(uini, yini, eini)</code> = 40 + 200 + 20 = 260 features</li>
+<li><strong>Output:</strong> 2 CAV accelerations, bounded by Tanh + asymmetric scaling to [dcel_max, acel_max]</li>
+<li><strong>Parameters:</strong> ~100k</li>
+<li><strong>Input normalization:</strong> per-feature mean/std computed from training set, saved with checkpoint</li>
+</ul>
+<h3 id="training">Training<a class="headerlink" href="#training" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Supervised learning: MSE loss on <code>u_opt</code> predictions</li>
+<li>Adam optimizer (lr=5e-4, weight_decay=1e-5)</li>
+<li>Early stopping on validation loss (patience=20 epochs)</li>
+<li>Train/val split: 90/10</li>
+</ul>
+<h3 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h3>
+<p>Two modes:</p>
+<ol>
+<li><strong>Offline accuracy:</strong> MSE, MAE, max error on held-out validation data</li>
+<li><strong>Closed-loop simulation:</strong> run NN controller in the OVM simulation loop, compare trajectory cost against the QP controller on multiple scenarios</li>
+</ol>
+<h3 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h3>
+<h4 id="offline-accuracy-validation-set-7800-samples">Offline Accuracy (Validation Set, 7,800 samples)<a class="headerlink" href="#offline-accuracy-validation-set-7800-samples" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MSE</td>
+<td>0.000896</td>
+</tr>
+<tr>
+<td>MAE</td>
+<td>0.0204 m/s²</td>
+</tr>
+<tr>
+<td>Max error</td>
+<td>0.318 m/s²</td>
+</tr>
+<tr>
+<td>Pred range</td>
+<td>[-1.065, 1.813]</td>
+</tr>
+<tr>
+<td>True range</td>
+<td>[-1.138, 1.960]</td>
+</tr>
+</tbody>
+</table>
+<h4 id="closed-loop-simulation-nn-vs-qp-controller">Closed-Loop Simulation (NN vs QP Controller)<a class="headerlink" href="#closed-loop-simulation-nn-vs-qp-controller" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>QP Cost</th>
+<th>NN Cost</th>
+<th>Diff %</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>random ±1</td>
+<td>10,285</td>
+<td>10,052</td>
+<td><strong>-2.3%</strong></td>
+<td>In-distribution, NN slightly outperforms</td>
+</tr>
+<tr>
+<td>random ±5</td>
+<td>10,574</td>
+<td>10,279</td>
+<td><strong>-2.8%</strong></td>
+<td>In-distribution, NN slightly outperforms</td>
+</tr>
+<tr>
+<td>brake</td>
+<td>4.1M</td>
+<td>21.4M</td>
+<td>+422%</td>
+<td>Out-of-distribution, sustained deceleration</td>
+</tr>
+<tr>
+<td>sinusoidal</td>
+<td>73,749</td>
+<td>7.4M</td>
+<td>+9,914%</td>
+<td>Out-of-distribution, periodic ±5 m/s</td>
+</tr>
+<tr>
+<td>NEDC</td>
+<td>173,754</td>
+<td>5.7M</td>
+<td>+3,160%</td>
+<td>Out-of-distribution, compressed NEDC cycle</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key findings:</strong>
+- The NNMPC performs well on <strong>random perturbations</strong> (the training distribution), even slightly beating the QP solver due to learned smoothing.
+- It fails on <strong>structured perturbations</strong> (brake, sinusoidal, NEDC) because these create sustained deviations that the NN never saw during training. Errors compound in the closed-loop simulation.
+- This motivates the <strong>RLMPC architecture</strong> from <a href="https://arxiv.org/abs/2510.03354">arxiv:2510.03354</a>, where RL learns residual corrections on top of the NNMPC base controller to handle out-of-distribution scenarios.</p>
+<h2 id="model-mismatch-ovm-vs-sumo-idm">Model Mismatch: OVM vs SUMO IDM<a class="headerlink" href="#model-mismatch-ovm-vs-sumo-idm" title="Permanent link">&para;</a></h2>
+<p>The dataset is generated using <strong>OVM</strong> dynamics, but the SUMO ring road uses <strong>IDM</strong> (<code>carFollowModel="IDM"</code> in <code>configs/ring/circle.rou.xml</code>). This creates a sim-to-sim gap when deploying the NNMPC surrogate in SUMO.</p>
+<p>See <a href="#model-mismatch-analysis">Model Mismatch Analysis</a> below for implications and mitigation strategies.</p>
+<h3 id="model-mismatch-analysis">Model Mismatch Analysis<a class="headerlink" href="#model-mismatch-analysis" title="Permanent link">&para;</a></h3>
+<p><strong>The problem:</strong> DeeP-LCC's Hankel matrices encode the input-output behavior of the OVM traffic system. When the NNMPC surrogate (trained on OVM-derived solutions) is deployed in SUMO where HDVs follow IDM, the controller's predictions about how traffic will respond to CAV actions are wrong.</p>
+<p><strong>OVM vs IDM key differences:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>OVM</th>
+<th>IDM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desired velocity</td>
+<td>Depends on spacing only: <code>V_d(s)</code></td>
+<td>Depends on velocity too: free-flow term <code>(v/v0)^δ</code></td>
+</tr>
+<tr>
+<td>Gap sensitivity</td>
+<td>Cosine function of spacing</td>
+<td>Inverse-square of desired gap</td>
+</tr>
+<tr>
+<td>Relative velocity</td>
+<td>Linear term <code>β·Δv</code></td>
+<td>Appears inside desired gap calculation</td>
+</tr>
+<tr>
+<td>Stability</td>
+<td>Can be unstable (string instability)</td>
+<td>Generally more stable</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on the RL integration (arxiv:2510.03354):</strong></p>
+<p>The paper proposes two architectures:</p>
+<ol>
+<li>
+<p><strong>Warm Start RL:</strong> Initialize RL actor with NNMPC weights, then fine-tune with RL. The model mismatch means the warm start is suboptimal but the RL training will adapt to SUMO's actual dynamics. The warm start still provides a better initialization than random weights.</p>
+</li>
+<li>
+<p><strong>RLMPC (residual correction):</strong> RL generates additive corrections <code>δu</code> on top of NNMPC output <code>u_nn</code>, giving <code>u = u_nn + δu</code>. The RL explicitly learns to compensate for NNMPC errors, including model mismatch. This architecture is <strong>more robust</strong> to the OVM/IDM gap.</p>
+</li>
+</ol>
+<p><strong>Mitigation strategies:</strong></p>
+<ol>
+<li>
+<p><strong>Accept the gap, rely on RL correction (recommended for RLMPC).</strong> The residual architecture is designed to handle imperfect base controllers. The NNMPC provides a reasonable starting point; RL compensates.</p>
+</li>
+<li>
+<p><strong>Re-collect Hankel data from SUMO.</strong> Run the SUMO ring road with persistently exciting CAV inputs, record (u, e, y) via TraCI, and build Hankel matrices from SUMO trajectories. This eliminates the model mismatch entirely but requires adapting <code>precollect.py</code> to use <code>RingRoadEnv</code> instead of OVM simulation.</p>
+</li>
+<li>
+<p><strong>Switch SUMO HDVs to OVM.</strong> SUMO doesn't natively support OVM, but you can approximate it by setting head speed via TraCI at each step using the OVM formula — effectively bypassing SUMO's car-following model for HDVs. This is complex and defeats the purpose of using SUMO.</p>
+</li>
+<li>
+<p><strong>Use IDM in the data generation.</strong> The DeeP-LCC reference implementation also supports IDM (<code>hdv_type=2</code>). Switching <code>ovm.py</code> to IDM dynamics and matching SUMO's IDM parameters (<code>accel=2.0, decel=3.0, tau=1.0, minGap=2.5</code>) would reduce the gap, though SUMO's Krauss-based IDM variant may still differ slightly.</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
