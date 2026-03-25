@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a reinforcement learning project for traffic flow optimization using SUMO (Simulation of Urban MObility). The project implements RL agents that control a single autonomous vehicle in a ring road scenario to maximize traffic flow by learning optimal speed control policies. Two RL approaches are implemented: tabular Q-learning and Deep Q-Networks (DQN).
+This is a reinforcement learning project for traffic flow optimization using SUMO (Simulation of Urban MObility). The project implements RL agents that control autonomous vehicles in a ring road scenario to maximize traffic flow by learning optimal speed control policies. Three approaches are implemented: tabular Q-learning, Deep Q-Networks (DQN), and DeeP-LCC with NNMPC (Neural Network approximation of Data-EnablEd Predictive Leading Cruise Control).
 
 ## Environment Setup
 
@@ -38,6 +38,21 @@ uv run rl_mixed_traffic/dqn_train.py
 - Runs 350,000 total steps by default
 - Outputs: `dqn_results/dqn_agent.pth`, `dqn_results/dqn_training_returns.png`, `dqn_results/dqn_training_losses.png`
 
+**DeeP-LCC Dataset Generation**:
+```bash
+uv run rl_mixed_traffic/deep_lcc/generate_dataset.py
+```
+- Runs 100 episodes with mixed perturbation amplitudes (±1/±3/±5 m/s)
+- Uses cvxopt dense interior-point QP solver (~106ms/solve, ~2-5 hours total)
+- Outputs: `deep_lcc_dataset/dataset.npz` (78,000 samples)
+
+**NNMPC (Neural Network MPC)**:
+```bash
+uv run rl_mixed_traffic/deep_lcc/nnmpc_train.py
+```
+- Supervised learning on DeeP-LCC dataset
+- Outputs: `deep_lcc_results/nnmpc.pth`, `deep_lcc_results/nnmpc_training_loss.png`
+
 ### Evaluation
 
 **Q-Learning**:
@@ -53,6 +68,12 @@ uv run rl_mixed_traffic/dqn_eval.py
 ```
 - Loads trained DQN model from `dqn_results/dqn_agent.pth`
 - Runs with GUI enabled for visualization
+
+**NNMPC**:
+```bash
+uv run rl_mixed_traffic/deep_lcc/nnmpc_eval.py
+```
+- Offline accuracy (MSE/MAE on validation set) and closed-loop simulation comparison vs QP solver
 
 ### Testing
 
@@ -99,6 +120,27 @@ uv run pytest
 - Neural network: 2-layer MLP (rl_mixed_traffic/dqn/network.py)
 - Uses SmoothL1Loss (Huber loss)
 - Gradient clipping for stability
+
+### DeeP-LCC / NNMPC (`rl_mixed_traffic/deep_lcc/`)
+
+Data-driven predictive control for CAVs in mixed traffic, no SUMO dependency (uses OVM dynamics).
+
+**Pipeline**: Pre-collect Hankel matrices → Solve QP in closed loop → Train NN surrogate
+
+**QP Solver** (`rl_mixed_traffic/deep_lcc/qp_solver.py`):
+- `CachedDeepLCCSolver`: Pre-builds P, G, A matrices once per episode using cvxopt's dense interior-point solver
+- Called with `(uini, yini, eini)` each step, returns `(u_opt, y_opt, status)`
+
+**NNMPC Network** (`rl_mixed_traffic/deep_lcc/nnmpc_network.py`):
+- MLP: 260 → 256 (ReLU) → 128 (ReLU) → 2 (Tanh) → scaled to [-5, 2] m/s²
+- Input: concatenated `(uini, yini, eini)` with per-feature normalization
+- ~100k parameters, <1ms inference
+
+**Dataset** (`deep_lcc_dataset/dataset.npz`):
+- Arrays: `uini (N,40)`, `yini (N,200)`, `eini (N,20)`, `u_opt (N,2)`, `metadata (6,)`
+- Mixed perturbation amplitudes: 50% ±1, 30% ±3, 20% ±5 m/s
+
+**Vehicle Config**: 8 followers (6 HDV + 2 CAV at positions 3,6) + 1 head vehicle
 
 ### Discretization System
 
@@ -147,6 +189,13 @@ dqn_results/              # DQN results
 ├── dqn_agent.pth         # Trained model checkpoint
 ├── dqn_training_returns.png
 └── dqn_training_losses.png
+
+deep_lcc_dataset/          # DeeP-LCC dataset
+└── dataset.npz           # (uini, yini, eini, u_opt) pairs
+
+deep_lcc_results/          # NNMPC results
+├── nnmpc.pth             # Trained model + normalization stats
+└── nnmpc_training_loss.png
 ```
 
 ## Configuration Files
@@ -161,6 +210,13 @@ dqn_results/              # DQN results
 - Epsilon schedule, discount factor
 - Target network update frequency
 
+**DeepLCCConfig** (rl_mixed_traffic/deep_lcc/config.py): DeeP-LCC parameters
+- Pre-collection length (T), horizons (T_ini, N), cost weights, regularization
+- Perturbation mix: `perturb_mix = [(amplitude, fraction), ...]`
+
+**NNMPCConfig** (rl_mixed_traffic/deep_lcc/nnmpc_config.py): NNMPC training
+- Network architecture, learning rate, batch size, early stopping patience
+
 ## Modifying Behavior
 
 **Change reward function**: Edit `RingRoadEnv.compute_reward()` in rl_mixed_traffic/env/ring_env.py:277
@@ -172,3 +228,9 @@ dqn_results/              # DQN results
 **Tune hyperparameters**:
 - Q-learning: Edit agent initialization in q_train.py or q_eval_policy.py
 - DQN: Modify `DQNConfig` dataclass in rl_mixed_traffic/configs/dqn_config.py
+- DeeP-LCC: Modify `DeepLCCConfig` in rl_mixed_traffic/deep_lcc/config.py
+- NNMPC: Modify `NNMPCConfig` in rl_mixed_traffic/deep_lcc/nnmpc_config.py
+
+**Change perturbation mix**: Edit `DeepLCCConfig.perturb_mix` (list of `(amplitude, fraction)` tuples)
+
+**Change NNMPC architecture**: Edit `NNMPCConfig.hidden_dims` (e.g., `(256, 128)` for 2 hidden layers)

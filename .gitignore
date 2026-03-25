@@ -28,3 +28,6 @@ site/
 
 # Hydra outputs
 outputs/
+
+# Dataset
+*.npz
