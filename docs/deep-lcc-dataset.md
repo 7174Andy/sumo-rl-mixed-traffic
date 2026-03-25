@@ -22,19 +22,25 @@ DeeP-LCC (Data-EnablEd Predictive Leading Cruise Control) is a data-driven predi
 
 ### The Optimization Problem
 
-```
-minimize:  ||Yf·g||²_Q + ||Uf·g||²_R + λ_g·||g||² + λ_y·||Yp·g - yini||²
+$$
+\min_{g} \quad \|Y_f g\|_Q^2 + \|U_f g\|_R^2 + \lambda_g \|g\|_2^2 + \lambda_y \|Y_p g - y_{\text{ini}}\|_2^2
+$$
 
 subject to:
-  [Up]         [uini]
-  [Ep] · g  =  [eini]     (consistency with past data)
-  [Ef]         [  0 ]      (zero future disturbance assumption)
 
-  dcel_max ≤ Uf·g ≤ acel_max        (acceleration bounds)
-  s_min - s* ≤ Sf·Yf·g ≤ s_max - s* (spacing safety constraints)
-```
+$$
+\begin{bmatrix} U_p \\ E_p \\ E_f \end{bmatrix} g = \begin{bmatrix} u_{\text{ini}} \\ e_{\text{ini}} \\ 0 \end{bmatrix}
+$$
 
-Where `g` is the decision variable (Hankel combination weights) and `Uf·g` / `Yf·g` recover optimal future control and output trajectories.
+$$
+a_{\min} \leq U_f g \leq a_{\max} \qquad \text{(acceleration bounds)}
+$$
+
+$$
+s_{\min} - s^* \leq S_f Y_f g \leq s_{\max} - s^* \qquad \text{(spacing safety constraints)}
+$$
+
+where $g$ is the decision variable (Hankel combination weights), $U_f g$ and $Y_f g$ recover optimal future control and output trajectories, and $S_f$ selects the CAV spacing entries from the output vector.
 
 ## Vehicle Configuration
 
