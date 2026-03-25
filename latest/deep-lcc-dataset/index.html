@@ -11,6 +11,10 @@
       
       
       
+        <link rel="prev" href="../lagrangian-ppo/">
+      
+      
+        <link rel="next" href="../exploration/lagrangian_ppo_reward_tuning/">
       
       
         
@@ -21,7 +25,7 @@
     
     
       
-        <title>DeeP-LCC Dataset Generation - SUMO RL Mixed Traffic</title>
+        <title>DeeP-LCC / NNMPC - SUMO RL Mixed Traffic</title>
       
     
     
@@ -108,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              DeeP-LCC Dataset Generation
+              DeeP-LCC / NNMPC
             
           </span>
         </div>
@@ -413,6 +417,485 @@
       
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeeP-LCC / NNMPC
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeeP-LCC / NNMPC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-deep-lcc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background: DeeP-LCC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Background: DeeP-LCC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-optimization-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Optimization Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ovm-parameters-homogeneous-data_str3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVM Parameters (Homogeneous, data_str=3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deep-lcc-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeeP-LCC Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DeeP-LCC Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#perturbation-amplitude-mixing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perturbation Amplitude Mixing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measurement-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataset-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataset-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nnmpc-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NNMPC Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#training-loss-trial-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training Loss (Trial 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-control-action-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Control Action Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trial-1-random-only-training-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trial 1: Random-only training data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trial-2-added-brake-sinusoidal-to-training-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trial 2: Added brake + sinusoidal to training data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trial-3-increased-brake-fraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trial 3: Increased brake fraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-cost-comparison-trial-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Cost Comparison (Trial 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-progression-across-trials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Progression Across Trials
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limitations-of-nn-deep-lcc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations of NN Deep-LCC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-mismatch-ovm-vs-sumo-idm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Mismatch: OVM vs SUMO IDM
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model Mismatch: OVM vs SUMO IDM">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-mismatch-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Mismatch Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
   
   
     
@@ -431,10 +914,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
             
   
   
@@ -452,8 +935,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1298,9 +1781,9 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 <h3 id="results">Results<a class="headerlink" href="#results" title="Permanent link">&para;</a></h3>
 <p>Three training configurations were tested to improve closed-loop robustness. All use the same 260-dim MLP (256→128→2) architecture.</p>
 <h4 id="training-loss-trial-3">Training Loss (Trial 3)<a class="headerlink" href="#training-loss-trial-3" title="Permanent link">&para;</a></h4>
-<p><img alt="Training Loss" src="../deep_lcc_results/nnmpc_training_loss.png" /></p>
+<p><img alt="Training Loss" src="../assets/deep-lcc/nnmpc_training_loss.png" /></p>
 <h4 id="dataset-control-action-distribution">Dataset Control Action Distribution<a class="headerlink" href="#dataset-control-action-distribution" title="Permanent link">&para;</a></h4>
-<p><img alt="Dataset Distribution" src="../deep_lcc_results/dataset_distribution.png" /></p>
+<p><img alt="Dataset Distribution" src="../assets/deep-lcc/dataset_distribution.png" /></p>
 <h4 id="trial-1-random-only-training-data">Trial 1: Random-only training data<a class="headerlink" href="#trial-1-random-only-training-data" title="Permanent link">&para;</a></h4>
 <p>Training data: 100 episodes, 50% ±1 / 30% ±3 / 20% ±5 random perturbations.</p>
 <p><strong>Offline:</strong> MSE=0.000896, MAE=0.020, Max error=0.318</p>
@@ -1440,9 +1923,9 @@ uv<span class="w"> </span>run<span class="w"> </span>rl_mixed_traffic/deep_lcc/n
 </table>
 <p><strong>Finding:</strong> More brake data does not help. The brake scenario is fundamentally hard for the NN due to error compounding at extreme states (see Limitations below).</p>
 <h4 id="closed-loop-cost-comparison-trial-3">Closed-Loop Cost Comparison (Trial 3)<a class="headerlink" href="#closed-loop-cost-comparison-trial-3" title="Permanent link">&para;</a></h4>
-<p><img alt="Closed-Loop Comparison" src="../deep_lcc_results/closed_loop_comparison.png" /></p>
+<p><img alt="Closed-Loop Comparison" src="../assets/deep-lcc/closed_loop_comparison.png" /></p>
 <h4 id="performance-progression-across-trials">Performance Progression Across Trials<a class="headerlink" href="#performance-progression-across-trials" title="Permanent link">&para;</a></h4>
-<p><img alt="Trial Progression" src="../deep_lcc_results/trial_progression.png" /></p>
+<p><img alt="Trial Progression" src="../assets/deep-lcc/trial_progression.png" /></p>
 <h3 id="limitations-of-nn-deep-lcc">Limitations of NN Deep-LCC<a class="headerlink" href="#limitations-of-nn-deep-lcc" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
