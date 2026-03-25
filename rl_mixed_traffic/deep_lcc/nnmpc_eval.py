@@ -159,7 +159,9 @@ def run_closed_loop(
             cav_accel = controller_fn(uini, yini, eini)
 
             # Accumulate cost: y_k' Q y_k + u_k' R u_k (single step)
-            total_cost += float(y_k @ Q @ y_k + cav_accel @ R[:m_ctr, :m_ctr] @ cav_accel)
+            total_cost += float(
+                y_k @ Q @ y_k + cav_accel @ R[:m_ctr, :m_ctr] @ cav_accel
+            )
             n_control_steps += 1
         else:
             cav_accel = np.zeros(m_ctr)
@@ -167,7 +169,9 @@ def run_closed_loop(
         # HDV dynamics
         acel = hdv_dynamics(S, ovm_config)
         noise_rng = np.random.default_rng(k)
-        noise = -config.acel_noise + 2.0 * config.acel_noise * noise_rng.random(n_vehicle)
+        noise = -config.acel_noise + 2.0 * config.acel_noise * noise_rng.random(
+            n_vehicle
+        )
         acel = np.clip(acel + noise, ovm_config.dcel_max, ovm_config.acel_max)
 
         S[0, 2] = 0.0
@@ -200,10 +204,12 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
 
     Q_v = config.weight_v * np.eye(n_vehicle)
     Q_s = config.weight_s * np.eye(m_ctr)
-    Q = np.block([
-        [Q_v, np.zeros((n_vehicle, m_ctr))],
-        [np.zeros((m_ctr, n_vehicle)), Q_s],
-    ])
+    Q = np.block(
+        [
+            [Q_v, np.zeros((n_vehicle, m_ctr))],
+            [np.zeros((m_ctr, n_vehicle)), Q_s],
+        ]
+    )
     R = config.weight_u * np.eye(m_ctr)
 
     total_steps = int(config.total_time / config.Tstep)
@@ -213,7 +219,9 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
         "random_±1": lambda rng: -1.0 + 2.0 * rng.random(total_steps),
         "random_±5": lambda rng: -5.0 + 10.0 * rng.random(total_steps),
         "brake": lambda _: _make_brake_perturbation(total_steps, config.Tstep),
-        "sinusoidal": lambda _: _make_sinusoidal_perturbation(total_steps, config.Tstep),
+        "sinusoidal": lambda _: _make_sinusoidal_perturbation(
+            total_steps, config.Tstep
+        ),
         "NEDC": lambda _: _make_nedc_perturbation(total_steps, config.Tstep),
     }
 
@@ -228,10 +236,21 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
         # QP controller
         Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=999)
         solver = CachedDeepLCCSolver(
-            Up, Yp, Uf, Yf, Ep, Ef, Q, R,
-            config.lambda_g, config.lambda_y,
+            Up,
+            Yp,
+            Uf,
+            Yf,
+            Ep,
+            Ef,
+            Q,
+            R,
+            config.lambda_g,
+            config.lambda_y,
             u_limit=(config.dcel_max, config.acel_max),
-            s_limit=(config.spacing_min - config.s_star, config.spacing_max - config.s_star),
+            s_limit=(
+                config.spacing_min - config.s_star,
+                config.spacing_max - config.s_star,
+            ),
         )
 
         def qp_controller(uini, yini, eini):
@@ -301,17 +320,18 @@ def _make_nedc_perturbation(total_steps: int, tstep: float) -> np.ndarray:
     """
     # Original NEDC breakpoints: (cumulative_time_s, velocity_kmh)
     nedc_breakpoints = [
-        (0, 70), (50, 70),       # cruise 70
-        (58, 50),                 # decel to 50
-        (127, 50),               # cruise 50
-        (140, 70),               # accel to 70
-        (190, 70),               # cruise 70
-        (225, 100),              # accel to 100
-        (255, 100),              # cruise 100
-        (275, 120),              # accel to 120
-        (285, 120),              # cruise 120
-        (299, 70),               # decel to 70
-        (319, 70),               # cruise 70
+        (0, 70),
+        (50, 70),  # cruise 70
+        (58, 50),  # decel to 50
+        (127, 50),  # cruise 50
+        (140, 70),  # accel to 70
+        (190, 70),  # cruise 70
+        (225, 100),  # accel to 100
+        (255, 100),  # cruise 100
+        (275, 120),  # accel to 120
+        (285, 120),  # cruise 120
+        (299, 70),  # decel to 70
+        (319, 70),  # cruise 70
     ]
 
     total_time = total_steps * tstep

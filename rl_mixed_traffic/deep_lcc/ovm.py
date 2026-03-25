@@ -35,8 +35,10 @@ def hdv_dynamics(S: np.ndarray, config: OVMConfig) -> np.ndarray:
     cal_D = np.clip(D_diff, config.s_st, s_go)
 
     # Desired velocity: V_d = v_max/2 * (1 - cos(pi * (s - s_st) / (s_go - s_st)))
-    V_d = config.v_max / 2.0 * (
-        1.0 - np.cos(np.pi * (cal_D - config.s_st) / (s_go - config.s_st))
+    V_d = (
+        config.v_max
+        / 2.0
+        * (1.0 - np.cos(np.pi * (cal_D - config.s_st) / (s_go - config.s_st)))
     )
 
     # OVM acceleration: a = alpha * (V_d - v) + beta * (v_leader - v)

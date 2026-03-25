@@ -101,16 +101,20 @@ def _build_weight_matrices(
         Q = Q_v
     elif config.measure_type == 2:
         Q_s = config.weight_s * np.eye(n_vehicle)
-        Q = np.block([
-            [Q_v, np.zeros((n_vehicle, n_vehicle))],
-            [np.zeros((n_vehicle, n_vehicle)), Q_s],
-        ])
+        Q = np.block(
+            [
+                [Q_v, np.zeros((n_vehicle, n_vehicle))],
+                [np.zeros((n_vehicle, n_vehicle)), Q_s],
+            ]
+        )
     elif config.measure_type == 3:
         Q_s = config.weight_s * np.eye(m_ctr)
-        Q = np.block([
-            [Q_v, np.zeros((n_vehicle, m_ctr))],
-            [np.zeros((m_ctr, n_vehicle)), Q_s],
-        ])
+        Q = np.block(
+            [
+                [Q_v, np.zeros((n_vehicle, m_ctr))],
+                [np.zeros((m_ctr, n_vehicle)), Q_s],
+            ]
+        )
     else:
         raise ValueError(f"Unknown measure_type: {config.measure_type}")
 
@@ -161,9 +165,18 @@ def run_deep_lcc_episode(
 
     # Build cached parametric solver once for the entire episode
     solver = CachedDeepLCCSolver(
-        Up, Yp, Uf, Yf, Ep, Ef, Q, R,
-        config.lambda_g, config.lambda_y,
-        u_limit=u_limit, s_limit=s_limit,
+        Up,
+        Yp,
+        Uf,
+        Yf,
+        Ep,
+        Ef,
+        Q,
+        R,
+        config.lambda_g,
+        config.lambda_y,
+        u_limit=u_limit,
+        s_limit=s_limit,
     )
 
     # Initialize vehicles at equilibrium
@@ -286,7 +299,8 @@ def generate_dataset(
 
     Q, R = _build_weight_matrices(config, n_vehicle, m_ctr, p_ctr)
     episode_perturbations = _assign_episode_perturbations(
-        config.num_episodes, config.perturb_mix,
+        config.num_episodes,
+        config.perturb_mix,
     )
     total_steps = int(config.total_time / config.Tstep)
 
@@ -305,11 +319,24 @@ def generate_dataset(
         # Phase 2: Run DeeP-LCC in closed loop
         rng = np.random.default_rng(ep_seed + 10000)
         ed_episode = _make_perturbation_signal(
-            ptype, amp, total_steps, config.Tstep, rng,
+            ptype,
+            amp,
+            total_steps,
+            config.Tstep,
+            rng,
         )
         uini_list, yini_list, eini_list, u_opt_list = run_deep_lcc_episode(
-            Up, Uf, Ep, Ef, Yp, Yf,
-            config, ovm_config, Q, R, rng,
+            Up,
+            Uf,
+            Ep,
+            Ef,
+            Yp,
+            Yf,
+            config,
+            ovm_config,
+            Q,
+            R,
+            rng,
             ed_episode=ed_episode,
         )
 
@@ -323,10 +350,16 @@ def generate_dataset(
         "yini": np.array(all_yini),
         "eini": np.array(all_eini),
         "u_opt": np.array(all_u_opt),
-        "metadata": np.array([
-            config.v_star, config.s_star, config.T_ini, config.N,
-            config.lambda_g, config.lambda_y,
-        ]),
+        "metadata": np.array(
+            [
+                config.v_star,
+                config.s_star,
+                config.T_ini,
+                config.N,
+                config.lambda_g,
+                config.lambda_y,
+            ]
+        ),
     }
 
     return dataset

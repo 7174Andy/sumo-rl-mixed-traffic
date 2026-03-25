@@ -75,6 +75,4 @@ class DeepLCCConfig:
     def __post_init__(self) -> None:
         total = sum(frac for _, _, frac in self.perturb_mix)
         if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                f"perturb_mix fractions must sum to 1.0, got {total}"
-            )
+            raise ValueError(f"perturb_mix fractions must sum to 1.0, got {total}")

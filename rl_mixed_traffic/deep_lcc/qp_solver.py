@@ -156,8 +156,17 @@ def solve_deep_lcc(
     directly to avoid re-canonicalization overhead.
     """
     solver = CachedDeepLCCSolver(
-        Up, Yp, Uf, Yf, Ep, Ef, Q, R,
-        lambda_g, lambda_y,
-        u_limit=u_limit, s_limit=s_limit,
+        Up,
+        Yp,
+        Uf,
+        Yf,
+        Ep,
+        Ef,
+        Q,
+        R,
+        lambda_g,
+        lambda_y,
+        u_limit=u_limit,
+        s_limit=s_limit,
     )
     return solver(uini, yini, eini)
