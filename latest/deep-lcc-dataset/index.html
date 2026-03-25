@@ -1452,17 +1452,20 @@
 </li>
 </ol>
 <h3 id="the-optimization-problem">The Optimization Problem<a class="headerlink" href="#the-optimization-problem" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>minimize:  ||Yf·g||²_Q + ||Uf·g||²_R + λ_g·||g||² + λ_y·||Yp·g - yini||²
-
-subject to:
-  [Up]         [uini]
-  [Ep] · g  =  [eini]     (consistency with past data)
-  [Ef]         [  0 ]      (zero future disturbance assumption)
-
-  dcel_max ≤ Uf·g ≤ acel_max        (acceleration bounds)
-  s_min - s* ≤ Sf·Yf·g ≤ s_max - s* (spacing safety constraints)
-</code></pre></div>
-<p>Where <code>g</code> is the decision variable (Hankel combination weights) and <code>Uf·g</code> / <code>Yf·g</code> recover optimal future control and output trajectories.</p>
+<div class="arithmatex">\[
+\min_{g} \quad \|Y_f g\|_Q^2 + \|U_f g\|_R^2 + \lambda_g \|g\|_2^2 + \lambda_y \|Y_p g - y_{\text{ini}}\|_2^2
+\]</div>
+<p>subject to:</p>
+<div class="arithmatex">\[
+\begin{bmatrix} U_p \\ E_p \\ E_f \end{bmatrix} g = \begin{bmatrix} u_{\text{ini}} \\ e_{\text{ini}} \\ 0 \end{bmatrix}
+\]</div>
+<div class="arithmatex">\[
+a_{\min} \leq U_f g \leq a_{\max} \qquad \text{(acceleration bounds)}
+\]</div>
+<div class="arithmatex">\[
+s_{\min} - s^* \leq S_f Y_f g \leq s_{\max} - s^* \qquad \text{(spacing safety constraints)}
+\]</div>
+<p>where <span class="arithmatex">\(g\)</span> is the decision variable (Hankel combination weights), <span class="arithmatex">\(U_f g\)</span> and <span class="arithmatex">\(Y_f g\)</span> recover optimal future control and output trajectories, and <span class="arithmatex">\(S_f\)</span> selects the CAV spacing entries from the output vector.</p>
 <h2 id="vehicle-configuration">Vehicle Configuration<a class="headerlink" href="#vehicle-configuration" title="Permanent link">&para;</a></h2>
 <p>Matches the DeeP-LCC reference implementation exactly:</p>
 <ul>
