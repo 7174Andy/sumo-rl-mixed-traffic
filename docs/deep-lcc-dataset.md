@@ -235,7 +235,34 @@ Input (260) → Linear(256) → ReLU → Linear(128) → ReLU → Linear(2) → 
 Two modes:
 
 1. **Offline accuracy:** MSE, MAE, max error on held-out validation data
-2. **Closed-loop simulation:** run NN controller in the OVM simulation loop, compare trajectory cost against the QP controller on random and brake perturbation scenarios
+2. **Closed-loop simulation:** run NN controller in the OVM simulation loop, compare trajectory cost against the QP controller on multiple scenarios
+
+### Results
+
+#### Offline Accuracy (Validation Set, 7,800 samples)
+
+| Metric | Value |
+|--------|-------|
+| MSE | 0.000896 |
+| MAE | 0.0204 m/s² |
+| Max error | 0.318 m/s² |
+| Pred range | [-1.065, 1.813] |
+| True range | [-1.138, 1.960] |
+
+#### Closed-Loop Simulation (NN vs QP Controller)
+
+| Scenario | QP Cost | NN Cost | Diff % | Notes |
+|----------|---------|---------|--------|-------|
+| random ±1 | 10,285 | 10,052 | **-2.3%** | In-distribution, NN slightly outperforms |
+| random ±5 | 10,574 | 10,279 | **-2.8%** | In-distribution, NN slightly outperforms |
+| brake | 4.1M | 21.4M | +422% | Out-of-distribution, sustained deceleration |
+| sinusoidal | 73,749 | 7.4M | +9,914% | Out-of-distribution, periodic ±5 m/s |
+| NEDC | 173,754 | 5.7M | +3,160% | Out-of-distribution, compressed NEDC cycle |
+
+**Key findings:**
+- The NNMPC performs well on **random perturbations** (the training distribution), even slightly beating the QP solver due to learned smoothing.
+- It fails on **structured perturbations** (brake, sinusoidal, NEDC) because these create sustained deviations that the NN never saw during training. Errors compound in the closed-loop simulation.
+- This motivates the **RLMPC architecture** from [arxiv:2510.03354](https://arxiv.org/abs/2510.03354), where RL learns residual corrections on top of the NNMPC base controller to handle out-of-distribution scenarios.
 
 ## Model Mismatch: OVM vs SUMO IDM
 
