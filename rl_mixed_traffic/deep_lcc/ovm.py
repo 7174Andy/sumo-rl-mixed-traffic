@@ -25,12 +25,15 @@ def hdv_dynamics(S: np.ndarray, config: OVMConfig) -> np.ndarray:
     # Spacing: leader_pos - follower_pos  (positive gap)
     D_diff = S[:-1, 0] - S[1:, 0]  # shape (n_vehicle,)
 
-    # Clamp spacing for OVM desired-velocity calculation
-    s_go = config.s_go
-    if np.isscalar(s_go):
-        s_go = np.full(n_vehicle, s_go)
-    else:
-        s_go = np.asarray(s_go).ravel()[:n_vehicle]
+    # Broadcast scalar or per-vehicle parameters to length n_vehicle
+    def _to_array(x):
+        if np.isscalar(x):
+            return np.full(n_vehicle, x)
+        return np.asarray(x, dtype=float).ravel()[:n_vehicle]
+
+    alpha = _to_array(config.alpha)
+    beta = _to_array(config.beta)
+    s_go = _to_array(config.s_go)
 
     cal_D = np.clip(D_diff, config.s_st, s_go)
 
@@ -43,7 +46,7 @@ def hdv_dynamics(S: np.ndarray, config: OVMConfig) -> np.ndarray:
 
     # OVM acceleration: a = alpha * (V_d - v) + beta * (v_leader - v)
     v_followers = S[1:, 1]
-    acel = config.alpha * (V_d - v_followers) + config.beta * V_diff
+    acel = alpha * (V_d - v_followers) + beta * V_diff
 
     # Acceleration saturation
     acel = np.clip(acel, config.dcel_max, config.acel_max)
