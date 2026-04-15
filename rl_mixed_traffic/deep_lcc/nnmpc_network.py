@@ -15,7 +15,7 @@ class NNMPCNetwork(nn.Module):
         output_dim: int,
         hidden_dims: tuple[int, ...] = (256, 128),
         accel_min: float = -5.0,
-        accel_max: float = 2.0,
+        accel_max: float = 3.0,
     ):
         super().__init__()
 

@@ -52,8 +52,8 @@ class DeepLCCConfig:
     s_star: float = 20.0
 
     # Cost weights
-    weight_v: float = 3.0
-    weight_s: float = 0.5
+    weight_v: float = 5.0
+    weight_s: float = 0.1
     weight_u: float = 0.1
 
     # Regularisation
@@ -61,7 +61,7 @@ class DeepLCCConfig:
     lambda_y: float = 1e4
 
     # Constraints
-    acel_max: float = 2.0
+    acel_max: float = 3.0
     dcel_max: float = -5.0
     spacing_min: float = 5.0
     spacing_max: float = 40.0
@@ -71,7 +71,7 @@ class DeepLCCConfig:
 
     # Simulation
     Tstep: float = 0.05
-    total_time: float = 400.0
+    total_time: float = 100.0
 
     # Dataset generation
     num_episodes: int = 100

@@ -21,7 +21,7 @@ class NNMPCConfig:
 
     # Output bounds (acceleration limits)
     accel_min: float = -5.0
-    accel_max: float = 2.0
+    accel_max: float = 3.0
 
     # Paths
     dataset_path: str = "deep_lcc_dataset/dataset.npz"

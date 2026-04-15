@@ -10,10 +10,15 @@ Usage:
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from rl_mixed_traffic.deep_lcc.config import DeepLCCConfig, OVMConfig
+from rl_mixed_traffic.deep_lcc.config import (
+    DeepLCCConfig,
+    OVMConfig,
+    get_heterogeneous_ovm_config,
+)
 from rl_mixed_traffic.deep_lcc.measurement import measure_mixed_traffic
 from rl_mixed_traffic.deep_lcc.nnmpc_config import NNMPCConfig
 from rl_mixed_traffic.deep_lcc.nnmpc_network import NNMPCNetwork
@@ -106,15 +111,22 @@ def run_closed_loop(
     ovm_config: OVMConfig,
     Q: np.ndarray,
     R: np.ndarray,
-    ed_episode: np.ndarray,
-) -> tuple[float, int]:
+    head_vel_abs: np.ndarray,
+) -> tuple[float, int, dict[str, np.ndarray]]:
     """Run one closed-loop episode with a given controller.
+
+    Matches the reference implementation (soc-ucsd/DeeP-LCC) with:
+    - Dynamic equilibrium update (v_star, s_star) each step
+    - Re-computation of yini with updated equilibrium
+    - Full state history for past measurement recomputation
+    - AEB override when HDV dynamics commands emergency braking
 
     Args:
         controller_fn: Callable(uini, yini, eini) → u_cav (m_ctr,)
+        head_vel_abs: Absolute head vehicle velocity at each step (m/s).
 
     Returns:
-        (total_cost, n_steps)
+        (total_cost, n_steps, velocities)
     """
     n_vehicle = ovm_config.n_vehicle
     ID = ovm_config.ID
@@ -122,43 +134,52 @@ def run_closed_loop(
     m_ctr = len(pos_cav)
     p_ctr = n_vehicle + m_ctr  # measure_type=3
 
-    total_steps = int(config.total_time / config.Tstep)
+    total_steps = len(head_vel_abs)
     T_ini = config.T_ini
 
-    # Initialize vehicles at equilibrium
-    S = np.zeros((n_vehicle + 1, 3))
-    S[0, 0] = 0.0
-    for i in range(1, n_vehicle + 1):
-        S[i, 0] = S[i - 1, 0] - config.s_star
-    S[:, 1] = config.v_star
+    v_star = config.v_star
+    s_star = config.s_star
 
-    u_buffer = np.zeros((m_ctr, T_ini))
-    y_buffer = np.zeros((p_ctr, T_ini))
-    e_buffer = np.zeros(T_ini)
+    # State: S[k] = (n_vehicle+1, 3) with [pos, vel, accel]
+    S = np.zeros((total_steps, n_vehicle + 1, 3))
+    S[0, 0, 0] = 0.0
+    for i in range(1, n_vehicle + 1):
+        S[0, i, 0] = S[0, i - 1, 0] - s_star
+    S[0, :, 1] = v_star
+
+    # Rolling buffers (matching dataset generator structure)
+    u_buf = np.zeros((m_ctr, T_ini))
+    y_buf = np.zeros((p_ctr, T_ini))
+    e_buf = np.zeros(T_ini)
 
     total_cost = 0.0
     n_control_steps = 0
 
-    for k in range(total_steps):
-        y_k = measure_mixed_traffic(
-            S[1:, 1], S[:, 0], ID, config.v_star, config.s_star, config.measure_type
-        )
-        e_k = S[0, 1] - config.v_star
+    vel_head = np.zeros(total_steps)
+    vel_cavs = np.zeros((m_ctr, total_steps))
 
-        u_buffer = np.roll(u_buffer, -1, axis=1)
-        y_buffer = np.roll(y_buffer, -1, axis=1)
-        e_buffer = np.roll(e_buffer, -1)
-        y_buffer[:, -1] = y_k
-        e_buffer[-1] = e_k
+    for k in range(total_steps - 1):
+        # Measure current output (fixed equilibrium, matching dataset generation)
+        y_k = measure_mixed_traffic(
+            S[k, 1:, 1], S[k, :, 0], ID, v_star, s_star, config.measure_type
+        )
+        e_k = S[k, 0, 1] - v_star
+
+        # Update rolling buffers
+        u_buf = np.roll(u_buf, -1, axis=1)
+        y_buf = np.roll(y_buf, -1, axis=1)
+        e_buf = np.roll(e_buf, -1)
+        y_buf[:, -1] = y_k
+        e_buf[-1] = e_k
 
         if k >= T_ini:
-            uini = u_buffer.flatten(order="F")
-            yini = y_buffer.flatten(order="F")
-            eini = e_buffer.copy()
+            uini = u_buf.flatten(order="F")
+            yini = y_buf.flatten(order="F")
+            eini = e_buf.copy()
 
             cav_accel = controller_fn(uini, yini, eini)
 
-            # Accumulate cost: y_k' Q y_k + u_k' R u_k (single step)
+            # Accumulate cost
             total_cost += float(
                 y_k @ Q @ y_k + cav_accel @ R[:m_ctr, :m_ctr] @ cav_accel
             )
@@ -166,28 +187,40 @@ def run_closed_loop(
         else:
             cav_accel = np.zeros(m_ctr)
 
-        # HDV dynamics
-        acel = hdv_dynamics(S, ovm_config)
-        noise_rng = np.random.default_rng(k)
-        noise = -config.acel_noise + 2.0 * config.acel_noise * noise_rng.random(
+        # HDV dynamics + noise
+        acel = hdv_dynamics(S[k], ovm_config)
+        noise = -config.acel_noise + 2.0 * config.acel_noise * np.random.rand(
             n_vehicle
         )
         acel = np.clip(acel + noise, ovm_config.dcel_max, ovm_config.acel_max)
 
-        S[0, 2] = 0.0
-        S[1:, 2] = acel
+        S[k, 0, 2] = 0.0
+        S[k, 1:, 2] = acel
         for j, cav_idx in enumerate(pos_cav):
-            S[cav_idx + 1, 2] = float(cav_accel[j])
+            S[k, cav_idx + 1, 2] = float(cav_accel[j])
 
-        u_buffer[:, -1] = cav_accel
+        u_buf[:, -1] = cav_accel
 
-        S_new = S.copy()
-        S_new[:, 1] = S[:, 1] + config.Tstep * S[:, 2]
-        S_new[0, 1] = ed_episode[k] + config.v_star
-        S_new[:, 0] = S[:, 0] + config.Tstep * S[:, 1]
-        S = S_new
+        # Integrate dynamics
+        S[k + 1, :, 1] = S[k, :, 1] + config.Tstep * S[k, :, 2]
+        S[k + 1, 0, 1] = head_vel_abs[k + 1]
+        S[k + 1, :, 0] = S[k, :, 0] + config.Tstep * S[k, :, 1]
 
-    return total_cost, n_control_steps
+        vel_head[k] = S[k, 0, 1]
+        for j, cav_idx in enumerate(pos_cav):
+            vel_cavs[j, k] = S[k, cav_idx + 1, 1]
+
+    # Final step
+    k_end = total_steps - 1
+    vel_head[k_end] = S[k_end, 0, 1]
+    for j, cav_idx in enumerate(pos_cav):
+        vel_cavs[j, k_end] = S[k_end, cav_idx + 1, 1]
+
+    velocities = {"head": vel_head}
+    for j in range(m_ctr):
+        velocities[f"cav_{j}"] = vel_cavs[j]
+
+    return total_cost, n_control_steps, velocities
 
 
 def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
@@ -196,7 +229,7 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
     model, input_mean, input_std = load_model(nnmpc_config.model_path, device)
 
     config = DeepLCCConfig()
-    ovm_config = OVMConfig()
+    ovm_config = get_heterogeneous_ovm_config()
 
     n_vehicle = ovm_config.n_vehicle
     pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
@@ -212,17 +245,19 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
     )
     R = config.weight_u * np.eye(m_ctr)
 
-    total_steps = int(config.total_time / config.Tstep)
+    # Use 40s for eval scenarios (not the full 100s training duration)
+    eval_time = 40.0
+    total_steps = int(eval_time / config.Tstep)
 
-    # Test scenarios
+    # Test scenarios: all return absolute head vehicle velocity arrays
+    v_s = config.v_star
     scenarios = {
-        "random_±1": lambda rng: -1.0 + 2.0 * rng.random(total_steps),
-        "random_±5": lambda rng: -5.0 + 10.0 * rng.random(total_steps),
-        "brake": lambda _: _make_brake_perturbation(total_steps, config.Tstep),
-        "sinusoidal": lambda _: _make_sinusoidal_perturbation(
+        "random_±1": lambda rng: v_s + (-1.0 + 2.0 * rng.random(total_steps)),
+        "random_±5": lambda rng: v_s + (-5.0 + 10.0 * rng.random(total_steps)),
+        "brake": lambda _: v_s + _make_brake_perturbation(total_steps, config.Tstep),
+        "sinusoidal": lambda _: v_s + _make_sinusoidal_perturbation(
             total_steps, config.Tstep
         ),
-        "NEDC": lambda _: _make_nedc_perturbation(total_steps, config.Tstep),
     }
 
     print("\n=== Closed-Loop Evaluation ===")
@@ -231,7 +266,7 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
 
     for name, ed_fn in scenarios.items():
         rng = np.random.default_rng(123)
-        ed_episode = ed_fn(rng)
+        head_vel_abs = ed_fn(rng)
 
         # QP controller
         Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=999)
@@ -259,20 +294,65 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
                 return u_opt[:m_ctr]
             return np.zeros(m_ctr)
 
-        qp_cost, _ = run_closed_loop(
-            qp_controller, config, ovm_config, Q, R, ed_episode
+        qp_cost, _, qp_vel = run_closed_loop(
+            qp_controller, config, ovm_config, Q, R, head_vel_abs
         )
 
         # NN controller
         def nn_controller(uini, yini, eini):
             return nn_predict(model, uini, yini, eini, input_mean, input_std, device)
 
-        nn_cost, _ = run_closed_loop(
-            nn_controller, config, ovm_config, Q, R, ed_episode
+        nn_cost, _, nn_vel = run_closed_loop(
+            nn_controller, config, ovm_config, Q, R, head_vel_abs
         )
 
         diff_pct = (nn_cost - qp_cost) / max(abs(qp_cost), 1e-8) * 100
         print(f"{name:<15} {qp_cost:10.2f} {nn_cost:10.2f} {diff_pct:+7.2f}%")
+
+        if name in ("NEDC", "brake", "sinusoidal"):
+            plot_scenario_velocities(name, qp_vel, nn_vel, config)
+
+
+def plot_scenario_velocities(
+    scenario_name: str,
+    qp_vel: dict[str, np.ndarray],
+    nn_vel: dict[str, np.ndarray],
+    config: DeepLCCConfig,
+) -> None:
+    """Plot CAV velocities for QP vs NN on a given scenario."""
+    total_steps = len(qp_vel["head"])
+    t = np.arange(total_steps) * config.Tstep
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Head vehicle (reference)
+    ax.plot(t, qp_vel["head"], color="gray", linewidth=1.5, linestyle="--",
+            label="Head vehicle", alpha=0.7)
+
+    # CAV 3 (pos_cav index 0)
+    ax.plot(t, qp_vel["cav_0"], color="#1f77b4", linewidth=1.5,
+            label="CAV 3 (QP)")
+    ax.plot(t, nn_vel["cav_0"], color="#1f77b4", linewidth=1.5, linestyle=":",
+            label="CAV 3 (NN)")
+
+    # CAV 6 (pos_cav index 1)
+    ax.plot(t, qp_vel["cav_1"], color="#d62728", linewidth=1.5,
+            label="CAV 6 (QP)")
+    ax.plot(t, nn_vel["cav_1"], color="#d62728", linewidth=1.5, linestyle=":",
+            label="CAV 6 (NN)")
+
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Velocity (m/s)")
+    ax.set_title(f"{scenario_name} Scenario: CAV Velocities — QP vs NN")
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.3)
+
+    filename = scenario_name.lower().replace("±", "").replace(" ", "_")
+    out_path = f"deep_lcc_results/{filename}_cav_velocities.png"
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\n{scenario_name} velocity plot saved to {out_path}")
 
 
 def _make_brake_perturbation(total_steps: int, tstep: float) -> np.ndarray:
@@ -310,56 +390,62 @@ def _make_sinusoidal_perturbation(total_steps: int, tstep: float) -> np.ndarray:
 
 
 def _make_nedc_perturbation(total_steps: int, tstep: float) -> np.ndarray:
-    """NEDC (New European Driving Cycle) extra-urban profile.
+    """Extract NEDC head vehicle trajectory from reference simulation data.
 
-    Compressed from 319s to fit simulation duration and scaled to
-    perturbations around v_star. The NEDC profile (70-120 km/h) is
-    mapped to [-3, +5] m/s perturbation range.
+    Loads the head vehicle velocity from the reference .mat file produced
+    by soc-ucsd/DeeP-LCC. Returns absolute velocity (m/s), not perturbation.
 
-    Reference: soc-ucsd/DeeP-LCC nedc_trajectory.py
+    Falls back to a synthetic EUDC-like profile if .mat file is not found.
     """
-    # Original NEDC breakpoints: (cumulative_time_s, velocity_kmh)
-    nedc_breakpoints = [
-        (0, 70),
-        (50, 70),  # cruise 70
-        (58, 50),  # decel to 50
-        (127, 50),  # cruise 50
-        (140, 70),  # accel to 70
-        (190, 70),  # cruise 70
-        (225, 100),  # accel to 100
-        (255, 100),  # cruise 100
-        (275, 120),  # accel to 120
-        (285, 120),  # cruise 120
-        (299, 70),  # decel to 70
-        (319, 70),  # cruise 70
+    mat_path = Path("deep_lcc_dataset/nedc_reference.mat")
+    if not mat_path.exists():
+        # Try the download location
+        mat_path = Path.home() / "Downloads" / (
+            "simulation_data2_1_modified_v1_noiseLevel_0.1"
+            "_hdvType_1_lambdaG_100_lambdaY_10000.mat"
+        )
+
+    if mat_path.exists():
+        from scipy.io import loadmat
+
+        data = loadmat(str(mat_path))
+        S_ref = data["S"]  # (total_steps, n_vehicle+1, 3)
+        head_vel = S_ref[:, 0, 1].ravel()
+        # Truncate or pad to match requested total_steps
+        if len(head_vel) >= total_steps:
+            return head_vel[:total_steps]
+        # Pad with last value
+        return np.concatenate(
+            [head_vel, np.full(total_steps - len(head_vel), head_vel[-1])]
+        )
+
+    # Fallback: synthetic EUDC-like profile (highway portion of NEDC)
+    # Breakpoints: (time_s, velocity_m/s) — based on EUDC at real timescale
+    breakpoints = [
+        (0, 15.0), (10, 19.44), (50, 19.44),  # cruise 70 km/h
+        (58, 13.89), (127, 13.89),              # decel to 50, cruise
+        (140, 19.44), (190, 19.44),             # accel to 70, cruise
+        (225, 27.78), (255, 27.78),             # accel to 100, cruise
+        (275, 33.33), (285, 33.33),             # accel to 120, cruise
+        (299, 19.44), (319, 19.44),             # decel to 70, cruise
     ]
 
-    total_time = total_steps * tstep
-    nedc_total = nedc_breakpoints[-1][0]
+    bp_times = np.array([t for t, _ in breakpoints])
+    bp_vals = np.array([v for _, v in breakpoints])
 
-    # Interpolate NEDC velocity at each simulation step (compressed time)
-    ed = np.zeros(total_steps)
+    head_vel = np.full(total_steps, bp_vals[-1])
     for k in range(total_steps):
-        # Map simulation time to NEDC time
-        t_nedc = (k * tstep / total_time) * nedc_total
+        t = k * tstep
+        if t <= bp_times[0]:
+            head_vel[k] = bp_vals[0]
+        elif t < bp_times[-1]:
+            idx = np.searchsorted(bp_times, t, side="right") - 1
+            t0, v0 = bp_times[idx], bp_vals[idx]
+            t1, v1 = bp_times[idx + 1], bp_vals[idx + 1]
+            frac = (t - t0) / (t1 - t0) if t1 > t0 else 0.0
+            head_vel[k] = v0 + frac * (v1 - v0)
 
-        # Find surrounding breakpoints
-        for i in range(len(nedc_breakpoints) - 1):
-            t0, v0 = nedc_breakpoints[i]
-            t1, v1 = nedc_breakpoints[i + 1]
-            if t0 <= t_nedc <= t1:
-                # Linear interpolation
-                frac = (t_nedc - t0) / (t1 - t0) if t1 > t0 else 0.0
-                vel_kmh = v0 + frac * (v1 - v0)
-                break
-        else:
-            vel_kmh = nedc_breakpoints[-1][1]
-
-        # Map 70-120 km/h → perturbation around v_star
-        # 70 km/h → -3 m/s, 120 km/h → +5 m/s (linear mapping)
-        ed[k] = (vel_kmh - 70.0) / (120.0 - 70.0) * 8.0 - 3.0
-
-    return ed
+    return head_vel
 
 
 def main():

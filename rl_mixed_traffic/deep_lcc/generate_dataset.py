@@ -12,7 +12,11 @@ from pathlib import Path
 import numpy as np
 from tqdm import trange
 
-from rl_mixed_traffic.deep_lcc.config import DeepLCCConfig, OVMConfig
+from rl_mixed_traffic.deep_lcc.config import (
+    DeepLCCConfig,
+    OVMConfig,
+    get_heterogeneous_ovm_config,
+)
 from rl_mixed_traffic.deep_lcc.measurement import measure_mixed_traffic
 from rl_mixed_traffic.deep_lcc.ovm import hdv_dynamics
 from rl_mixed_traffic.deep_lcc.precollect import precollect
@@ -367,7 +371,7 @@ def generate_dataset(
 
 def main():
     config = DeepLCCConfig()
-    ovm_config = OVMConfig()
+    ovm_config = get_heterogeneous_ovm_config()
 
     dataset = generate_dataset(config, ovm_config)
 
