@@ -24,10 +24,6 @@ from rl_mixed_traffic.deep_lcc.config import (
     OVMConfig,
     get_heterogeneous_ovm_config,
 )
-from rl_mixed_traffic.deep_lcc.nnmpc_eval import (
-    _make_nedc_perturbation,
-    run_closed_loop,
-)
 from rl_mixed_traffic.deep_lcc.precollect import precollect
 from rl_mixed_traffic.deep_lcc.qp_solver import CachedDeepLCCSolver
 
@@ -183,12 +179,25 @@ def run_with_state(
     Q: np.ndarray,
     R: np.ndarray,
     head_vel_abs: np.ndarray,
+    controller_fn=None,
     seed: int = 999,
     noise_seed: int = 42,
     enable_aeb: bool = True,
     update_s_star: bool = True,
-) -> tuple[float, dict[str, np.ndarray], np.ndarray]:
-    """Run QP closed-loop and return cost, velocities, and full state history."""
+    collect_dataset: bool = False,
+) -> tuple[float, dict[str, np.ndarray], np.ndarray, dict[str, list] | None]:
+    """Run closed-loop simulation and return cost, velocities, and full state.
+
+    Args:
+        controller_fn: Callable(uini, yini, eini) → cav_accel (m_ctr,).
+            If None, uses the QP solver (builds Hankel matrices + solver internally).
+        collect_dataset: If True, also returns a dict with lists of
+            (uini, yini, eini, u_opt) pairs collected at each control step.
+
+    Returns:
+        (total_cost, velocities, full_state, dataset_pairs)
+        dataset_pairs is None if collect_dataset is False.
+    """
     from rl_mixed_traffic.deep_lcc.measurement import measure_mixed_traffic
     from rl_mixed_traffic.deep_lcc.ovm import hdv_dynamics
     import math
@@ -203,18 +212,26 @@ def run_with_state(
 
     np.random.seed(noise_seed)
 
-    print("  Pre-collecting Hankel matrices...")
-    Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=seed)
-    print("  Building QP solver...")
-    solver = CachedDeepLCCSolver(
-        Up, Yp, Uf, Yf, Ep, Ef, Q, R,
-        config.lambda_g, config.lambda_y,
-        u_limit=(config.dcel_max, config.acel_max),
-        s_limit=(
-            config.spacing_min - config.s_star,
-            config.spacing_max - config.s_star,
-        ),
-    )
+    # Build QP solver if no external controller provided
+    if controller_fn is None:
+        print("  Pre-collecting Hankel matrices...")
+        Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=seed)
+        print("  Building QP solver...")
+        solver = CachedDeepLCCSolver(
+            Up, Yp, Uf, Yf, Ep, Ef, Q, R,
+            config.lambda_g, config.lambda_y,
+            u_limit=(config.dcel_max, config.acel_max),
+            s_limit=(
+                config.spacing_min - config.s_star,
+                config.spacing_max - config.s_star,
+            ),
+        )
+
+        def controller_fn(uini, yini, eini):
+            u_opt, _, status = solver(uini, yini, eini)
+            if status in ("optimal", "optimal_inaccurate"):
+                return u_opt[:m_ctr]
+            return np.zeros(m_ctr)
 
     v_star = config.v_star
     s_star = config.s_star
@@ -229,6 +246,9 @@ def run_with_state(
     y_hist = np.zeros((p_ctr, total_steps))
 
     total_cost = 0.0
+
+    if collect_dataset:
+        ds_uini, ds_yini, ds_eini, ds_uopt = [], [], [], []
 
     for k in range(total_steps - 1):
         # HDV dynamics for all followers (CAVs will be overwritten below)
@@ -256,7 +276,6 @@ def run_with_state(
                 )
 
             # Re-compute past T_ini-1 measurements with updated equilibrium
-            # (matches reference: range(k-Tini+1, k))
             for k_past in range(k - T_ini + 1, k):
                 y_hist[:, k_past] = measure_mixed_traffic(
                     S[k_past, 1:, 1], S[k_past, :, 0], ID,
@@ -264,16 +283,17 @@ def run_with_state(
                 )
 
             # Past data ending at k-1 (NOT including current step k)
-            # u_hist[:, k-T_ini:k] holds the actual control inputs that were applied
             uini = u_hist[:, k - T_ini : k].flatten(order="F")
             yini = y_hist[:, k - T_ini : k].flatten(order="F")
             eini = S[k - T_ini : k, 0, 1] - v_star
 
-            u_opt, _, status = solver(uini, yini, eini)
-            if status in ("optimal", "optimal_inaccurate"):
-                cav_accel = u_opt[:m_ctr]
-            else:
-                cav_accel = np.zeros(m_ctr)
+            cav_accel = controller_fn(uini, yini, eini)
+
+            if collect_dataset:
+                ds_uini.append(uini.copy())
+                ds_yini.append(yini.copy())
+                ds_eini.append(eini.copy())
+                ds_uopt.append(cav_accel[:m_ctr].copy())
 
             # Apply CAV control: overwrite HDV-computed accel for CAVs
             for j, cav_idx in enumerate(pos_cav):
@@ -285,7 +305,6 @@ def run_with_state(
                 brake_cavs = np.intersect1d(brake_ids, pos_cav)
                 for cav_idx in brake_cavs:
                     S[k, cav_idx + 1, 2] = ovm_config.dcel_max
-                    # Update cav_accel record for cost
                     j = int(np.where(pos_cav == cav_idx)[0][0])
                     cav_accel[j] = ovm_config.dcel_max
 
@@ -308,7 +327,16 @@ def run_with_state(
     for j, cav_idx in enumerate(pos_cav):
         velocities[f"cav_{j}"] = S[:, cav_idx + 1, 1].copy()
 
-    return total_cost, velocities, S
+    dataset_pairs = None
+    if collect_dataset:
+        dataset_pairs = {
+            "uini": ds_uini,
+            "yini": ds_yini,
+            "eini": ds_eini,
+            "u_opt": ds_uopt,
+        }
+
+    return total_cost, velocities, S, dataset_pairs
 
 
 # ── Plotting ──────────────────────────────────────────────────────────
@@ -423,7 +451,7 @@ def main() -> None:
     brake_ovm = get_heterogeneous_ovm_config()
 
     t0 = time.time()
-    cost, vels, state = run_with_state(
+    cost, vels, state, _ = run_with_state(
         config, brake_ovm, Q, R, brake_head, update_s_star=False
     )
     elapsed = time.time() - t0
@@ -455,7 +483,7 @@ def main() -> None:
     sine_ovm = get_heterogeneous_ovm_config()
 
     t0 = time.time()
-    cost, vels, state = run_with_state(
+    cost, vels, state, _ = run_with_state(
         config, sine_ovm, Q, R, sine_head, update_s_star=False
     )
     elapsed = time.time() - t0
@@ -481,7 +509,7 @@ def main() -> None:
     print(f"  Steps: {nedc_steps}, duration: {nedc_steps * config.Tstep}s")
 
     t0 = time.time()
-    cost, vels, state = run_with_state(config, ovm_config, Q, R, nedc_head)
+    cost, vels, state, _ = run_with_state(config, ovm_config, Q, R, nedc_head)
     elapsed = time.time() - t0
     print(f"  Done in {elapsed:.1f}s")
 

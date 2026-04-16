@@ -1,7 +1,7 @@
 """Generate (state, solution) dataset for NNMPC training.
 
-Runs DeeP-LCC in closed loop with OVM traffic simulation, recording
-(uini, yini, eini) → u_opt pairs at each step.
+Uses the same simulation loop (run_with_state) as eval_classical.py
+to ensure training data matches the evaluation environment.
 
 Usage:
     uv run rl_mixed_traffic/deep_lcc/generate_dataset.py
@@ -17,21 +17,14 @@ from rl_mixed_traffic.deep_lcc.config import (
     OVMConfig,
     get_heterogeneous_ovm_config,
 )
-from rl_mixed_traffic.deep_lcc.measurement import measure_mixed_traffic
-from rl_mixed_traffic.deep_lcc.ovm import hdv_dynamics
-from rl_mixed_traffic.deep_lcc.precollect import precollect
-from rl_mixed_traffic.deep_lcc.qp_solver import CachedDeepLCCSolver
+from rl_mixed_traffic.deep_lcc.eval_classical import run_with_state
 
 
 def _assign_episode_perturbations(
     num_episodes: int,
     perturb_mix: list[tuple[str, float, float]],
 ) -> list[tuple[str, float]]:
-    """Assign a perturbation (type, amplitude) to each episode.
-
-    Episodes are assigned in contiguous blocks so the mix is exact
-    (up to rounding). Rounding residuals go to the last tier.
-    """
+    """Assign a perturbation (type, amplitude) to each episode."""
     assignments: list[tuple[str, float]] = []
     remaining = num_episodes
     for i, (ptype, amp, frac) in enumerate(perturb_mix):
@@ -44,33 +37,21 @@ def _assign_episode_perturbations(
     return assignments
 
 
-def _make_perturbation_signal(
+def _make_head_velocity(
     ptype: str,
     amplitude: float,
     total_steps: int,
     tstep: float,
+    v_star: float,
     rng: np.random.Generator,
 ) -> np.ndarray:
-    """Generate a head-vehicle perturbation signal for one episode.
-
-    Args:
-        ptype: "random", "brake", or "sinusoidal".
-        amplitude: Perturbation amplitude (m/s for random/sinusoidal, unused for brake).
-        total_steps: Number of simulation steps.
-        tstep: Simulation time step (s).
-        rng: Random number generator.
-
-    Returns:
-        ed_episode: shape (total_steps,), velocity deviation from v_star.
-    """
+    """Generate absolute head vehicle velocity for one episode."""
     if ptype == "random":
-        return -amplitude + 2.0 * amplitude * rng.random(total_steps)
+        return v_star + (-amplitude + 2.0 * amplitude * rng.random(total_steps))
 
     elif ptype == "brake":
-        # DeeP-LCC reference brake scenario (per_type=2):
-        # head vehicle brakes at -5 m/s² for 2s, coasts 5s, accelerates at +2 m/s² for 5s
-        ed = np.zeros(total_steps)
-        v_delta = 0.0
+        head_vel = np.full(total_steps, v_star)
+        v = v_star
         for k in range(total_steps):
             t = k * tstep
             if t < 2.0:
@@ -81,28 +62,31 @@ def _make_perturbation_signal(
                 a = 2.0
             else:
                 a = 0.0
-            v_delta += a * tstep
-            v_delta = max(v_delta, -14.0)  # keep head vehicle velocity > 0
-            ed[k] = v_delta
-        return ed
+            v = max(0.0, v + a * tstep)
+            head_vel[k] = v
+        return head_vel
 
     elif ptype == "sinusoidal":
-        # DeeP-LCC reference sinusoidal (per_type=1): period 10s
         t = np.arange(total_steps) * tstep
-        return amplitude * np.sin(2.0 * np.pi / 10.0 * t)
+        return v_star + amplitude * np.sin(2.0 * np.pi / 10.0 * t)
 
     else:
         raise ValueError(f"Unknown perturbation type: {ptype}")
 
 
 def _build_weight_matrices(
-    config: DeepLCCConfig, n_vehicle: int, m_ctr: int, p_ctr: int
+    config: DeepLCCConfig, n_vehicle: int, m_ctr: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build Q and R weight matrices for the DeeP-LCC cost."""
-    # Q = block_diag(weight_v * I_{n_vehicle}, weight_s * I_{m_ctr})
     Q_v = config.weight_v * np.eye(n_vehicle)
-    if config.measure_type == 1:
-        Q = Q_v
+    if config.measure_type == 3:
+        Q_s = config.weight_s * np.eye(m_ctr)
+        Q = np.block(
+            [
+                [Q_v, np.zeros((n_vehicle, m_ctr))],
+                [np.zeros((m_ctr, n_vehicle)), Q_s],
+            ]
+        )
     elif config.measure_type == 2:
         Q_s = config.weight_s * np.eye(n_vehicle)
         Q = np.block(
@@ -111,163 +95,11 @@ def _build_weight_matrices(
                 [np.zeros((n_vehicle, n_vehicle)), Q_s],
             ]
         )
-    elif config.measure_type == 3:
-        Q_s = config.weight_s * np.eye(m_ctr)
-        Q = np.block(
-            [
-                [Q_v, np.zeros((n_vehicle, m_ctr))],
-                [np.zeros((m_ctr, n_vehicle)), Q_s],
-            ]
-        )
     else:
-        raise ValueError(f"Unknown measure_type: {config.measure_type}")
+        Q = Q_v
 
     R = config.weight_u * np.eye(m_ctr)
     return Q, R
-
-
-def run_deep_lcc_episode(
-    Up: np.ndarray,
-    Uf: np.ndarray,
-    Ep: np.ndarray,
-    Ef: np.ndarray,
-    Yp: np.ndarray,
-    Yf: np.ndarray,
-    config: DeepLCCConfig,
-    ovm_config: OVMConfig,
-    Q: np.ndarray,
-    R: np.ndarray,
-    rng: np.random.Generator,
-    ed_episode: np.ndarray | None = None,
-) -> tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray], list[np.ndarray]]:
-    """Run one episode of DeeP-LCC control and collect (state, solution) pairs.
-
-    Args:
-        ed_episode: Pre-generated perturbation signal, shape (total_steps,).
-            If None, uses random ±1 m/s (backward compat).
-
-    Returns lists of (uini, yini, eini, u_opt) arrays for each valid step.
-    """
-    n_vehicle = ovm_config.n_vehicle
-    ID = ovm_config.ID
-    pos_cav = np.where(np.array(ID) == 1)[0]
-    m_ctr = len(pos_cav)
-
-    if config.measure_type == 3:
-        p_ctr = n_vehicle + m_ctr
-    elif config.measure_type == 2:
-        p_ctr = 2 * n_vehicle
-    else:
-        p_ctr = n_vehicle
-
-    total_steps = int(config.total_time / config.Tstep)
-    T_ini = config.T_ini
-
-    # Constraint limits
-    u_limit = (config.dcel_max, config.acel_max)
-    s_limit = (config.spacing_min - config.s_star, config.spacing_max - config.s_star)
-
-    # Build cached parametric solver once for the entire episode
-    solver = CachedDeepLCCSolver(
-        Up,
-        Yp,
-        Uf,
-        Yf,
-        Ep,
-        Ef,
-        Q,
-        R,
-        config.lambda_g,
-        config.lambda_y,
-        u_limit=u_limit,
-        s_limit=s_limit,
-    )
-
-    # Initialize vehicles at equilibrium
-    S = np.zeros((n_vehicle + 1, 3))
-    S[0, 0] = 0.0
-    for i in range(1, n_vehicle + 1):
-        S[i, 0] = S[i - 1, 0] - config.s_star
-    S[:, 1] = config.v_star
-
-    # Rolling buffers for past data
-    u_buffer = np.zeros((m_ctr, T_ini))
-    y_buffer = np.zeros((p_ctr, T_ini))
-    e_buffer = np.zeros(T_ini)
-
-    # Head vehicle disturbance for this episode
-    if ed_episode is None:
-        ed_episode = -1.0 + 2.0 * rng.random(total_steps)
-
-    # Collected data
-    uini_list = []
-    yini_list = []
-    eini_list = []
-    u_opt_list = []
-
-    for k in range(total_steps):
-        # Measure current output
-        y_k = measure_mixed_traffic(
-            S[1:, 1], S[:, 0], ID, config.v_star, config.s_star, config.measure_type
-        )
-        e_k = S[0, 1] - config.v_star  # head vehicle disturbance
-
-        # Update rolling buffers (shift left, append new)
-        u_buffer = np.roll(u_buffer, -1, axis=1)
-        y_buffer = np.roll(y_buffer, -1, axis=1)
-        e_buffer = np.roll(e_buffer, -1)
-        y_buffer[:, -1] = y_k
-        e_buffer[-1] = e_k
-
-        if k >= T_ini:
-            # Flatten buffers column-major (Fortran order) to match MATLAB
-            uini = u_buffer.flatten(order="F")
-            yini = y_buffer.flatten(order="F")
-            eini = e_buffer.copy()
-
-            # Solve DeeP-LCC QP (reuses compiled problem)
-            u_opt, y_opt, status = solver(uini, yini, eini)
-
-            if status in ("optimal", "optimal_inaccurate"):
-                # Record (state, solution) pair
-                uini_list.append(uini.copy())
-                yini_list.append(yini.copy())
-                eini_list.append(eini.copy())
-                # First control action only (receding horizon)
-                u_opt_list.append(u_opt[:m_ctr].copy())
-
-                # Apply optimal control to CAVs
-                cav_accel = u_opt[:m_ctr]
-            else:
-                # Fallback: zero acceleration
-                cav_accel = np.zeros(m_ctr)
-        else:
-            # Warm-up: use small random acceleration
-            cav_accel = 0.1 * rng.standard_normal(m_ctr)
-
-        # HDV dynamics + noise, clamped to acceleration limits
-        acel = hdv_dynamics(S, ovm_config)
-        noise = -config.acel_noise + 2.0 * config.acel_noise * rng.random(n_vehicle)
-        acel = np.clip(acel + noise, ovm_config.dcel_max, ovm_config.acel_max)
-
-        # Set accelerations
-        S[0, 2] = 0.0
-        S[1:, 2] = acel
-        for j, cav_idx in enumerate(pos_cav):
-            S[cav_idx + 1, 2] = float(cav_accel[j])
-
-        # Update control buffer with applied action
-        u_buffer[:, -1] = cav_accel
-
-        # Euler integration
-        S_new = S.copy()
-        S_new[:, 1] = S[:, 1] + config.Tstep * S[:, 2]
-        S_new[0, 1] = ed_episode[k] + config.v_star
-        S_new[:, 0] = S[:, 0] + config.Tstep * S[:, 1]
-
-        S = S_new
-
-    return uini_list, yini_list, eini_list, u_opt_list
 
 
 def generate_dataset(
@@ -275,33 +107,17 @@ def generate_dataset(
     ovm_config: OVMConfig | None = None,
     seed: int = 42,
 ) -> dict[str, np.ndarray]:
-    """Full pipeline: pre-collect, then run DeeP-LCC episodes to generate dataset.
-
-    Args:
-        config: DeeP-LCC parameters (uses defaults if None).
-        ovm_config: OVM parameters (uses defaults if None).
-        seed: Base random seed.
-
-    Returns:
-        Dictionary with keys: uini, yini, eini, u_opt, metadata.
-    """
+    """Generate dataset using run_with_state (same simulation as eval)."""
     if config is None:
         config = DeepLCCConfig()
     if ovm_config is None:
-        ovm_config = OVMConfig()
+        ovm_config = get_heterogeneous_ovm_config()
 
     n_vehicle = ovm_config.n_vehicle
     pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
     m_ctr = len(pos_cav)
 
-    if config.measure_type == 3:
-        p_ctr = n_vehicle + m_ctr
-    elif config.measure_type == 2:
-        p_ctr = 2 * n_vehicle
-    else:
-        p_ctr = n_vehicle
-
-    Q, R = _build_weight_matrices(config, n_vehicle, m_ctr, p_ctr)
+    Q, R = _build_weight_matrices(config, n_vehicle, m_ctr)
     episode_perturbations = _assign_episode_perturbations(
         config.num_episodes,
         config.perturb_mix,
@@ -317,37 +133,25 @@ def generate_dataset(
         ep_seed = seed + episode
         ptype, amp = episode_perturbations[episode]
 
-        # Phase 1: Pre-collect trajectories and build Hankel matrices
-        Up, Uf, Ep, Ef, Yp, Yf = precollect(config, ovm_config, seed=ep_seed)
-
-        # Phase 2: Run DeeP-LCC in closed loop
         rng = np.random.default_rng(ep_seed + 10000)
-        ed_episode = _make_perturbation_signal(
-            ptype,
-            amp,
-            total_steps,
-            config.Tstep,
-            rng,
-        )
-        uini_list, yini_list, eini_list, u_opt_list = run_deep_lcc_episode(
-            Up,
-            Uf,
-            Ep,
-            Ef,
-            Yp,
-            Yf,
-            config,
-            ovm_config,
-            Q,
-            R,
-            rng,
-            ed_episode=ed_episode,
+        head_vel = _make_head_velocity(
+            ptype, amp, total_steps, config.Tstep, config.v_star, rng,
         )
 
-        all_uini.extend(uini_list)
-        all_yini.extend(yini_list)
-        all_eini.extend(eini_list)
-        all_u_opt.extend(u_opt_list)
+        _, _, _, dataset_pairs = run_with_state(
+            config, ovm_config, Q, R, head_vel,
+            seed=ep_seed,
+            noise_seed=ep_seed + 20000,
+            enable_aeb=False,
+            update_s_star=False,
+            collect_dataset=True,
+        )
+
+        if dataset_pairs is not None:
+            all_uini.extend(dataset_pairs["uini"])
+            all_yini.extend(dataset_pairs["yini"])
+            all_eini.extend(dataset_pairs["eini"])
+            all_u_opt.extend(dataset_pairs["u_opt"])
 
     dataset = {
         "uini": np.array(all_uini),
