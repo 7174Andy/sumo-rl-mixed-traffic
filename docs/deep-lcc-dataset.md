@@ -42,27 +42,41 @@ $$
 
 where $g$ is the decision variable (Hankel combination weights), $U_f g$ and $Y_f g$ recover optimal future control and output trajectories, and $S_f$ selects the CAV spacing entries from the output vector.
 
+### QP Solver: CachedDeepLCCSolver
+
+The solver reformulates the paper's eq. (37) by substituting out $\sigma_y$, $u$, and $y$, reducing the problem to a single decision variable $g$ (1931 dimensions with default parameters). This matches the [reference Python implementation](https://github.com/soc-ucsd/DeeP-LCC/blob/main/Python%20Implementations/_fcn/qp_DeeP_LCC.py).
+
+The `CachedDeepLCCSolver` splits the computation into a one-time setup and per-step solve:
+
+- **`__init__` (once per episode):** pre-builds the constant matrices P (quadratic cost), A (equality constraints), G/h (inequality constraints) from the Hankel matrices. These depend only on the pre-collected data and cost weights.
+- **`__call__` (every timestep, ~106ms):** updates only the linear cost vector `q` and equality RHS `b` (which depend on the current rolling window `uini, yini, eini`), then calls cvxopt's dense interior-point QP solver.
+
 ## Vehicle Configuration
 
 Matches the DeeP-LCC reference implementation exactly:
 
 - **8 following vehicles:** `ID = [0, 0, 1, 0, 0, 1, 0, 0]`
-  - 6 HDVs (human-driven, follow OVM model)
-  - 2 CAVs at positions 3 and 6 (controlled by DeeP-LCC)
+    - 6 HDVs (human-driven, follow OVM model)
+    - 2 CAVs at positions 3 and 6 (controlled by DeeP-LCC)
 - **1 head vehicle** with externally perturbed velocity
 - Total: 9 vehicles in a platoon
 
-### OVM Parameters (Homogeneous, data_str=3)
+### OVM Parameters (Heterogeneous, data_str=2)
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| α (alpha) | 0.6 | Sensitivity to desired velocity |
-| β (beta) | 0.9 | Sensitivity to relative velocity |
-| v_max | 30 m/s | Maximum velocity |
-| s_st | 5 m | Minimum stopping distance |
-| s_go | 25 m | Free-flow spacing threshold |
-| v* | 15 m/s | Equilibrium velocity |
-| s* | 20 m | Desired equilibrium spacing |
+Each HDV has distinct driver behavior parameters, matching the reference `hdv_ovm_2.mat`:
+
+| HDV | α (alpha) | β (beta) | s_go (m) |
+|-----|-----------|----------|----------|
+| 1 | 0.45 | 0.60 | 38 |
+| 2 | 0.75 | 0.95 | 31 |
+| 3 (CAV) | 0.60 | 0.90 | 35 |
+| 4 | 0.70 | 0.95 | 33 |
+| 5 | 0.50 | 0.75 | 37 |
+| 6 (CAV) | 0.60 | 0.90 | 35 |
+| 7 | 0.40 | 0.80 | 39 |
+| 8 | 0.80 | 1.00 | 34 |
+
+Common parameters: `v_max = 30 m/s`, `s_st = 5 m`, `v* = 15 m/s`, `s* = 20 m`.
 
 **OVM dynamics:**
 ```
@@ -70,9 +84,7 @@ V_d(s) = v_max/2 · (1 - cos(π · (s - s_st) / (s_go - s_st)))
 a = α · (V_d(s) - v_follower) + β · (v_leader - v_follower)
 ```
 
-Acceleration is saturated to `[-5, 2]` m/s² with safety braking when deceleration demand exceeds the limit.
-
-> **Note:** The OVM equilibrium spacing (where `V_d = v*`) is `s_eq = 15 m` for these parameters, computed as `acos(1 - 2·v*/v_max)/π · (s_go - s_st) + s_st`. The controller reference `s* = 20 m` is deliberately larger to maintain safe following distances.
+Acceleration is saturated to `[-5, 3]` m/s² for CAVs (with extra headroom for velocity tracking) and `[-5, 2]` m/s² for HDVs. Safety braking (ADAS) is applied when deceleration demand exceeds the limit.
 
 ## DeeP-LCC Parameters
 
@@ -82,28 +94,30 @@ Acceleration is saturated to `[-5, 2]` m/s² with safety braking when decelerati
 | T_ini | 20 | Past data horizon |
 | N | 50 | Prediction horizon |
 | Tstep | 0.05 s | Simulation time step |
-| weight_v | 1.0 | Velocity error weight |
-| weight_s | 0.5 | Spacing error weight |
+| weight_v | 5.0 | Velocity error weight (emphasizes tracking) |
+| weight_s | 0.1 | Spacing error weight (reduced for tracking focus) |
 | weight_u | 0.1 | Control effort weight |
-| λ_g | 1.0 | Regularization on g |
-| λ_y | 1000 | Output consistency regularization |
-| acel_max | 2.0 m/s² | Maximum acceleration |
+| λ_g | 100 | Regularization on g |
+| λ_y | 10,000 | Output consistency regularization |
+| acel_max | 3.0 m/s² | Maximum CAV acceleration |
 | dcel_max | -5.0 m/s² | Maximum deceleration |
 | spacing_min | 5.0 m | Minimum safe spacing |
 | spacing_max | 40.0 m | Maximum spacing |
-| perturb_mix | [(1.0, 0.5), (3.0, 0.3), (5.0, 0.2)] | Mixed perturbation amplitudes |
 
-### Perturbation Amplitude Mixing
+### Perturbation Mixing
 
-To ensure the dataset covers the full operating range (not just near-equilibrium), the head vehicle perturbation amplitude varies across episodes:
+The head vehicle perturbation varies across episodes to cover the full operating range:
 
-| Amplitude | Fraction | Head velocity range | Purpose |
-|-----------|----------|-------------------|---------|
-| ±1 m/s | 50% | [14, 16] m/s | Near-equilibrium behavior |
-| ±3 m/s | 30% | [12, 18] m/s | Moderate disturbances |
-| ±5 m/s | 20% | [10, 20] m/s | Aggressive disturbances, constraint activation |
+| Type | Amplitude | Fraction | Head velocity range | Purpose |
+|------|-----------|----------|-------------------|---------|
+| Random | ±1 m/s | 30% | [14, 16] m/s | Near-equilibrium behavior |
+| Random | ±3 m/s | 15% | [12, 18] m/s | Moderate disturbances |
+| Random | ±5 m/s | 10% | [10, 20] m/s | Aggressive disturbances |
+| Brake | -5 m/s² | 25% | [5, 15] m/s | Emergency braking response |
+| Sinusoidal | 5 m/s | 10% | [10, 20] m/s | Periodic tracking |
+| Sinusoidal | 3 m/s | 10% | [12, 18] m/s | Moderate periodic tracking |
 
-Episodes are assigned amplitudes in contiguous blocks. Configure via `DeepLCCConfig.perturb_mix`.
+NEDC scenario is excluded from training data because disabling AEB is not safe at high velocities (14-28 m/s).
 
 ### Measurement Type
 
@@ -117,15 +131,17 @@ Saved as `.npz` with the following arrays:
 
 | Key | Shape | Description |
 |-----|-------|-------------|
-| `uini` | `(N_samples, m_ctr × T_ini)` = `(N, 40)` | Past CAV accelerations (2 CAVs × 20 steps) |
-| `yini` | `(N_samples, p × T_ini)` = `(N, 200)` | Past output measurements (10 outputs × 20 steps) |
-| `eini` | `(N_samples, T_ini)` = `(N, 20)` | Past head vehicle velocity disturbance |
-| `u_opt` | `(N_samples, m_ctr)` = `(N, 2)` | Optimal first control action (receding horizon) |
+| `uini` | `(N_samples, 40)` | Past CAV accelerations (2 CAVs × 20 steps) |
+| `yini` | `(N_samples, 200)` | Past output measurements (10 outputs × 20 steps) |
+| `eini` | `(N_samples, 20)` | Past head vehicle velocity disturbance |
+| `u_opt` | `(N_samples, 2)` | Optimal first control action (receding horizon) |
 | `metadata` | `(6,)` | `[v_star, s_star, T_ini, N, lambda_g, lambda_y]` |
 
 The NN input is `(uini, yini, eini)` concatenated (260 features); the label is `u_opt` (2 values).
 
 ## Pipeline Architecture
+
+All three scripts (dataset generation, classical evaluation, NN evaluation) share a single simulation function `run_with_state()` in `eval_classical.py`. This ensures the training data is generated in exactly the same environment used for evaluation.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -135,21 +151,22 @@ The NN input is `(uini, yini, eini)` concatenated (260 features); the label is `
 │  ┌───────────────────────────────────────────┐              │
 │  │ OVM simulation with random PE inputs      │              │
 │  │ for T=2000 steps                          │              │
-│  │  → ud (CAV accels), ed (head perturb),    │              │
-│  │    yd (measured outputs)                  │              │
 │  │  → Build Hankel matrices                  │              │
 │  │    (Up, Uf, Ep, Ef, Yp, Yf)              │              │
 │  └───────────────────────────────────────────┘              │
 │                        ↓                                    │
-│  Phase 2: DeeP-LCC Closed Loop (generate_dataset.py)        │
+│  Phase 2: Closed-Loop DeeP-LCC (run_with_state)             │
 │  ┌───────────────────────────────────────────┐              │
-│  │ OVM simulation with DeeP-LCC controller   │              │
+│  │ OVM simulation with QP controller         │              │
 │  │  → At each step:                          │              │
-│  │    1. Measure (y_k, e_k)                  │              │
-│  │    2. Build state: (uini, yini, eini)     │              │
-│  │    3. Solve QP → u_opt                    │              │
-│  │    4. Record (state, u_opt[0:m]) pair     │              │
-│  │    5. Apply u_opt[0:m] to CAVs            │              │
+│  │    1. HDV dynamics + noise                │              │
+│  │    2. Measure output (y_k, e_k)           │              │
+│  │    3. Update equilibrium (v_star)          │              │
+│  │    4. Build state: (uini, yini, eini)     │              │
+│  │    5. Solve QP → u_opt                    │              │
+│  │    6. Record (state, u_opt) pair          │              │
+│  │    7. Apply u_opt to CAVs                 │              │
+│  │    8. Integrate dynamics                  │              │
 │  └───────────────────────────────────────────┘              │
 │                        ↓                                    │
 │  Save dataset.npz                                           │
@@ -161,73 +178,66 @@ The NN input is `(uini, yini, eini)` concatenated (260 features); the label is `
 ### Dataset Generation
 
 ```bash
-# Generate dataset with default parameters (100 episodes, mixed perturbations)
+# Generate dataset (100 episodes × 100s, ~5.5 hours)
 uv run rl_mixed_traffic/deep_lcc/generate_dataset.py
 
-# Output: deep_lcc_dataset/dataset.npz
+# Output: deep_lcc_dataset/dataset.npz (~198k samples)
 ```
 
 ### NNMPC Training
 
 ```bash
-# Train NN to approximate the QP solver
 uv run rl_mixed_traffic/deep_lcc/nnmpc_train.py
 
 # Output: deep_lcc_results/nnmpc.pth, deep_lcc_results/nnmpc_training_loss.png
 ```
 
-### NNMPC Evaluation
+### Classical DeeP-LCC Evaluation
 
 ```bash
-# Evaluate NN vs QP (offline accuracy + closed-loop simulation)
+uv run rl_mixed_traffic/deep_lcc/eval_classical.py
+
+# Evaluates QP on brake, sinusoidal, and NEDC scenarios
+# Output: deep_lcc_results/classical_*.png
+```
+
+### NNMPC Evaluation (NN vs QP)
+
+```bash
 uv run rl_mixed_traffic/deep_lcc/nnmpc_eval.py
+
+# Compares NN and QP on brake, sinusoidal, and NEDC scenarios
+# Output: deep_lcc_results/*_cav_velocities.png
 ```
 
-### Programmatic Usage
+## Classical DeeP-LCC Results
 
-```python
-from rl_mixed_traffic.deep_lcc.config import DeepLCCConfig, OVMConfig
-from rl_mixed_traffic.deep_lcc.generate_dataset import generate_dataset
+The classical QP controller was validated against the reference implementation from [soc-ucsd/DeeP-LCC](https://github.com/soc-ucsd/DeeP-LCC). Key fixes to match the paper: heterogeneous HDV parameters, correct regularization values (λ_g=100, λ_y=10,000), dynamic equilibrium update, and reference-matching brake amplitude.
 
-config = DeepLCCConfig(num_episodes=10)
-ovm_config = OVMConfig()
-dataset = generate_dataset(config, ovm_config, seed=42)
+### Brake Scenario
 
-# dataset['uini'].shape  → (N_samples, 40)
-# dataset['u_opt'].shape → (N_samples, 2)
-```
+Head vehicle: 5s settle → brake at -5 m/s² for 2s (15→5 m/s) → 5s coast → +2 m/s² for 5s → cruise. Both CAVs track the head vehicle with smooth deceleration and recovery. Spacing stays within [5, 40] m bounds.
 
-## Module Structure
+![Classical Brake](assets/deep-lcc/classical_extreme_brake.png)
 
-```
-rl_mixed_traffic/deep_lcc/
-├── config.py           # OVMConfig + DeepLCCConfig dataclasses
-├── ovm.py              # OVM car-following dynamics
-├── hankel.py           # Hankel matrix construction
-├── measurement.py      # Output measurement function
-├── qp_solver.py        # DeeP-LCC QP solver (cvxopt dense interior-point)
-├── precollect.py       # Phase 1: trajectory pre-collection
-├── generate_dataset.py # Dataset generation pipeline
-├── nnmpc_config.py     # NNMPC training configuration
-├── nnmpc_network.py    # NNMPC neural network (MLP)
-├── nnmpc_train.py      # Supervised training script
-└── nnmpc_eval.py       # Offline + closed-loop evaluation
-```
+### Sinusoidal Scenario
+
+Head vehicle: 5s settle → 2 m/s amplitude sine wave, period 10s. CAVs track the oscillation with ~0.5s phase lag. Acceleration follows the sinusoidal pattern without hitting constraint bounds.
+
+![Classical Sinusoidal](assets/deep-lcc/classical_sinusoidal.png)
 
 ## NNMPC Architecture
 
-The NNMPC approximates the DeeP-LCC QP solver with a simple MLP, following the approach in [arxiv:2510.03354](https://arxiv.org/abs/2510.03354).
-
-### Network
+The NNMPC approximates the DeeP-LCC QP solver with a simple MLP:
 
 ```
-Input (260) → Linear(256) → ReLU → Linear(128) → ReLU → Linear(2) → Tanh → Scale to [-5, 2]
+Input (260) → Linear(256) → ReLU → Linear(128) → ReLU → Linear(2) → Tanh → Scale to [-5, 3]
 ```
 
 - **Input:** concatenated `(uini, yini, eini)` = 40 + 200 + 20 = 260 features
 - **Output:** 2 CAV accelerations, bounded by Tanh + asymmetric scaling to [dcel_max, acel_max]
 - **Parameters:** ~100k
-- **Input normalization:** per-feature mean/std computed from training set, saved with checkpoint
+- **Input normalization:** per-feature mean/std from training set, saved with checkpoint
 
 ### Training
 
@@ -235,129 +245,74 @@ Input (260) → Linear(256) → ReLU → Linear(128) → ReLU → Linear(2) → 
 - Adam optimizer (lr=5e-4, weight_decay=1e-5)
 - Early stopping on validation loss (patience=20 epochs)
 - Train/val split: 90/10
-
-### Evaluation
-
-Two modes:
-
-1. **Offline accuracy:** MSE, MAE, max error on held-out validation data
-2. **Closed-loop simulation:** run NN controller in the OVM simulation loop, compare trajectory cost against the QP controller on multiple scenarios
-
-### Results
-
-Three training configurations were tested to improve closed-loop robustness. All use the same 260-dim MLP (256→128→2) architecture.
-
-#### Training Loss (Trial 3)
+- Best-validation checkpoint saved (not final epoch)
 
 ![Training Loss](assets/deep-lcc/nnmpc_training_loss.png)
 
-#### Dataset Control Action Distribution
+The training curve shows some overfitting (train/val gap widens after epoch 10), but the deployed model uses the best-validation checkpoint (~epoch 10).
 
-![Dataset Distribution](assets/deep-lcc/dataset_distribution.png)
+## NNMPC Closed-Loop Results
 
-#### Trial 1: Random-only training data
+### Brake Scenario — NN vs QP
 
-Training data: 100 episodes, 50% ±1 / 30% ±3 / 20% ±5 random perturbations.
+The NN (dotted) closely tracks the QP (solid) through the entire brake-coast-recover cycle with no divergence or compounding error.
 
-**Offline:** MSE=0.000896, MAE=0.020, Max error=0.318
+![Brake QP vs NN](assets/deep-lcc/brake_qp_vs_nn.png)
 
-| Scenario | QP Cost | NN Cost | Diff % |
-|----------|---------|---------|--------|
-| random ±1 | 10,285 | 10,052 | **-2.3%** |
-| random ±5 | 10,574 | 10,279 | **-2.8%** |
-| brake | 4.1M | 21.4M | +422% |
-| sinusoidal | 73,749 | 7.4M | +9,914% |
-| NEDC | 173,754 | 5.7M | +3,160% |
+### Sinusoidal Scenario — NN vs QP
 
-**Finding:** Excellent on random (in-distribution). Catastrophic on structured scenarios (out-of-distribution).
+The NN reproduces the QP's sinusoidal tracking with matching amplitude and phase across all 4 cycles.
 
-#### Trial 2: Added brake + sinusoidal to training data
+![Sinusoidal QP vs NN](assets/deep-lcc/sinusoidal_qp_vs_nn.png)
 
-Training data: 100 episodes, 35% random±1 / 20% random±3 / 15% random±5 / 15% brake / 10% sine±5 / 5% sine±3.
+### NEDC Scenario — NN vs QP (Generalization Test)
 
-**Offline:** MSE=0.004462, MAE=0.024, Max error=3.970
+NEDC was **not** in the training data. Despite this, the NN generalizes successfully to the full 206s NEDC cycle spanning 14-28 m/s — a velocity range and profile shape never seen during training.
 
-| Scenario | QP Cost | NN Cost | Diff % |
-|----------|---------|---------|--------|
-| random ±1 | 10,285 | 10,080 | **-2.0%** |
-| random ±5 | 10,574 | 10,313 | **-2.5%** |
-| brake | 4.1M | 72.5M | +1,674% |
-| sinusoidal | 73,749 | 71,331 | **-3.3%** |
-| NEDC | 173,754 | 80.1M | +46,000% |
+![NEDC QP vs NN](assets/deep-lcc/nedc_qp_vs_nn.png)
 
-**Finding:** Sinusoidal fixed (from +9,914% to -3.3%). Brake still fails despite being in training data.
+### Performance Summary
 
-#### Trial 3: Increased brake fraction
+| Scenario | In Training? | NN vs QP | Divergence? |
+|----------|-------------|----------|-------------|
+| Brake (15→5→15 m/s) | Yes | Near-identical | No |
+| Sinusoidal (±2 m/s, 10s period) | Yes | Near-identical | No |
+| NEDC (14-28 m/s, 206s) | **No** | Near-identical | No |
 
-Training data: 100 episodes, 30% random±1 / 15% random±3 / 10% random±5 / 25% brake / 10% sine±5 / 10% sine±3.
+The NNMPC achieves comparable performance to the classical DeeP-LCC QP solver with ~100x faster inference (<1ms vs ~106ms per step).
 
-**Offline:** MSE=0.009098, MAE=0.030, Max error=5.160
+## Key Lesson: Unified Simulation Loop
 
-| Scenario | QP Cost | NN Cost | Diff % |
-|----------|---------|---------|--------|
-| random ±1 | 10,285 | 10,076 | **-2.0%** |
-| random ±5 | 10,574 | 10,198 | **-3.6%** |
-| brake | 4.1M | 71.8M | +1,655% |
-| sinusoidal | 73,749 | 70,858 | **-3.9%** |
-| NEDC | 173,754 | 89.5M | +51,405% |
+The most critical factor for NN performance was **ensuring the training and evaluation environments are identical**. Early experiments showed catastrophic NN divergence (velocities reaching 80+ m/s) despite reasonable offline MSE. The root cause was three separate simulation implementations with subtle differences in:
 
-**Finding:** More brake data does not help. The brake scenario is fundamentally hard for the NN due to error compounding at extreme states (see Limitations below).
+- Order of HDV dynamics vs measurement computation
+- Rolling buffer management and indexing
+- Head vehicle perturbation application timing
 
-#### Closed-Loop Cost Comparison (Trial 3)
+After unifying all scripts to use a single `run_with_state()` function, the NN's closed-loop performance improved from catastrophic divergence to near-perfect QP tracking — without changing the network architecture, training hyperparameters, or dataset size.
 
-![Closed-Loop Comparison](assets/deep-lcc/closed_loop_comparison.png)
+## Module Structure
 
-#### Performance Progression Across Trials
-
-![Trial Progression](assets/deep-lcc/trial_progression.png)
-
-### Limitations of NN Deep-LCC
-
-1. **Error compounding in closed loop.** The brake scenario drives the head vehicle to 5 m/s (ed = -10, a 67% drop from v_star = 15). Even though the NN trains on this exact signal, small prediction errors at these extreme states push the closed-loop simulation onto a different trajectory than the QP would produce. These errors accumulate over the 5+ seconds the system spends far from equilibrium, causing divergence. More training data does not fix this — it is a structural limitation of open-loop supervised learning for closed-loop control.
-
-2. **No future information.** The NN only sees 1 second of past data (T_ini = 20 steps at 0.05s). It has no lookahead — unlike the paper's NNMPC ([arxiv:2510.03354](https://arxiv.org/abs/2510.03354)) which includes 50 future reference trajectory steps as input. The DeeP-LCC QP also has no future disturbance knowledge (assumes `Ef @ g = 0`), but it is re-optimized from scratch every step and naturally reacts to new information. The NN cannot adapt the same way.
-
-3. **Asymmetric output bounds.** The acceleration range [-5, 2] m/s² is asymmetric. During braking, the QP produces large negative accelerations near the -5 bound. The Tanh scaling maps [-1,1] to [-5,2], which compresses the deceleration range — small Tanh changes near -1 map to large acceleration changes near -5, making precise braking control harder for the NN.
-
-4. **Offline MSE ≠ closed-loop performance.** Trial 3 has 10x higher MSE than Trial 1 (0.009 vs 0.0009) due to the harder brake samples, yet random/sinusoidal closed-loop performance is equally good. Conversely, even low MSE does not prevent brake failure. Offline metrics are unreliable predictors of closed-loop success.
-
-### Conclusion
-
-The NNMPC is a reliable base controller for **normal operating conditions** (random perturbations, sinusoidal disturbances) with cost within 4% of the QP solver. For **extreme scenarios** (emergency braking), the NN fails due to error compounding — this is the exact gap that the RLMPC residual correction architecture is designed to fill.
+```
+rl_mixed_traffic/deep_lcc/
+├── config.py            # OVMConfig + DeepLCCConfig dataclasses
+├── ovm.py               # OVM car-following dynamics (heterogeneous support)
+├── hankel.py            # Hankel matrix construction
+├── measurement.py       # Output measurement function
+├── qp_solver.py         # CachedDeepLCCSolver (cvxopt dense interior-point)
+├── precollect.py        # Phase 1: trajectory pre-collection
+├── eval_classical.py    # Classical QP evaluation + shared run_with_state()
+├── generate_dataset.py  # Dataset generation (uses run_with_state)
+├── nnmpc_config.py      # NNMPC training configuration
+├── nnmpc_network.py     # NNMPC neural network (MLP)
+├── nnmpc_train.py       # Supervised training script
+└── nnmpc_eval.py        # NN vs QP closed-loop evaluation (uses run_with_state)
+```
 
 ## Model Mismatch: OVM vs SUMO IDM
 
 The dataset is generated using **OVM** dynamics, but the SUMO ring road uses **IDM** (`carFollowModel="IDM"` in `configs/ring/circle.rou.xml`). This creates a sim-to-sim gap when deploying the NNMPC surrogate in SUMO.
 
-See [Model Mismatch Analysis](#model-mismatch-analysis) below for implications and mitigation strategies.
+**Impact on RL integration ([arxiv:2510.03354](https://arxiv.org/abs/2510.03354)):**
 
-### Model Mismatch Analysis
-
-**The problem:** DeeP-LCC's Hankel matrices encode the input-output behavior of the OVM traffic system. When the NNMPC surrogate (trained on OVM-derived solutions) is deployed in SUMO where HDVs follow IDM, the controller's predictions about how traffic will respond to CAV actions are wrong.
-
-**OVM vs IDM key differences:**
-
-| Aspect | OVM | IDM |
-|--------|-----|-----|
-| Desired velocity | Depends on spacing only: `V_d(s)` | Depends on velocity too: free-flow term `(v/v0)^δ` |
-| Gap sensitivity | Cosine function of spacing | Inverse-square of desired gap |
-| Relative velocity | Linear term `β·Δv` | Appears inside desired gap calculation |
-| Stability | Can be unstable (string instability) | Generally more stable |
-
-**Impact on the RL integration (arxiv:2510.03354):**
-
-The paper proposes two architectures:
-
-1. **Warm Start RL:** Initialize RL actor with NNMPC weights, then fine-tune with RL. The model mismatch means the warm start is suboptimal but the RL training will adapt to SUMO's actual dynamics. The warm start still provides a better initialization than random weights.
-
-2. **RLMPC (residual correction):** RL generates additive corrections `δu` on top of NNMPC output `u_nn`, giving `u = u_nn + δu`. The RL explicitly learns to compensate for NNMPC errors, including model mismatch. This architecture is **more robust** to the OVM/IDM gap.
-
-**Mitigation strategies:**
-
-1. **Accept the gap, rely on RL correction (recommended for RLMPC).** The residual architecture is designed to handle imperfect base controllers. The NNMPC provides a reasonable starting point; RL compensates.
-
-2. **Re-collect Hankel data from SUMO.** Run the SUMO ring road with persistently exciting CAV inputs, record (u, e, y) via TraCI, and build Hankel matrices from SUMO trajectories. This eliminates the model mismatch entirely but requires adapting `precollect.py` to use `RingRoadEnv` instead of OVM simulation.
-
-3. **Switch SUMO HDVs to OVM.** SUMO doesn't natively support OVM, but you can approximate it by setting head speed via TraCI at each step using the OVM formula — effectively bypassing SUMO's car-following model for HDVs. This is complex and defeats the purpose of using SUMO.
-
-4. **Use IDM in the data generation.** The DeeP-LCC reference implementation also supports IDM (`hdv_type=2`). Switching `ovm.py` to IDM dynamics and matching SUMO's IDM parameters (`accel=2.0, decel=3.0, tau=1.0, minGap=2.5`) would reduce the gap, though SUMO's Krauss-based IDM variant may still differ slightly.
+The RLMPC (residual correction) architecture is designed to handle imperfect base controllers: RL generates additive corrections `δu` on top of NNMPC output `u_nn`, giving `u = u_nn + δu`. The RL explicitly learns to compensate for NNMPC errors, including model mismatch between OVM and IDM.
