@@ -20,6 +20,7 @@ from rl_mixed_traffic.deep_lcc.config import (
 )
 from rl_mixed_traffic.deep_lcc.eval_classical import (
     make_extreme_brake,
+    make_nedc,
     make_sinusoidal,
     plot_scenario,
     run_with_state,
@@ -136,6 +137,7 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
         "sinusoidal": make_sinusoidal(
             sine_steps, config.Tstep, config.v_star, amplitude=2.0
         ),
+        "NEDC": make_nedc(config.Tstep),
     }
 
     print("\n=== Closed-Loop Evaluation (QP vs NN) ===")
