@@ -1,0 +1,1186 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reinforcement learning for traffic flow optimization using SUMO">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>DeeP-LCC & NNMPC Development Progress - SUMO RL Mixed Traffic</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#deep-lcc-nnmpc-development-progress" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="SUMO RL Mixed Traffic" class="md-header__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SUMO RL Mixed Traffic
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              DeeP-LCC &amp; NNMPC Development Progress
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SUMO RL Mixed Traffic" class="md-nav__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SUMO RL Mixed Traffic
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../problem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Problem Formulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ppo-refactor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reward-redesign/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redesign Reward
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lagrangian-ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-lcc-dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeeP-LCC / NNMPC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exploration/lagrangian_ppo_reward_tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#april-9-2026-initial-investigation-codebase-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 9, 2026 — Initial Investigation &amp; Codebase Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 9, 2026 — Initial Investigation &amp; Codebase Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#classical-deep-lcc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classical DeeP-LCC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-before-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC (Before Fixes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-insights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Insights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#april-910-2026-matching-the-reference-paper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 9–10, 2026 — Matching the Reference Paper
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 9–10, 2026 — Matching the Reference Paper">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameter-fixes-comparing-against-arxiv220310639" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Fixes (comparing against arXiv:2203.10639)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nedc-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NEDC Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#april-10-2026-classical-evaluation-bug-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 10, 2026 — Classical Evaluation &amp; Bug Fixes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 10, 2026 — Classical Evaluation &amp; Bug Fixes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#created-eval_classicalpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Created eval_classical.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulation-loop-bug-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation Loop Bug Fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#april-14-2026-heterogeneous-hdvs-scenario-refinement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 14, 2026 — Heterogeneous HDVs &amp; Scenario Refinement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 14, 2026 — Heterogeneous HDVs &amp; Scenario Refinement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#heterogeneous-ovm-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heterogeneous OVM Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#brake-scenario-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Brake Scenario Fixes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#classical-deep-lcc-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classical DeeP-LCC Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#april-15-2026-weight-tuning-acceleration-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 15, 2026 — Weight Tuning &amp; Acceleration Constraints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 15, 2026 — Weight Tuning &amp; Acceleration Constraints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cost-weight-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost Weight Tuning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#acceleration-constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceleration Constraint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataset-generation-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataset Generation Config
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#april-16-2026-unified-simulation-loop-critical-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        April 16, 2026 — Unified Simulation Loop (Critical Fix)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="April 16, 2026 — Unified Simulation Loop (Critical Fix)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Fix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Final Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Final Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nnmpc-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPC Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#closed-loop-evaluation-nn-vs-qp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-Loop Evaluation: NN vs QP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-takeaway" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Takeaway
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="deep-lcc-nnmpc-development-progress">DeeP-LCC &amp; NNMPC Development Progress<a class="headerlink" href="#deep-lcc-nnmpc-development-progress" title="Permanent link">&para;</a></h1>
+<h2 id="april-9-2026-initial-investigation-codebase-analysis">April 9, 2026 — Initial Investigation &amp; Codebase Analysis<a class="headerlink" href="#april-9-2026-initial-investigation-codebase-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="classical-deep-lcc">Classical DeeP-LCC<a class="headerlink" href="#classical-deep-lcc" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Reviewed the full <code>deep_lcc/</code> pipeline: precollect → QP solver → dataset generation → NNMPC training → evaluation</li>
+<li>Analyzed how the QP solver (<code>CachedDeepLCCSolver</code>) reformulates the paper's eq. (37) by substituting out <code>σ_y</code>, <code>u</code>, <code>y</code> to solve for <code>g</code> alone</li>
+<li>Confirmed the solver matches the reference implementation at <a href="https://github.com/soc-ucsd/DeeP-LCC">soc-ucsd/DeeP-LCC</a></li>
+</ul>
+<h3 id="nnmpc-before-fixes">NNMPC (Before Fixes)<a class="headerlink" href="#nnmpc-before-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Ran initial NN evaluation — NN diverged catastrophically on all scenarios (velocity going to 80+ m/s)</li>
+<li>Root cause identified: <strong>compounding error</strong> from distribution shift — NN errors push state out of training distribution, Tanh saturates at <code>+2 m/s²</code>, velocity increases unboundedly</li>
+</ul>
+<h3 id="key-insights">Key Insights<a class="headerlink" href="#key-insights" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The NN loses all structural guarantees from the QP (trajectory consistency, spacing constraints, optimality, multi-step planning) in exchange for ~100x inference speedup</li>
+<li>The receding horizon structure in DeeP-LCC provides feedback, constraint enforcement, and robustness to model mismatch — none of which the NN can replicate structurally</li>
+</ul>
+<hr />
+<h2 id="april-910-2026-matching-the-reference-paper">April 9–10, 2026 — Matching the Reference Paper<a class="headerlink" href="#april-910-2026-matching-the-reference-paper" title="Permanent link">&para;</a></h2>
+<h3 id="parameter-fixes-comparing-against-arxiv220310639">Parameter Fixes (comparing against arXiv:2203.10639)<a class="headerlink" href="#parameter-fixes-comparing-against-arxiv220310639" title="Permanent link">&para;</a></h3>
+<p>Found 6 parameter mismatches between our code and the paper:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Old</th>
+<th>New (paper)</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s_go</code></td>
+<td>25</td>
+<td><strong>35</strong></td>
+<td>OVM dynamics, equilibrium spacing</td>
+</tr>
+<tr>
+<td><code>lambda_g</code></td>
+<td>1.0</td>
+<td><strong>100</strong></td>
+<td>QP regularization</td>
+</tr>
+<tr>
+<td><code>lambda_y</code></td>
+<td>1e3</td>
+<td><strong>1e4</strong></td>
+<td>Past output matching penalty</td>
+</tr>
+<tr>
+<td>Simulation duration</td>
+<td>40s</td>
+<td><strong>206s</strong> (NEDC)</td>
+<td>Scenario timescale</td>
+</tr>
+<tr>
+<td>HDV parameters</td>
+<td>Homogeneous</td>
+<td><strong>Heterogeneous</strong></td>
+<td>Wave propagation dynamics</td>
+</tr>
+<tr>
+<td>Equilibrium update</td>
+<td>Fixed</td>
+<td><strong>Dynamic</strong></td>
+<td>Adapts to time-varying conditions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nedc-validation">NEDC Validation<a class="headerlink" href="#nedc-validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Obtained reference simulation data (<code>.mat</code> file from soc-ucsd lab)</li>
+<li>Implemented dynamic equilibrium update: <code>v_star = mean(head_vel over T_ini)</code>, <code>s_star</code> via OVM spacing policy</li>
+<li><strong>Result</strong>: QP velocity profiles closely match the reference over the full 206s NEDC cycle</li>
+</ul>
+<hr />
+<h2 id="april-10-2026-classical-evaluation-bug-fixes">April 10, 2026 — Classical Evaluation &amp; Bug Fixes<a class="headerlink" href="#april-10-2026-classical-evaluation-bug-fixes" title="Permanent link">&para;</a></h2>
+<h3 id="created-eval_classicalpy">Created <code>eval_classical.py</code><a class="headerlink" href="#created-eval_classicalpy" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Standalone script evaluating classical DeeP-LCC on brake, sinusoidal, and NEDC scenarios</li>
+<li>3-panel plots: velocity tracking, acceleration (with head vehicle), spacing (with constraint lines)</li>
+<li>Performance metrics: total cost, MSVE, fuel consumption (Bowyer 1985 model)</li>
+</ul>
+<h3 id="simulation-loop-bug-fix">Simulation Loop Bug Fix<a class="headerlink" href="#simulation-loop-bug-fix" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Found an <strong>off-by-one bug</strong> in <code>uini</code> construction: the QP received the HDV-computed acceleration for the current step instead of the QP's own output from the previous step</li>
+<li>This caused oscillating (bang-bang) control as the QP tried to correct for inconsistent past data</li>
+<li><strong>Fix</strong>: lagged indexing <code>u[:, k-T_ini : k]</code> (past T_ini steps NOT including current step)</li>
+</ul>
+<hr />
+<h2 id="april-14-2026-heterogeneous-hdvs-scenario-refinement">April 14, 2026 — Heterogeneous HDVs &amp; Scenario Refinement<a class="headerlink" href="#april-14-2026-heterogeneous-hdvs-scenario-refinement" title="Permanent link">&para;</a></h2>
+<h3 id="heterogeneous-ovm-parameters">Heterogeneous OVM Parameters<a class="headerlink" href="#heterogeneous-ovm-parameters" title="Permanent link">&para;</a></h3>
+<p>Added per-vehicle (α, β, s_go) from the reference <code>hdv_ovm_2.mat</code>, with each HDV having distinct driver behavior parameters. CAV positions (3 and 6) use nominal values.</p>
+<h3 id="brake-scenario-fixes">Brake Scenario Fixes<a class="headerlink" href="#brake-scenario-fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Brake amplitude</strong>: changed from full stop (15→0 m/s) to reference's partial stop (15→5 m/s)</li>
+<li><strong>Fixed <code>s_star=20</code></strong>: matching the reference which does not update spacing dynamically in the brake scenario</li>
+<li><strong>Added 5s settle phase</strong>: lets QP reach steady state before perturbation</li>
+<li><strong>Result</strong>: cost dropped from 111,886 to 23,187 (4.8x improvement)</li>
+</ul>
+<h3 id="classical-deep-lcc-results">Classical DeeP-LCC Results<a class="headerlink" href="#classical-deep-lcc-results" title="Permanent link">&para;</a></h3>
+<p><strong>Brake Scenario</strong> — CAVs track the head vehicle through 15→5→15 m/s with smooth deceleration and recovery. Spacing stays within [5, 40] m bounds.</p>
+<p><img alt="Classical Brake" src="../deep_lcc_results/classical_extreme_brake.png" /></p>
+<p><strong>Sinusoidal Scenario</strong> — CAVs track the 2 m/s amplitude sine wave with ~0.5s phase lag. Acceleration follows the sinusoidal pattern without hitting constraint bounds. Spacing oscillates mildly (17-23 m) around equilibrium.</p>
+<p><img alt="Classical Sinusoidal" src="../deep_lcc_results/classical_sinusoidal.png" /></p>
+<hr />
+<h2 id="april-15-2026-weight-tuning-acceleration-constraints">April 15, 2026 — Weight Tuning &amp; Acceleration Constraints<a class="headerlink" href="#april-15-2026-weight-tuning-acceleration-constraints" title="Permanent link">&para;</a></h2>
+<h3 id="cost-weight-tuning">Cost Weight Tuning<a class="headerlink" href="#cost-weight-tuning" title="Permanent link">&para;</a></h3>
+<p>Ran a sweep of <code>weight_v</code> values [1, 2, 3, 5] to balance velocity tracking against control smoothness:
+- Higher <code>weight_v</code> → better MSVE but more constraint saturation and AEB events
+- <code>weight_v=3</code> identified as sweet spot (MSVE 1.29, saturation 12.6%)
+- Final config uses <code>weight_v=5, weight_s=0.1</code> to emphasize velocity tracking for the NN task</p>
+<h3 id="acceleration-constraint">Acceleration Constraint<a class="headerlink" href="#acceleration-constraint" title="Permanent link">&para;</a></h3>
+<ul>
+<li>With <code>acel_max=2</code>, the QP saturates at the constraint bound during recovery (head accelerates at +2, CAV can't go faster to close the gap)</li>
+<li><strong>Changed <code>acel_max=3</code></strong>: gives the CAV +1 m/s² headroom to catch up, eliminates saturation</li>
+<li>Verified safe without AEB on brake/sinusoidal scenarios (min spacing stays well above 5 m)</li>
+</ul>
+<h3 id="dataset-generation-config">Dataset Generation Config<a class="headerlink" href="#dataset-generation-config" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">weight_v</span> <span class="o">=</span> <span class="mf">5.0</span>    <span class="c1"># velocity tracking emphasis</span>
+<span class="n">weight_s</span> <span class="o">=</span> <span class="mf">0.1</span>    <span class="c1"># reduced spacing penalty</span>
+<span class="n">weight_u</span> <span class="o">=</span> <span class="mf">0.1</span>    <span class="c1"># control effort</span>
+<span class="n">acel_max</span> <span class="o">=</span> <span class="mf">3.0</span>    <span class="c1"># CAV acceleration headroom</span>
+<span class="n">lambda_g</span> <span class="o">=</span> <span class="mf">100.0</span>
+<span class="n">lambda_y</span> <span class="o">=</span> <span class="mf">1e4</span>
+<span class="n">total_time</span> <span class="o">=</span> <span class="mf">100.0</span>  <span class="c1"># per episode</span>
+</code></pre></div>
+- 100 episodes with mixed perturbations (random ±1/±3/±5, brake, sinusoidal)
+- No AEB during data collection (clean QP labels)
+- NEDC excluded from training data (AEB required for safety at high speeds)</p>
+<hr />
+<h2 id="april-16-2026-unified-simulation-loop-critical-fix">April 16, 2026 — Unified Simulation Loop (Critical Fix)<a class="headerlink" href="#april-16-2026-unified-simulation-loop-critical-fix" title="Permanent link">&para;</a></h2>
+<h3 id="the-problem">The Problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
+<p>The NN evaluation showed completely different QP behavior from the classical eval — the QP velocity profiles didn't match between scripts. Root cause: <strong>three separate simulation implementations</strong> (dataset generator, classical eval, NN eval) with subtle differences in:
+- Order of HDV dynamics vs measurement computation
+- Rolling buffer management and indexing
+- Head vehicle perturbation application timing</p>
+<p>These caused the NN to receive numerically different <code>(uini, yini, eini)</code> inputs at eval than it saw during training, triggering distribution shift and compounding error.</p>
+<h3 id="the-fix">The Fix<a class="headerlink" href="#the-fix" title="Permanent link">&para;</a></h3>
+<p>Refactored all three scripts to share a single simulation function <code>run_with_state()</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Purpose</th>
+<th>How it uses <code>run_with_state</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generate_dataset.py</code></td>
+<td>Training data</td>
+<td><code>controller_fn=None</code> (QP), <code>collect_dataset=True</code></td>
+</tr>
+<tr>
+<td><code>eval_classical.py</code></td>
+<td>Classical QP eval</td>
+<td><code>controller_fn=None</code> (QP)</td>
+</tr>
+<tr>
+<td><code>nnmpc_eval.py</code></td>
+<td>NN vs QP comparison</td>
+<td><code>controller_fn=nn_controller</code> vs <code>None</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-result">The Result<a class="headerlink" href="#the-result" title="Permanent link">&para;</a></h3>
+<p>The unified simulation loop was the single most impactful change. With training and evaluation using identical simulation code, the NN's closed-loop performance improved from catastrophic divergence to near-perfect QP tracking.</p>
+<hr />
+<h2 id="final-results">Final Results<a class="headerlink" href="#final-results" title="Permanent link">&para;</a></h2>
+<h3 id="nnmpc-training">NNMPC Training<a class="headerlink" href="#nnmpc-training" title="Permanent link">&para;</a></h3>
+<p>The NN (260→256→128→2 MLP with Tanh output scaling) was trained via supervised learning on ~198k QP-generated samples. The training curve shows some overfitting (train/val gap widens after epoch 10), but the deployed model uses the best-validation checkpoint.</p>
+<p><img alt="Training Loss" src="../deep_lcc_results/nnmpc_training_loss.png" /></p>
+<h3 id="closed-loop-evaluation-nn-vs-qp">Closed-Loop Evaluation: NN vs QP<a class="headerlink" href="#closed-loop-evaluation-nn-vs-qp" title="Permanent link">&para;</a></h3>
+<p><strong>Brake Scenario</strong> — The NN (dotted) closely tracks the QP (solid) through the entire brake-coast-recover cycle. Both CAVs follow the head vehicle with minimal divergence. No compounding error.</p>
+<p><img alt="Brake QP vs NN" src="../deep_lcc_results/brake_cav_velocities.png" /></p>
+<p><strong>Sinusoidal Scenario</strong> — The NN reproduces the QP's sinusoidal tracking with matching amplitude and phase. The dotted NN lines overlay the solid QP lines throughout all 4 cycles.</p>
+<p><img alt="Sinusoidal QP vs NN" src="../deep_lcc_results/sinusoidal_cav_velocities.png" /></p>
+<p><strong>NEDC Scenario (Generalization Test)</strong> — NEDC was NOT in the training data. Despite this, the NN generalizes successfully to the full 206s NEDC cycle spanning 14-28 m/s — a velocity range and profile shape never seen during training. The NN overlays the QP almost perfectly.</p>
+<p><img alt="NEDC QP vs NN" src="../deep_lcc_results/nedc_cav_velocities.png" /></p>
+<h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>In Training?</th>
+<th>NN vs QP</th>
+<th>Divergence?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Brake (15→5→15 m/s)</td>
+<td>Yes</td>
+<td>Near-identical</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Sinusoidal (±2 m/s, 10s period)</td>
+<td>Yes</td>
+<td>Near-identical</td>
+<td>No</td>
+</tr>
+<tr>
+<td>NEDC (14-28 m/s, 206s)</td>
+<td><strong>No</strong></td>
+<td>Near-identical</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>The NNMPC achieves comparable performance to the classical DeeP-LCC QP solver with ~100x faster inference (&lt;1ms vs ~106ms per step), enabling real-time deployment.</p>
+<h3 id="key-takeaway">Key Takeaway<a class="headerlink" href="#key-takeaway" title="Permanent link">&para;</a></h3>
+<p>The most critical factor for NN performance was not the network architecture, training hyperparameters, or dataset size — it was <strong>ensuring the training and evaluation environments are identical</strong>. The unified simulation loop eliminated distribution shift between training and inference, which was the root cause of all prior divergence failures.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
