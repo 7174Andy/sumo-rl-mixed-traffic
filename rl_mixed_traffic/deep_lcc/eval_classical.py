@@ -97,6 +97,175 @@ def make_sinusoidal(
     return head_vel
 
 
+def make_varying_sine(
+    total_time: float,
+    tstep: float,
+    v_star: float,
+    settle_time: float = 5.0,
+    seed: int = 123,
+) -> np.ndarray:
+    """Sinusoidal with varying amplitude and frequency, changing at zero crossings.
+
+    Each half-cycle (0 → +A → 0 or 0 → −A → 0) uses a randomly chosen amplitude
+    and period from aggressive ranges.  Amplitude and frequency change at every
+    zero crossing so the signal is continuous but non-stationary.
+
+    Returns absolute head vehicle velocity (m/s).
+    """
+    total_steps = int(total_time / tstep)
+    rng = np.random.default_rng(seed)
+
+    amplitudes = [2.0, 4.0, 6.0, 8.0]
+    periods = [4.0, 6.0, 8.0, 12.0, 16.0]
+
+    head_vel = np.full(total_steps, v_star)
+
+    # Build segments: each segment is one half-cycle (zero → peak → zero)
+    t_cursor = settle_time
+    sign = 1.0
+    segments: list[tuple[float, float, float, float]] = []  # (t_start, duration, amp, sign)
+    while t_cursor < total_time:
+        amp = rng.choice(amplitudes)
+        period = rng.choice(periods)
+        half_period = period / 2.0
+        segments.append((t_cursor, half_period, amp, sign))
+        t_cursor += half_period
+        sign *= -1.0
+
+    # Fill the velocity array
+    seg_idx = 0
+    for k in range(total_steps):
+        tk = k * tstep
+        if tk < settle_time:
+            continue
+        # Advance to correct segment
+        while (
+            seg_idx < len(segments) - 1
+            and tk >= segments[seg_idx][0] + segments[seg_idx][1]
+        ):
+            seg_idx += 1
+        t_start, duration, amp, sgn = segments[seg_idx]
+        local_t = tk - t_start
+        head_vel[k] = v_star + sgn * amp * np.sin(np.pi * local_t / duration)
+
+    # Clip to keep velocity non-negative
+    np.clip(head_vel, 0.5, None, out=head_vel)
+    return head_vel
+
+
+def make_aggressive_sine(
+    total_time: float,
+    tstep: float,
+    v_star: float,
+    settle_time: float = 5.0,
+    seed: int = 456,
+) -> np.ndarray:
+    """Aggressive varying sine: short periods that push past the QP horizon.
+
+    Periods 1.5-4s mean quarter-periods of 0.375-1s — comparable to T_ini=1s.
+    Amplitudes 4-10 m/s push head velocity into [5, 25] m/s, far from v_star.
+    Changes occur at zero crossings so the signal stays continuous.
+
+    Returns absolute head vehicle velocity (m/s).
+    """
+    total_steps = int(total_time / tstep)
+    rng = np.random.default_rng(seed)
+
+    amplitudes = [4.0, 6.0, 8.0, 10.0]
+    periods = [1.5, 2.0, 3.0, 4.0]
+
+    head_vel = np.full(total_steps, v_star)
+
+    t_cursor = settle_time
+    sign = 1.0
+    segments: list[tuple[float, float, float, float]] = []
+    while t_cursor < total_time:
+        amp = rng.choice(amplitudes)
+        period = rng.choice(periods)
+        half_period = period / 2.0
+        segments.append((t_cursor, half_period, amp, sign))
+        t_cursor += half_period
+        sign *= -1.0
+
+    seg_idx = 0
+    for k in range(total_steps):
+        tk = k * tstep
+        if tk < settle_time:
+            continue
+        while (
+            seg_idx < len(segments) - 1
+            and tk >= segments[seg_idx][0] + segments[seg_idx][1]
+        ):
+            seg_idx += 1
+        t_start, duration, amp, sgn = segments[seg_idx]
+        local_t = tk - t_start
+        head_vel[k] = v_star + sgn * amp * np.sin(np.pi * local_t / duration)
+
+    np.clip(head_vel, 0.5, None, out=head_vel)
+    return head_vel
+
+
+def make_stop_and_go(
+    total_time: float,
+    tstep: float,
+    v_star: float,
+    settle_time: float = 5.0,
+    seed: int = 789,
+) -> np.ndarray:
+    """Stop-and-go traffic: repeated decel → stop → accel → cruise cycles.
+
+    Head vehicle oscillates between 0 and 10-15 m/s.  The near-zero minimum
+    pushes CAVs far from the DeeP-LCC linearization point (v_star=15).
+    Phases are piecewise linear in velocity.
+
+    Returns absolute head vehicle velocity (m/s).
+    """
+    total_steps = int(total_time / tstep)
+    rng = np.random.default_rng(seed)
+
+    head_vel = np.full(total_steps, v_star)
+    settle_idx = int(settle_time / tstep)
+
+    v = v_star
+    k = settle_idx
+    phase = 0  # 0=decel_to_0, 1=stopped, 2=accel_to_cruise, 3=cruise
+
+    while k < total_steps:
+        if phase == 0:
+            a = -rng.uniform(1.5, 2.5)
+            target = 0.0
+            while v > target + 0.01 and k < total_steps:
+                v = max(0.0, v + a * tstep)
+                head_vel[k] = v
+                k += 1
+        elif phase == 1:
+            hold_time = rng.uniform(1.5, 3.0)
+            n = int(hold_time / tstep)
+            for _ in range(n):
+                if k >= total_steps:
+                    break
+                head_vel[k] = v
+                k += 1
+        elif phase == 2:
+            a = rng.uniform(1.0, 2.0)
+            target = rng.uniform(10.0, 15.0)
+            while v < target - 0.01 and k < total_steps:
+                v = v + a * tstep
+                head_vel[k] = v
+                k += 1
+        else:
+            hold_time = rng.uniform(2.0, 4.0)
+            n = int(hold_time / tstep)
+            for _ in range(n):
+                if k >= total_steps:
+                    break
+                head_vel[k] = v
+                k += 1
+        phase = (phase + 1) % 4
+
+    return head_vel
+
+
 def make_nedc(tstep: float) -> np.ndarray:
     """NEDC head vehicle trajectory from reference .mat file (native length)."""
     mat_path = Path("deep_lcc_dataset/nedc_reference.mat")

@@ -19,9 +19,13 @@ from rl_mixed_traffic.deep_lcc.config import (
     get_heterogeneous_ovm_config,
 )
 from rl_mixed_traffic.deep_lcc.eval_classical import (
+    compute_metrics,
+    make_aggressive_sine,
     make_extreme_brake,
     make_nedc,
     make_sinusoidal,
+    make_stop_and_go,
+    make_varying_sine,
     plot_scenario,
     run_with_state,
 )
@@ -138,12 +142,20 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
             sine_steps, config.Tstep, config.v_star, amplitude=2.0
         ),
         "NEDC": make_nedc(config.Tstep),
+        "varying_sine": make_varying_sine(200.0, config.Tstep, config.v_star),
+        "aggressive_sine": make_aggressive_sine(200.0, config.Tstep, config.v_star),
+        "stop_and_go": make_stop_and_go(200.0, config.Tstep, config.v_star),
     }
 
     print("\n=== Closed-Loop Evaluation (QP vs NN) ===")
-    print(f"{'Scenario':<15} {'QP Cost':>10} {'NN Cost':>10} {'Diff %':>8}")
-    print("-" * 48)
+    header = (
+        f"{'Scenario':<15} {'QP Cost':>10} {'NN Cost':>10} {'Cost Δ%':>8} "
+        f"{'QP MSVE avg':>12} {'NN MSVE avg':>12} {'MSVE Δ%':>8}"
+    )
+    print(header)
+    print("-" * len(header))
 
+    rows = []
     for name, head_vel in scenarios.items():
         # QP controller (default when controller_fn=None)
         print(f"\n--- {name} (QP) ---")
@@ -163,11 +175,37 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
             enable_aeb=False, update_s_star=False,
         )
 
-        diff_pct = (nn_cost - qp_cost) / max(abs(qp_cost), 1e-8) * 100
-        print(f"\n{name:<15} {qp_cost:10.2f} {nn_cost:10.2f} {diff_pct:+7.2f}%")
+        qp_metrics = compute_metrics(qp_vel, head_vel, config)
+        nn_metrics = compute_metrics(nn_vel, head_vel, config)
+
+        cost_diff_pct = (nn_cost - qp_cost) / max(abs(qp_cost), 1e-8) * 100
+        msve_diff_pct = (
+            (nn_metrics["msve_avg"] - qp_metrics["msve_avg"])
+            / max(abs(qp_metrics["msve_avg"]), 1e-8) * 100
+        )
+
+        print(
+            f"\n  QP  MSVE: cav0={qp_metrics['msve_cav0']:.4f}  "
+            f"cav1={qp_metrics['msve_cav1']:.4f}  avg={qp_metrics['msve_avg']:.4f}"
+        )
+        print(
+            f"  NN  MSVE: cav0={nn_metrics['msve_cav0']:.4f}  "
+            f"cav1={nn_metrics['msve_cav1']:.4f}  avg={nn_metrics['msve_avg']:.4f}"
+        )
+        rows.append(
+            f"{name:<15} {qp_cost:10.2f} {nn_cost:10.2f} {cost_diff_pct:+7.2f}% "
+            f"{qp_metrics['msve_avg']:12.4f} {nn_metrics['msve_avg']:12.4f} "
+            f"{msve_diff_pct:+7.2f}%"
+        )
 
         # Plot comparison
         _plot_qp_vs_nn(name, qp_vel, nn_vel, config)
+
+    print("\n=== Summary ===")
+    print(header)
+    print("-" * len(header))
+    for row in rows:
+        print(row)
 
 
 def _plot_qp_vs_nn(
