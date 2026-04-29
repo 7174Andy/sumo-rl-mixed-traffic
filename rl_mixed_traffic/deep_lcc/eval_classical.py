@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -115,8 +116,8 @@ def make_varying_sine(
     total_steps = int(total_time / tstep)
     rng = np.random.default_rng(seed)
 
-    amplitudes = [2.0, 4.0, 6.0, 8.0]
-    periods = [4.0, 6.0, 8.0, 12.0, 16.0]
+    amplitudes = [6.0, 9.0, 12.0, 15.0]
+    periods = [8.0, 12.0, 18.0, 24.0, 30.0]
 
     head_vel = np.full(total_steps, v_star)
 
@@ -336,6 +337,24 @@ def compute_metrics(
         metrics["total_fuel_mL"] = total_fuel
         metrics["fuel_per_vehicle_mL"] = total_fuel / 6.0
 
+        s_cav0 = full_state[:, 2, 0] - full_state[:, 3, 0]
+        s_cav1 = full_state[:, 5, 0] - full_state[:, 6, 0]
+
+        collision_count = int(np.sum((s_cav0 <= 0.0) | (s_cav1 <= 0.0)))
+        violation_count = int(np.sum((s_cav0 < 5.0) | (s_cav1 < 5.0)))
+
+        a_cav0 = full_state[:, 3, 2]
+        a_cav1 = full_state[:, 6, 2]
+        aeb_cav0 = int(np.sum(np.isclose(a_cav0, -5.0)))
+        aeb_cav1 = int(np.sum(np.isclose(a_cav1, -5.0)))
+
+        metrics["collision_count"] = collision_count
+        metrics["violation_count"] = violation_count
+        metrics["aeb_trigger_count"] = aeb_cav0 + aeb_cav1
+        metrics["min_spacing"] = float(min(s_cav0.min(), s_cav1.min()))
+        metrics["max_spacing"] = float(max(s_cav0.max(), s_cav1.max()))
+        metrics["failure_flag"] = collision_count > 0
+
     return metrics
 
 
@@ -354,6 +373,10 @@ def run_with_state(
     enable_aeb: bool = True,
     update_s_star: bool = True,
     collect_dataset: bool = False,
+    ovm_resampler: Callable[[float], OVMConfig] | None = None,
+    comm_delay_ms: float = 0.0,
+    acel_noise: float | None = None,
+    hdv_dynamics_fn: Callable[..., np.ndarray] | None = None,
 ) -> tuple[float, dict[str, np.ndarray], np.ndarray, dict[str, list] | None]:
     """Run closed-loop simulation and return cost, velocities, and full state.
 
@@ -368,7 +391,7 @@ def run_with_state(
         dataset_pairs is None if collect_dataset is False.
     """
     from rl_mixed_traffic.deep_lcc.measurement import measure_mixed_traffic
-    from rl_mixed_traffic.deep_lcc.ovm import hdv_dynamics
+    from rl_mixed_traffic.deep_lcc.ovm import hdv_dynamics as _default_hdv_dynamics
     import math
 
     n_vehicle = ovm_config.n_vehicle
@@ -378,8 +401,14 @@ def run_with_state(
     p_ctr = n_vehicle + m_ctr
     total_steps = len(head_vel_abs)
     T_ini = config.T_ini
+    delay_steps = int(round(comm_delay_ms / 1000.0 / config.Tstep))
+    # Allow eval-time override of HDV acceleration noise (independent of precollect).
+    acel_noise_level = config.acel_noise if acel_noise is None else acel_noise
 
     np.random.seed(noise_seed)
+
+    if hdv_dynamics_fn is None:
+        hdv_dynamics_fn = _default_hdv_dynamics
 
     # Build QP solver if no external controller provided
     if controller_fn is None:
@@ -420,10 +449,14 @@ def run_with_state(
         ds_uini, ds_yini, ds_eini, ds_uopt = [], [], [], []
 
     for k in range(total_steps - 1):
+        # Resolve OVM config for this step (time-varying if resampler provided).
+        step_ovm = ovm_resampler(k * config.Tstep) if ovm_resampler is not None else ovm_config
         # HDV dynamics for all followers (CAVs will be overwritten below)
-        acel = hdv_dynamics(S[k], ovm_config)
-        noise = -config.acel_noise + 2.0 * config.acel_noise * np.random.rand(n_vehicle)
-        acel = np.clip(acel + noise, ovm_config.dcel_max, ovm_config.acel_max)
+        acel = hdv_dynamics_fn(S[k], step_ovm)
+        if acel_noise_level > 0.0:
+            noise = -acel_noise_level + 2.0 * acel_noise_level * np.random.rand(n_vehicle)
+            acel = acel + noise
+        acel = np.clip(acel, ovm_config.dcel_max, ovm_config.acel_max)
 
         S[k, 0, 2] = 0.0
         S[k, 1:, 2] = acel
@@ -433,9 +466,13 @@ def run_with_state(
             S[k, 1:, 1], S[k, :, 0], ID, v_star, s_star, config.measure_type
         )
 
-        if k >= T_ini:
-            # Update equilibrium from past T_ini head velocities (not including k)
-            v_star = float(np.mean(S[k - T_ini : k, 0, 1]))
+        if k >= T_ini + delay_steps:
+            # V2V delay: controller sees state from delay_steps ago.
+            # k_eff is the "perceived present" from the controller's perspective.
+            k_eff = k - delay_steps
+
+            # Update equilibrium from past T_ini head velocities (not including k_eff)
+            v_star = float(np.mean(S[k_eff - T_ini : k_eff, 0, 1]))
             if update_s_star:
                 v_ratio = float(np.clip(v_star / ovm_config.v_max * 2, 0.0, 2.0))
                 s_star = (
@@ -445,16 +482,16 @@ def run_with_state(
                 )
 
             # Re-compute past T_ini-1 measurements with updated equilibrium
-            for k_past in range(k - T_ini + 1, k):
+            for k_past in range(k_eff - T_ini + 1, k_eff):
                 y_hist[:, k_past] = measure_mixed_traffic(
                     S[k_past, 1:, 1], S[k_past, :, 0], ID,
                     v_star, s_star, config.measure_type,
                 )
 
-            # Past data ending at k-1 (NOT including current step k)
-            uini = u_hist[:, k - T_ini : k].flatten(order="F")
-            yini = y_hist[:, k - T_ini : k].flatten(order="F")
-            eini = S[k - T_ini : k, 0, 1] - v_star
+            # Past data ending at k_eff-1 (delayed window)
+            uini = u_hist[:, k_eff - T_ini : k_eff].flatten(order="F")
+            yini = y_hist[:, k_eff - T_ini : k_eff].flatten(order="F")
+            eini = S[k_eff - T_ini : k_eff, 0, 1] - v_star
 
             cav_accel = controller_fn(uini, yini, eini)
 
