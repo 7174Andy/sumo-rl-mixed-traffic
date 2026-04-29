@@ -8,6 +8,7 @@ Usage:
     uv run rl_mixed_traffic/deep_lcc/nnmpc_eval.py
 """
 
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -147,6 +148,15 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
         "stop_and_go": make_stop_and_go(200.0, config.Tstep, config.v_star),
     }
 
+    # Optional filter: SCENARIOS=varying_sine,brake uv run ...
+    scen_filter = os.environ.get("SCENARIOS")
+    if scen_filter:
+        wanted = {s.strip() for s in scen_filter.split(",") if s.strip()}
+        scenarios = {k: v for k, v in scenarios.items() if k in wanted}
+        print(f"Filtered scenarios: {list(scenarios.keys())}")
+
+    pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
+
     print("\n=== Closed-Loop Evaluation (QP vs NN) ===")
     header = (
         f"{'Scenario':<15} {'QP Cost':>10} {'NN Cost':>10} {'Cost Δ%':>8} "
@@ -159,7 +169,7 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
     for name, head_vel in scenarios.items():
         # QP controller (default when controller_fn=None)
         print(f"\n--- {name} (QP) ---")
-        qp_cost, qp_vel, _, _ = run_with_state(
+        qp_cost, qp_vel, qp_S, _ = run_with_state(
             config, ovm_config, Q, R, head_vel,
             enable_aeb=False, update_s_star=False,
         )
@@ -169,11 +179,15 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
             return nn_predict(model, uini, yini, eini, input_mean, input_std, device)
 
         print(f"--- {name} (NN) ---")
-        nn_cost, nn_vel, _, _ = run_with_state(
+        nn_cost, nn_vel, nn_S, _ = run_with_state(
             config, ovm_config, Q, R, head_vel,
             controller_fn=nn_controller,
             enable_aeb=False, update_s_star=False,
         )
+
+        # Extract applied CAV accelerations (u traces) for both controllers
+        qp_u = {f"cav_{j}": qp_S[:, idx + 1, 2].copy() for j, idx in enumerate(pos_cav)}
+        nn_u = {f"cav_{j}": nn_S[:, idx + 1, 2].copy() for j, idx in enumerate(pos_cav)}
 
         qp_metrics = compute_metrics(qp_vel, head_vel, config)
         nn_metrics = compute_metrics(nn_vel, head_vel, config)
@@ -198,8 +212,21 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
             f"{msve_diff_pct:+7.2f}%"
         )
 
-        # Plot comparison
-        _plot_qp_vs_nn(name, qp_vel, nn_vel, config)
+        # Plot comparison (velocities + control u)
+        _plot_qp_vs_nn(name, qp_vel, nn_vel, qp_u, nn_u, config)
+
+        # Save raw traces for later analysis
+        npz_path = f"deep_lcc_results/{name.lower()}_traces.npz"
+        np.savez(
+            npz_path,
+            t=np.arange(len(qp_vel["head"])) * config.Tstep,
+            head=qp_vel["head"],
+            qp_cav_0=qp_vel["cav_0"], qp_cav_1=qp_vel["cav_1"],
+            nn_cav_0=nn_vel["cav_0"], nn_cav_1=nn_vel["cav_1"],
+            qp_u_0=qp_u["cav_0"], qp_u_1=qp_u["cav_1"],
+            nn_u_0=nn_u["cav_0"], nn_u_1=nn_u["cav_1"],
+        )
+        print(f"{name} traces saved to {npz_path}")
 
     print("\n=== Summary ===")
     print(header)
@@ -212,31 +239,45 @@ def _plot_qp_vs_nn(
     scenario_name: str,
     qp_vel: dict[str, np.ndarray],
     nn_vel: dict[str, np.ndarray],
+    qp_u: dict[str, np.ndarray],
+    nn_u: dict[str, np.ndarray],
     config: DeepLCCConfig,
 ) -> None:
-    """Plot CAV velocities for QP vs NN on a given scenario."""
+    """Plot CAV velocities and applied control u for QP vs NN."""
     total_steps = len(qp_vel["head"])
     t = np.arange(total_steps) * config.Tstep
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
+    # Top: velocity
+    ax = axes[0]
     ax.plot(t, qp_vel["head"], color="gray", linewidth=1.5, linestyle="--",
             label="Head vehicle", alpha=0.7)
-
-    ax.plot(t, qp_vel["cav_0"], color="#1f77b4", linewidth=1.5,
-            label="CAV 3 (QP)")
+    ax.plot(t, qp_vel["cav_0"], color="#1f77b4", linewidth=1.5, label="CAV 3 (QP)")
     ax.plot(t, nn_vel["cav_0"], color="#1f77b4", linewidth=1.5, linestyle=":",
             label="CAV 3 (NN)")
-
-    ax.plot(t, qp_vel["cav_1"], color="#d62728", linewidth=1.5,
-            label="CAV 6 (QP)")
+    ax.plot(t, qp_vel["cav_1"], color="#d62728", linewidth=1.5, label="CAV 6 (QP)")
     ax.plot(t, nn_vel["cav_1"], color="#d62728", linewidth=1.5, linestyle=":",
             label="CAV 6 (NN)")
-
-    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Velocity (m/s)")
     ax.set_title(f"{scenario_name} Scenario: CAV Velocities — QP vs NN")
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    # Bottom: applied control u (CAV acceleration)
+    ax = axes[1]
+    ax.axhline(config.acel_max, color="k", linewidth=0.8, linestyle=":", alpha=0.5)
+    ax.axhline(config.dcel_max, color="k", linewidth=0.8, linestyle=":", alpha=0.5)
+    ax.plot(t, qp_u["cav_0"], color="#1f77b4", linewidth=1.2, label="CAV 3 (QP)")
+    ax.plot(t, nn_u["cav_0"], color="#1f77b4", linewidth=1.2, linestyle=":",
+            label="CAV 3 (NN)")
+    ax.plot(t, qp_u["cav_1"], color="#d62728", linewidth=1.2, label="CAV 6 (QP)")
+    ax.plot(t, nn_u["cav_1"], color="#d62728", linewidth=1.2, linestyle=":",
+            label="CAV 6 (NN)")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Applied u (m/s²)")
+    ax.set_title("Control input u")
+    ax.legend(loc="best", fontsize=8)
     ax.grid(True, alpha=0.3)
 
     filename = scenario_name.lower().replace("±", "").replace(" ", "_")
@@ -244,7 +285,7 @@ def _plot_qp_vs_nn(
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"{scenario_name} velocity plot saved to {out_path}")
+    print(f"{scenario_name} velocity+u plot saved to {out_path}")
 
 
 def main():
