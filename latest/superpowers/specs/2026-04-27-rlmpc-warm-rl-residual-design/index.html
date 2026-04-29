@@ -1,0 +1,1502 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reinforcement learning for traffic flow optimization using SUMO">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>RLMPC for Mixed-Traffic Platoon — Design - SUMO RL Mixed Traffic</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rlmpc-for-mixed-traffic-platoon-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="SUMO RL Mixed Traffic" class="md-header__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SUMO RL Mixed Traffic
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RLMPC for Mixed-Traffic Platoon — Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="SUMO RL Mixed Traffic" class="md-nav__button md-logo" aria-label="SUMO RL Mixed Traffic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SUMO RL Mixed Traffic
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/7174Andy/sumo-rl-mixed-traffic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../problem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Problem Formulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../ppo-refactor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reward-redesign/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redesign Reward
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../lagrangian-ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lagrangian PPO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../deep-lcc-dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeeP-LCC / NNMPC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exploration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Exploration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../exploration/lagrangian_ppo_reward_tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reward Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#goal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Goal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#files-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#files-reused" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files reused
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platoonnnmpcenv-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PlatoonNNMPCEnv specification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PlatoonNNMPCEnv specification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#observation-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observation space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#action-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stepaction-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step(action) flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resetseed-options-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reset(seed, options) flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#episode-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Episode parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#internal-state-to-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal state to track
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reward-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reward — implementation notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#policy-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy specification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Policy specification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nnmpcactorcritic-new-in-nnmpc_actor_criticpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NNMPCActorCritic (new, in nnmpc_actor_critic.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#warm-start-procedure-nnmpcactorcriticwarm_start_from_nnmpcckpt_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warm-start procedure (NNMPCActorCritic.warm_start_from_nnmpc(ckpt_path))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-not-modify-actorcriticnetwork-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not modify ActorCriticNetwork directly?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#training-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rlmpcconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RLMPCConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#curriculum-optional-off-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Curriculum (optional, off by default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evaluation pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#controllers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controllers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eval-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Eval scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hdv-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HDV configurations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metrics-per-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics per evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#determinism" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Determinism
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#note-on-cost-comparability-with-the-existing-ovm-based-eval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Note on cost comparability with the existing OVM-based eval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#risk-register" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risk register
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceptance criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#out-of-scope-follow-ons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out-of-scope follow-ons
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rlmpc-for-mixed-traffic-platoon-design">RLMPC for Mixed-Traffic Platoon — Design<a class="headerlink" href="#rlmpc-for-mixed-traffic-platoon-design" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-04-27
+<strong>Author:</strong> Andrew Park
+<strong>Status:</strong> Approved (awaiting plan)</p>
+<h2 id="goal">Goal<a class="headerlink" href="#goal" title="Permanent link">&para;</a></h2>
+<p>Implement two RL-augmented controllers on top of the existing NNMPC, following Jia &amp; Bajaj (2025), "On Architectures for Combining Reinforcement Learning and Model Predictive Control with Runtime Improvements":</p>
+<ol>
+<li><strong>Warm-Start RL</strong> — actor network initialized from NNMPC weights, replaces NNMPC entirely.</li>
+<li><strong>RL + NNMPC</strong> — NNMPC outputs the bulk of the action; RL outputs a bounded residual; the sum is clipped to the physical action range.</li>
+</ol>
+<p>Both methods are evaluated against the existing QP solver and the existing NNMPC on the same SUMO platoon, controlling the same two CAVs (positions 3 and 6 of an 8-follower platoon led by one head vehicle).</p>
+<h2 id="why">Why<a class="headerlink" href="#why" title="Permanent link">&para;</a></h2>
+<p>Two motivations from the paper, both apply here:</p>
+<ul>
+<li><strong>A. Close the QP↔NN gap.</strong> The trained NNMPC has a residual error vs. the QP solver in closed loop; let RL trim that.</li>
+<li><strong>B. Robustness to HDV heterogeneity.</strong> NNMPC was trained on the nominal homogeneous OVM but deployment-time HDVs vary. Let RL adapt to that mismatch.</li>
+</ul>
+<p>Goal C from brainstorming (robustness to other failure modes — communication delay, IDM-driven HDVs, time-varying OVM) is explicitly out of scope for this design. It can be a follow-on once A+B work.</p>
+<h2 id="setting">Setting<a class="headerlink" href="#setting" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Simulator:</strong> SUMO (via TraCI). The existing OVM closed-loop simulator (<code>run_with_state</code>) is <em>not</em> used at training or eval time for this work — both train and eval go through SUMO so the experiment matches the SUMO line of work.</li>
+<li><strong>Platoon:</strong> 1 head + 8 followers on the existing ring road. CAVs are at positions 3 and 6 (1-indexed within the platoon, matching <code>DeepLCCConfig</code>'s <code>ID = [0, 0, 1, 0, 0, 1, 0, 0]</code>). The other six are HDVs.</li>
+<li><strong>HDV behavior:</strong> SUMO IDM car-following, <strong>with per-vehicle parameters sampled fresh at every <code>reset()</code></strong> (this is the goal-B mechanism; nominal homogeneous IDM is a special case in the support).</li>
+<li><strong>Head behavior:</strong> controlled <code>setSpeed</code> from a pre-computed velocity trace sampled per episode from <code>DeepLCCConfig.perturb_mix</code> (random ±A, brake, sinusoidal). This matches the head-vehicle distribution NNMPC was trained against.</li>
+</ul>
+<p>The mismatch between SUMO IDM (HDV behavior at deployment) and the OVM model NNMPC was trained against is itself a concrete instance of goal A+B — RL has work to do without any artificial HDV randomization.</p>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Multi-agent (decentralized per-CAV policy). Both methods run a single centralized policy with a 2-D joint action, matching the NN/QP experiment structure for fair comparison.</li>
+<li>Vectorized SUMO training. Single env per training run.</li>
+<li>Communication delay, IDM/OVM mismatch as a <em>trained</em> concern (deployment in SUMO already exposes us to it; we don't simulate further failure modes).</li>
+<li>Re-training NNMPC. We use the existing <code>deep_lcc_results/nnmpc.pth</code> as-is.</li>
+</ul>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>                                       ┌──────────────────────────────┐
+                                       │      PlatoonNNMPCEnv         │
+                                       │   (gymnasium.Env, in         │
+                                       │    rl_mixed_traffic/         │
+                                       │    deep_lcc/rlmpc_env.py)    │
+  PPOAgent + ──obs (260)──→  NNMPCActor│  ┌────────────────────┐      │
+  RolloutBuffer              Critic    │  │  SUMO platoon      │      │
+  (existing,    (260→256→128→2,        │  │  1 head + 8 HDVs   │      │
+   in agents/)   warm or resid init)   │  │  + CAVs at 3, 6    │      │
+              ←─action (2)──           │  │  IDM + per-veh     │      │
+                                       │  │  randomization     │      │
+                                       │  └────────────────────┘      │
+                                       │  ┌────────────────────┐      │
+                                       │  │ NNMPC (frozen)     │      │
+                                       │  │ inside step() if   │      │
+                                       │  │ mode=residual      │      │
+                                       │  └────────────────────┘      │
+                                       │  ┌────────────────────┐      │
+                                       │  │ (uini, yini, eini) │      │
+                                       │  │ rolling buffers    │      │
+                                       │  └────────────────────┘      │
+                                       │  ┌────────────────────┐      │
+                                       │  │ Lagrangian LCC     │      │
+                                       │  │ reward (r_base −   │      │
+                                       │  │ λ·violation; -1 on │      │
+                                       │  │ collision)         │      │
+                                       │  └────────────────────┘      │
+                                       └──────────────────────────────┘
+</code></pre></div>
+<p>The training stack reuses the project's existing CleanRL-style PPO (<code>rl_mixed_traffic/agents/ppo_agent.py</code> + <code>rl_mixed_traffic/ppo/</code>) — no SB3, matching the rest of the codebase. Only the actor architecture and the env are RLMPC-specific.</p>
+<h3 id="files-added">Files added<a class="headerlink" href="#files-added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>rl_mixed_traffic/deep_lcc/rlmpc_env.py</code> — <code>PlatoonNNMPCEnv</code> (extends/wraps <code>RingRoadEnv</code> for the NNMPC observation/action shape and to run NNMPC inside <code>step()</code>)</li>
+<li><code>rl_mixed_traffic/deep_lcc/nnmpc_actor_critic.py</code> — <code>NNMPCActorCritic</code> network with NNMPC-shaped actor (260 → 256 → 128 → 2) + warm-start loader; reuses <code>ActorCriticNetwork</code>'s critic head pattern.</li>
+<li><code>rl_mixed_traffic/deep_lcc/rlmpc_config.py</code> — <code>RLMPCConfig</code> dataclass</li>
+<li><code>rl_mixed_traffic/deep_lcc/rlmpc_train.py</code> — train script (mode = <code>warm_start</code> or <code>residual</code>); reuses <code>PPOAgent</code> + <code>RolloutBuffer</code> from <code>rl_mixed_traffic/ppo/</code> + <code>rl_mixed_traffic/agents/</code></li>
+<li><code>rl_mixed_traffic/deep_lcc/rlmpc_eval.py</code> — eval script (compares all four controllers)</li>
+<li><code>rl_mixed_traffic/deep_lcc/rlmpc_head_controller.py</code> — head-vehicle controller that plays a <code>perturb_mix</code> profile (subclass of <code>HeadVehicleController</code>)</li>
+<li><code>configs/ring/platoon_9.rou.xml</code> — 1 head + 8 followers route file</li>
+<li><code>configs/ring/platoon_9.sumocfg</code> — SUMO config referencing the new route file. <strong>Must use <code>&lt;step-length value="0.05"/&gt;</code></strong> to match NNMPC's training <code>Tstep=0.05</code>. The existing <code>simulation.sumocfg</code> uses 0.1; we cannot reuse it.</li>
+</ul>
+<h3 id="files-reused">Files reused<a class="headerlink" href="#files-reused" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>rl_mixed_traffic/utils/sumo_utils.py</code> — TraCI lifecycle helpers</li>
+<li><code>rl_mixed_traffic/configs/sumo_config.py</code> — <code>SumoConfig</code> dataclass</li>
+<li><code>rl_mixed_traffic/configs/ppo_config.py</code> — <code>PPOConfig</code> (extend; new <code>RLMPCConfig</code> adds RLMPC-specific fields)</li>
+<li><code>rl_mixed_traffic/agents/ppo_agent.py</code> — <code>PPOAgent</code> (CleanRL-style, used as-is)</li>
+<li><code>rl_mixed_traffic/ppo/network.py</code> — <code>ActorCriticNetwork</code> (subclassed/replaced for NNMPC-shaped actor)</li>
+<li><code>rl_mixed_traffic/ppo/rollout_buffer.py</code> — <code>RolloutBuffer</code> (used as-is)</li>
+<li><code>rl_mixed_traffic/env/ring_env.py</code> — <code>RingRoadEnv</code> (subclassed; reuse SUMO lifecycle, leader-finding, <code>compute_multi_agent_lcc_reward</code>, <code>get_spacing_violation</code>)</li>
+<li><code>rl_mixed_traffic/env/head_vehicle_controller.py</code> — <code>HeadVehicleController</code> (subclassed for <code>perturb_mix</code> profiles)</li>
+<li><code>rl_mixed_traffic/deep_lcc/nnmpc_network.py</code> — <code>NNMPCNetwork</code></li>
+<li><code>rl_mixed_traffic/deep_lcc/nnmpc_config.py</code> — for paths and architecture defaults</li>
+<li><code>rl_mixed_traffic/deep_lcc/config.py</code> — <code>DeepLCCConfig</code> for cost weights, perturbation mix, equilibrium</li>
+<li><code>rl_mixed_traffic/deep_lcc/measurement.py</code> — <code>measure_mixed_traffic</code> for computing yini</li>
+</ul>
+<h2 id="platoonnnmpcenv-specification"><code>PlatoonNNMPCEnv</code> specification<a class="headerlink" href="#platoonnnmpcenv-specification" title="Permanent link">&para;</a></h2>
+<h3 id="observation-space">Observation space<a class="headerlink" href="#observation-space" title="Permanent link">&para;</a></h3>
+<p><code>Box(low=-inf, high=+inf, shape=(260,), dtype=float32)</code> — same as NNMPC input, structured as concatenation:</p>
+<table>
+<thead>
+<tr>
+<th>slice</th>
+<th>size</th>
+<th>contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>obs[:40]</code></td>
+<td>40</td>
+<td><code>uini</code>: past 20 steps × 2 CAV accelerations (the <em>applied</em> total, not just the policy output)</td>
+</tr>
+<tr>
+<td><code>obs[40:240]</code></td>
+<td>200</td>
+<td><code>yini</code>: past 20 steps × 10 measurements = 8 velocity errors <code>v_i - v_eq</code> + 2 CAV spacing errors <code>s_j - s_star</code> (matches <code>measurement.measure_mixed_traffic</code> with <code>measure_type=3</code>)</td>
+</tr>
+<tr>
+<td><code>obs[240:260]</code></td>
+<td>20</td>
+<td><code>eini</code>: past 20 steps × head-velocity error <code>v_head - v_eq</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>v_eq</code> is the 20-second moving average of the head vehicle's speed (already implemented in <code>RingRoadEnv</code> as the <code>v_eq</code> property — to be reused). <code>s_star = 20.0 m</code> (from <code>DeepLCCConfig.s_star</code>).</p>
+<p>The observation is normalized using NNMPC's own <code>input_mean</code> and <code>input_std</code> loaded from <code>nnmpc.pth</code>. Normalization happens in the env, so the policy receives standardized inputs identical to NNMPC's training data.</p>
+<h3 id="action-space">Action space<a class="headerlink" href="#action-space" title="Permanent link">&para;</a></h3>
+<p><code>Box(low, high, shape=(2,), dtype=float32)</code> where <code>low/high</code> depend on mode (set at env construction time, not per-step):</p>
+<ul>
+<li><code>mode="warm_start"</code>: <code>low = [-5, -5]</code>, <code>high = [3, 3]</code> — full physical CAV acceleration range.</li>
+<li><code>mode="residual"</code>: <code>low = [-2, -2]</code>, <code>high = [2, 2]</code> — bounded correction to NNMPC's output.</li>
+</ul>
+<h3 id="stepaction-flow"><code>step(action)</code> flow<a class="headerlink" href="#stepaction-flow" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Update observation buffers from current SUMO state. Specifically:</li>
+<li>Append latest CAV accelerations (the actually applied total from the previous step) to <code>uini</code> buffer.</li>
+<li>Compute current 8-velocity-error + 2-spacing-error vector via <code>measure_mixed_traffic</code>; append to <code>yini</code> buffer.</li>
+<li>Compute current head-velocity-error; append to <code>eini</code> buffer.</li>
+<li>Compose 260-dim observation, normalize with NNMPC stats.</li>
+<li>If <code>mode == "residual"</code>: forward NNMPC on the (normalized) observation to get <code>u_nnmpc</code> ∈ [-5, 3]². Otherwise <code>u_nnmpc = 0</code>.</li>
+<li>Compute <code>u_total = clip(u_nnmpc + action, [-5, 3])</code>. (This is a no-op for <code>warm_start</code>, since action already lives in [-5, 3].)</li>
+<li><code>apply_acceleration([car3, car6], u_total, smooth=False)</code>. Apply head's pre-computed velocity for this step via <code>setSpeed</code>.</li>
+<li><code>traci.simulationStep()</code>.</li>
+<li>Update <code>v_eq</code> buffer with current head speed.</li>
+<li>Compute reward using the <strong>Lagrangian-augmented LCC reward</strong> matching the existing <code>RingRoadEnv</code> design:</li>
+<li><strong>Base reward</strong> (from <code>compute_multi_agent_lcc_reward</code>):
+     <div class="highlight"><pre><span></span><code>J_velocity = weight_v · Σ_i (v_i - v_eq)²        # all 9 vehicles except head
+J_spacing  = weight_s · Σ_cav clip(s_cav - s_star, ±20)²   # both CAVs
+J_control  = weight_u · Σ_cav a_cav²              # both CAVs
+J = J_velocity + J_spacing + J_control
+r_base = max(J_max_multi - J, 0) / J_max_multi    # in [0, 1]
+</code></pre></div>
+     <code>J_max_multi</code> is precomputed from <code>weight_v · max_v_error² · (num_vehicles - 1) + 2·weight_s·20² + 2·weight_u·max_accel²</code>. At equilibrium <code>r_base = 1.0</code>; in worst case <code>r_base = 0.0</code>.</li>
+<li><strong>Lagrangian spacing-violation penalty</strong> (from <code>get_spacing_violation</code>):
+     <div class="highlight"><pre><span></span><code>violation = Σ_cav max(0, s_min - gap_cav) / s_min     # zero unless a CAV is within 5 m of its leader
+r_aug = r_base - λ · violation                          # λ = 1.0 default (configurable)
+</code></pre></div>
+     The Lagrangian penalty engages <em>before</em> a collision happens so the policy gets a graded signal as it approaches unsafe spacing.</li>
+<li><strong>Collision override</strong>: if SUMO reports a collision this step, reward = <code>-1.0</code> (overrides the above), and <code>terminated=True</code>. This is a one-shot strong negative — combined with the otherwise-positive per-step rewards, it makes "less-negative cumulative reward" exactly equivalent to "fewer collisions" for the agent's optimization.</li>
+<li>Termination conditions:</li>
+<li><code>step_count &gt;= max_steps</code> → <code>truncated=True</code>.</li>
+<li>SUMO collision → <code>terminated=True</code> (and reward already set to <code>-1.0</code> above).</li>
+<li>Return <code>(obs, reward, terminated, truncated, info)</code>. <code>info</code> carries <code>{"r_base": ..., "violation": ..., "collision": bool}</code> for diagnostics.</li>
+</ol>
+<p><strong>Cost weights:</strong> match <code>DeepLCCConfig</code> — <code>weight_v=5.0, weight_s=0.1, weight_u=0.1</code>, <code>s_star=20.0</code>, <code>spacing_min=5.0</code>. These are the same weights the QP and NNMPC are designed for, so the RL reward optimizes the same objective the upstream controllers pursue. <code>PlatoonNNMPCEnv</code> overrides the <code>RingRoadEnv</code> defaults (1.0/0.5/0.2) at construction time by passing the DeepLCCConfig values into the parent's <code>__init__</code>; <code>RingRoadEnv</code> already accepts these as constructor arguments and recomputes <code>J_max_multi</code> automatically.</p>
+<p><strong>Numeric implication for <code>J_max_multi</code></strong> (with <code>v_star=15</code>, <code>v_max=30</code>, <code>max_accel=3</code>, <code>num_vehicles=9</code>, <code>num_agents=2</code>):
+<div class="highlight"><pre><span></span><code>J_v_max     = 5.0 · 15² · (9 − 1) = 9000
+J_s_max     = 0.1 · 20²            = 40
+J_u_max     = 0.1 · 3²             = 0.9
+J_max_multi = 9000 + 2·40 + 2·0.9  ≈ 9081.8
+</code></pre></div>
+The velocity term dominates by ~100×, so <code>r_base</code> is effectively a normalized velocity-tracking score with small spacing and control corrections — same shape as the QP cost.</p>
+<h3 id="resetseed-options-flow"><code>reset(seed, options)</code> flow<a class="headerlink" href="#resetseed-options-flow" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Close any prior TraCI connection. Open a fresh one with the new route file.</li>
+<li>Sample HDV parameters per follower using <code>seed</code> (or env-internal RNG):</li>
+<li>For each non-CAV follower (<code>car1, car2, car4, car5, car7, car8</code>):<ul>
+<li><code>tau ~ U[0.8, 1.5]</code></li>
+<li><code>accel ~ U[1.5, 2.5]</code></li>
+<li><code>decel ~ U[2.5, 3.5]</code></li>
+<li><code>minGap ~ U[2.0, 3.0]</code></li>
+<li><code>sigma ~ U[0.3, 0.6]</code></li>
+</ul>
+</li>
+<li>Apply via <code>traci.vehicle.setTau</code>, <code>setAccel</code>, <code>setDecel</code>, <code>setMinGap</code>, <code>setImperfection</code>.</li>
+<li>Sample one perturbation type from <code>DeepLCCConfig.perturb_mix</code> (random/brake/sinusoidal). Pre-compute the head velocity trace for the whole episode using the same generators that produce training data (<code>make_extreme_brake</code>, <code>make_sinusoidal</code>, or random ±A).</li>
+<li>Set CAV speed mode to <code>95</code> (matches <code>RingRoadEnv</code>) and max speed to <code>v_max = 30.0</code>.</li>
+<li>Warm up: simulate for <code>T_ini = 20</code> steps with no policy action.</li>
+<li>During warm-up, <strong>do not</strong> set CAV speed mode to 95 — leave SUMO IDM in charge of the CAVs so the platoon settles naturally.</li>
+<li>Each warm-up step, append <code>traci.vehicle.getAcceleration(cav_id)</code> (the IDM-applied accel for that step) to <code>uini</code>. Likewise update <code>yini</code> and <code>eini</code>.</li>
+<li>At step <code>T_ini = 20</code>, <em>then</em> set CAV speed mode to 95 and <code>setMaxSpeed(v_max)</code>. From step 20 onward, the policy controls the CAVs via <code>apply_acceleration(..., smooth=False)</code>.</li>
+<li>Build initial observation from filled buffers; return.</li>
+</ol>
+<h3 id="episode-parameters">Episode parameters<a class="headerlink" href="#episode-parameters" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Tstep = 0.05 s</code> (matches <code>DeepLCCConfig</code>)</li>
+<li><code>episode_length = 30.0 s</code> → 600 steps per episode (post-warm-up: 580 steps under policy control)</li>
+<li><code>max_steps = 600</code></li>
+</ul>
+<h3 id="internal-state-to-track">Internal state to track<a class="headerlink" href="#internal-state-to-track" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rolling buffers: <code>uini</code> (deque maxlen 20×2=40 floats), <code>yini</code> (deque maxlen 200), <code>eini</code> (deque maxlen 20).</li>
+<li><code>v_eq</code> running average (deque of head speeds, maxlen <code>int(20.0 / Tstep) = 400</code>).</li>
+<li><code>prev_total_accel</code> per CAV — feeds <code>uini</code> next step.</li>
+<li><code>step_count</code>.</li>
+<li>Pre-computed <code>head_vel_trace: np.ndarray</code> for the whole episode.</li>
+<li><code>nnmpc_model</code> (loaded once per env instance, frozen, in <code>eval()</code> mode, on CPU).</li>
+<li><code>input_mean</code>, <code>input_std</code> for observation normalization.</li>
+</ul>
+<h3 id="reward-implementation-notes">Reward — implementation notes<a class="headerlink" href="#reward-implementation-notes" title="Permanent link">&para;</a></h3>
+<p>The reward is computed by reusing <code>RingRoadEnv.compute_multi_agent_lcc_reward()</code> for <code>r_base</code> and <code>RingRoadEnv.get_spacing_violation()</code> for the Lagrangian penalty — both already implemented and unit-tested in <code>tests/test_compute_lcc_reward.py</code>. <code>PlatoonNNMPCEnv</code> subclasses <code>RingRoadEnv</code> and only needs to:</p>
+<ol>
+<li>Override <code>__init__</code> to set <code>num_vehicles=9, num_agents=2, agent_ids=["car3", "car6"]</code>, override <code>agent_id</code> to <code>"car3"</code> for backward-compat.</li>
+<li>Override the reward path in <code>step()</code> to apply the Lagrangian augmentation (<code>r_aug = r_base - λ · violation</code>) and the collision override (<code>r = -1.0 + terminate</code>).</li>
+<li>Maintain <code>prev_accels[aid]</code> so <code>compute_multi_agent_lcc_reward</code> sees the <em>applied total</em> CAV accelerations (NNMPC + residual after clipping), not just the policy output.</li>
+</ol>
+<p>This is intentionally minimal: the reward math stays where it is in <code>RingRoadEnv</code> and is shared with the existing PPO experiments. Any future changes to the reward apply uniformly to both lines of work.</p>
+<h2 id="policy-specification">Policy specification<a class="headerlink" href="#policy-specification" title="Permanent link">&para;</a></h2>
+<p>The existing <code>ActorCriticNetwork</code> (in <code>rl_mixed_traffic/ppo/network.py</code>) uses a shared 2-layer MLP with <code>tanh</code> activations and separate actor-mean and critic heads, designed for low-dim observations. For RLMPC we need a deeper, ReLU-based actor that matches <code>NNMPCNetwork</code>'s architecture so warm-start works by direct weight load. We keep <code>ActorCriticNetwork</code>'s API (returns <code>(actor_output, value)</code> and provides <code>get_action_and_value</code>) so <code>PPOAgent</code> works unchanged.</p>
+<h3 id="nnmpcactorcritic-new-in-nnmpc_actor_criticpy"><code>NNMPCActorCritic</code> (new, in <code>nnmpc_actor_critic.py</code>)<a class="headerlink" href="#nnmpcactorcritic-new-in-nnmpc_actor_criticpy" title="Permanent link">&para;</a></h3>
+<p>Subclass-or-replace <code>ActorCriticNetwork</code> with:</p>
+<ul>
+<li><strong>Actor body</strong>: MLP <code>260 → 256 → 128 → 2</code> with ReLU activations, final layer's pre-activation linear <em>output</em> is the unsquashed action mean. The trained <code>NNMPCNetwork</code> is <code>260 → 256 → 128 → 2 → tanh → scale to [accel_min, accel_max]</code>. We load NNMPC's <code>state_dict</code> into our actor body's first three <code>Linear</code> layers (the MLP up to the pre-tanh output). The downstream <code>tanh</code> + scale happens in the action distribution / scaling step, not in the network module — so the warm-started actor produces the <em>same numeric action</em> as NNMPC at step 0.</li>
+<li><strong>Critic head</strong>: independent MLP <code>260 → 256 → 128 → 1</code> with ReLU. No warm-start.</li>
+<li><strong><code>actor_log_std</code></strong>: state-independent learnable <code>nn.Parameter</code>, mirroring <code>ActorCriticNetwork.actor_log_std</code>. Initialization differs by mode:</li>
+<li><code>warm_start</code>: <code>log_std₀ = log(0.1)</code> so initial sampled actions ≈ NNMPC + small noise.</li>
+<li><code>residual</code>: <code>log_std₀ = log(0.5)</code> for more exploration; actor mean head's last layer is orthogonal-init with gain <code>0.01</code>, so initial residual ≈ 0 and total action ≈ NNMPC alone.</li>
+<li><strong><code>get_action_and_value(state, action)</code></strong>: matches the signature in <code>ActorCriticNetwork</code> so <code>PPOAgent</code> is unchanged. Internally:
+  <div class="highlight"><pre><span></span><code>actor_pre_tanh, value = forward(state)
+log_std = clamp(actor_log_std, -2.0, 0.5)
+std = exp(log_std)
+dist = Normal(actor_pre_tanh, std)
+if action is None:                          # rollout
+    raw = dist.sample()
+    action_squashed = tanh(raw)
+else:                                       # PPO update
+    action_squashed = action                 # already in [-1, 1]
+    raw = atanh(clip(action_squashed, -0.999, 0.999))
+log_prob = dist.log_prob(raw).sum(-1)
+          - log(1 - action_squashed**2 + 1e-6).sum(-1)   # tanh correction
+return action_squashed, log_prob, dist.entropy().sum(-1), value
+</code></pre></div>
+  The action returned to the env is <code>action_squashed ∈ [-1, 1]</code>. The env's <code>step()</code> <em>scales</em> it to the action box (<code>[-5, 3]</code> for warm-start, <code>[-2, 2]</code> for residual) before applying. This mirrors <code>ppo_train.py</code>'s existing <code>action_scaled = action_tanh * max_accel</code> pattern.</li>
+</ul>
+<h3 id="warm-start-procedure-nnmpcactorcriticwarm_start_from_nnmpcckpt_path">Warm-start procedure (<code>NNMPCActorCritic.warm_start_from_nnmpc(ckpt_path)</code>)<a class="headerlink" href="#warm-start-procedure-nnmpcactorcriticwarm_start_from_nnmpcckpt_path" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>1. Load nnmpc.pth → state_dict, input_mean, input_std.
+2. Map NNMPC&#39;s nn.Sequential layers (Linear/ReLU/Linear/ReLU/Linear/Tanh)
+   onto the actor body&#39;s first three Linear layers, ignoring the final Tanh
+   (we apply tanh in the distribution step, not the body).
+3. Verify shape match before copying; raise on mismatch.
+4. Return (input_mean, input_std) for the env to use.
+</code></pre></div>
+<p>The env <em>also</em> loads <code>nnmpc.pth</code> independently — it needs to <em>run</em> NNMPC for <code>mode="residual"</code> <em>and</em> it needs <code>input_mean/std</code> to normalize observations consistently with how NNMPC was trained.</p>
+<h3 id="why-not-modify-actorcriticnetwork-directly">Why not modify <code>ActorCriticNetwork</code> directly?<a class="headerlink" href="#why-not-modify-actorcriticnetwork-directly" title="Permanent link">&para;</a></h3>
+<p><code>ActorCriticNetwork</code> is shared with the existing <code>RingRoadEnv</code> PPO line. Changing its hidden dims or activations could break those experiments' loaded checkpoints. A new class adds zero risk to existing code. Both classes implement the same <code>get_action_and_value</code> contract, so <code>PPOAgent</code> accepts either.</p>
+<h2 id="training-pipeline">Training pipeline<a class="headerlink" href="#training-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="rlmpcconfig"><code>RLMPCConfig</code><a class="headerlink" href="#rlmpcconfig" title="Permanent link">&para;</a></h3>
+<p>Reuses <code>PPOConfig</code> for PPO hyperparams; adds RLMPC-specific fields. Hyperparams default to the values in <code>rl_mixed_traffic/configs/ppo_config.py</code> so behavior is consistent with the existing PPO experiments.</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RLMPCConfig</span><span class="p">:</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;warm_start&quot;</span><span class="p">,</span> <span class="s2">&quot;residual&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;warm_start&quot;</span>
+    <span class="n">nnmpc_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;deep_lcc_results/nnmpc.pth&quot;</span>
+    <span class="n">sumocfg_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;configs/ring/platoon_9.sumocfg&quot;</span>
+    <span class="n">use_gui</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Episode</span>
+    <span class="n">episode_length_s</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">Tstep</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+
+    <span class="c1"># PPO (delegated to PPOConfig — keep names matching the existing dataclass)</span>
+    <span class="n">ppo</span><span class="p">:</span> <span class="n">PPOConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PPOConfig</span><span class="p">)</span>
+    <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1_000_000</span>        <span class="c1"># mirrors ppo_train.py</span>
+    <span class="n">rollout_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4096</span>
+    <span class="n">save_freq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100_000</span>
+
+    <span class="c1"># Lagrangian penalty</span>
+    <span class="n">lambda_violation</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>       <span class="c1"># weight on spacing-violation in r_aug</span>
+
+    <span class="c1"># HDV randomization (per-vehicle, per-episode)</span>
+    <span class="n">hdv_tau_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">)</span>
+    <span class="n">hdv_accel_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">)</span>
+    <span class="n">hdv_decel_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">)</span>
+    <span class="n">hdv_minGap_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">)</span>
+    <span class="n">hdv_sigma_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">)</span>
+
+    <span class="c1"># Logging / output</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span>
+    <span class="n">out_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;deep_lcc_results/rlmpc_</span><span class="si">{mode}</span><span class="s2">/&quot;</span>
+</code></pre></div>
+<h3 id="training-script">Training script<a class="headerlink" href="#training-script" title="Permanent link">&para;</a></h3>
+<p>Mirrors the structure of <code>rl_mixed_traffic/ppo_train.py</code> (multi-agent path) but with the new env, the new actor-critic, and a single 2-D joint action (no per-agent action loop):</p>
+<div class="highlight"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">RLMPCConfig</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;warm_start&quot;</span><span class="p">)</span>  <span class="c1"># or &quot;residual&quot;</span>
+
+<span class="n">env</span> <span class="o">=</span> <span class="n">PlatoonNNMPCEnv</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="n">env</span> <span class="o">=</span> <span class="n">FourToFiveTupleWrapper</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>        <span class="c1"># reuse existing wrapper</span>
+
+<span class="n">obs_dim</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">observation_space</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>   <span class="c1"># 260</span>
+<span class="n">action_dim</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>      <span class="c1"># 2</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">NNMPCActorCritic</span><span class="p">(</span>
+    <span class="n">obs_dim</span><span class="o">=</span><span class="n">obs_dim</span><span class="p">,</span> <span class="n">action_dim</span><span class="o">=</span><span class="n">action_dim</span><span class="p">,</span>
+    <span class="n">hidden_dims</span><span class="o">=</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span>
+    <span class="n">log_std_init</span><span class="o">=</span><span class="n">log</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;warm_start&quot;</span> <span class="k">else</span> <span class="n">log</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span>
+    <span class="n">final_layer_gain</span><span class="o">=</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;warm_start&quot;</span> <span class="k">else</span> <span class="mf">0.01</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;warm_start&quot;</span><span class="p">:</span>
+    <span class="n">network</span><span class="o">.</span><span class="n">warm_start_from_nnmpc</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">nnmpc_path</span><span class="p">)</span>
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">PPOAgent</span><span class="p">(</span>
+    <span class="n">obs_dim</span><span class="o">=</span><span class="n">obs_dim</span><span class="p">,</span> <span class="n">action_dim</span><span class="o">=</span><span class="n">action_dim</span><span class="p">,</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">ppo</span><span class="p">,</span> <span class="n">continuous</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">total_steps</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">total_steps</span><span class="p">,</span>
+    <span class="n">rollout_steps</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">rollout_steps</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">agent</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="n">network</span>                    <span class="c1"># swap in the NNMPC-shaped network</span>
+
+<span class="c1"># rollout / learn loop matches ppo_train.py&#39;s _train_single_agent:</span>
+<span class="c1">#   action_tanh, value, log_prob = agent.get_action_and_value(s)</span>
+<span class="c1">#   action_scaled = action_tanh * max_accel  (with mode-aware max_accel)</span>
+<span class="c1">#   agent.store_transition(...) + agent.learn(last_value)</span>
+</code></pre></div>
+<p>The env's <code>max_accel</code> is mode-aware: <code>3.0</code> for warm-start (asymmetric clip later), <code>2.0</code> for residual. The action is scaled to that bound then passed through. Asymmetric <code>[-5, 3]</code> clipping for warm-start happens in <code>apply_acceleration</code> already (existing code clips to <code>[min_accel, max_accel]</code> per CAV).</p>
+<h3 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h3>
+<p>Plain CSV + matplotlib (matches <code>ppo_train.py</code>'s <code>plot_returns</code> / <code>plot_ppo_metrics</code>):
+- <code>deep_lcc_results/rlmpc_{mode}/returns.csv</code> — episode index, return, length, mean r_base, mean violation, collision flag.
+- <code>deep_lcc_results/rlmpc_{mode}/returns.png</code> — return vs episode plot.
+- <code>deep_lcc_results/rlmpc_{mode}/ppo_metrics.png</code> — policy loss, value loss, entropy, clip fraction.
+- Per-checkpoint snapshots <code>agent_step_{N}.pth</code> saved every <code>save_freq</code> steps.</p>
+<h3 id="compute-budget">Compute budget<a class="headerlink" href="#compute-budget" title="Permanent link">&para;</a></h3>
+<p><code>1M timesteps / 600 steps-per-ep ≈ 1666 episodes</code>. Per-episode wall-clock dominated by SUMO step time. Estimated total per training run: 10–20 hours. Both modes train sequentially (no parallel SUMO), total ≈ 20–40 hours.</p>
+<h3 id="curriculum-optional-off-by-default">Curriculum (optional, off by default)<a class="headerlink" href="#curriculum-optional-off-by-default" title="Permanent link">&para;</a></h3>
+<p>If warm-start RL diverges in the first ~100 episodes (paper notes this as a risk due to immature critic), enable a critic-only warm-up: freeze the actor's parameters for the first 50 updates, train only the critic head. Implemented inline in the train loop with a flag (<code>config.critic_warmup_updates: int</code>). Default 0. Skip for residual since the actor starts near zero anyway.</p>
+<h2 id="evaluation-pipeline">Evaluation pipeline<a class="headerlink" href="#evaluation-pipeline" title="Permanent link">&para;</a></h2>
+<h3 id="controllers">Controllers<a class="headerlink" href="#controllers" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>QP</strong> — runs the cvxopt-based <code>CachedDeepLCCSolver</code> from <code>qp_solver.py</code>. Pre-collected Hankel matrices are built once per controller-instance (not per-episode); fresh for each HDV config since precollection requires HDV dynamics. <strong>NB:</strong> the QP precollection is done in OVM-land (<code>run_with_state</code> with <code>precollect</code>), but the <em>online</em> QP solve runs against the SUMO-driven (uini, yini, eini) coming from <code>PlatoonNNMPCEnv</code>. This is consistent with the paper's framing: the controller's predictive model is offline-fit, the plant is the (mismatched) real system.</li>
+<li><strong>NNMPC</strong> — pure forward pass of <code>nnmpc.pth</code>, no RL.</li>
+<li><strong>Warm-Start RL</strong> — <code>PPOAgent.load("deep_lcc_results/rlmpc_warm_start/agent.pth")</code>, <code>agent.act(obs, eval_mode=True)</code> (deterministic mean action). Env in <code>mode="warm_start"</code>.</li>
+<li><strong>RL + NNMPC</strong> — <code>PPOAgent.load("deep_lcc_results/rlmpc_residual/agent.pth")</code>, <code>agent.act(obs, eval_mode=True)</code>. Env in <code>mode="residual"</code> so NNMPC runs inside the env.</li>
+</ol>
+<h3 id="eval-scenarios">Eval scenarios<a class="headerlink" href="#eval-scenarios" title="Permanent link">&para;</a></h3>
+<p>Same head-vehicle profiles already used in <code>nnmpc_eval.eval_closed_loop</code>:
+- <code>brake</code> (extreme braking, 30 s)
+- <code>sinusoidal</code> (40 s)
+- <code>varying_sine</code> (200 s)
+- <code>aggressive_sine</code> (200 s)
+- <code>stop_and_go</code> (200 s)
+- <code>NEDC</code> (~400 s, native length)</p>
+<p>For each scenario, episode length matches the scenario duration (overriding training's 30 s).</p>
+<h3 id="hdv-configurations">HDV configurations<a class="headerlink" href="#hdv-configurations" title="Permanent link">&para;</a></h3>
+<p>Three per scenario:
+- <strong><code>nominal_idm</code></strong> — homogeneous IDM with default SUMO parameters (the route file's <code>&lt;vType id="idm" ...&gt;</code> defaults). Tests goal A.
+- <strong><code>hetero_fixed</code></strong> — fixed heterogeneous parameters from <code>hdv_ovm_2.mat</code>, mapped to IDM equivalents (or use a deterministic seed for sampling). Tests goal B with one fixed sample.
+- <strong><code>hetero_random</code></strong> — 5 seeds, each sampling HDV params from the same training distribution. Tests goal B over the proper distribution.</p>
+<p>So the eval grid is <code>{6 scenarios} × {3 HDV configs} × {4 controllers} = 72 evaluations</code> (with <code>hetero_random</code> actually being 5 seeds → 6 × 5 = 30 + 6 × 2 = 12 ⇒ 42 (controller, scenario, hdv) combinations counting <code>hetero_random</code> as 5 separate combos).</p>
+<h3 id="metrics-per-evaluation">Metrics per evaluation<a class="headerlink" href="#metrics-per-evaluation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Total cost</strong> = sum of <code>J = J_velocity + J_spacing + J_control</code> over all post-warm-up steps, computed with <code>DeepLCCConfig</code> weights (<code>weight_v=5.0, weight_s=0.1, weight_u=0.1</code>). Primary metric — directly comparable across all four controllers and to the existing OVM-based <code>nnmpc_eval</code> numbers (modulo the OVM↔SUMO dynamics gap noted below).</li>
+<li><strong>Cumulative reward</strong> = sum of per-step <code>r_aug</code> over the episode. This is the actual quantity the policy optimized.</li>
+<li><strong>MSVE_cav0</strong>, <strong>MSVE_cav1</strong>, <strong>MSVE_avg</strong> — mean squared velocity error vs head, paper's metric.</li>
+<li><strong>Collision count</strong> — number of SUMO-reported collisions in the episode.</li>
+<li><strong>Spacing-violation count</strong> — number of steps with <code>min(s_cav0, s_cav1) &lt; 5.0 m</code>.</li>
+<li><strong>Min spacing</strong>, <strong>max spacing</strong> — safety summary.</li>
+<li><strong>Fuel consumption</strong> (mL/vehicle, follower vehicles 3–8) using the existing <code>compute_metrics</code> formula.</li>
+<li><strong>Mean per-step latency (μs)</strong> — <code>time.perf_counter()</code> around the controller call only.</li>
+</ul>
+<h3 id="outputs">Outputs<a class="headerlink" href="#outputs" title="Permanent link">&para;</a></h3>
+<p>Under <code>deep_lcc_results/rlmpc/</code>:
+- <code>summary.csv</code> — one row per (scenario, hdv_config, seed, controller).
+- <code>summary.md</code> — human-readable table grouped by scenario, ranked by cost.
+- <code>{scenario}_{hdv}_velocities.png</code> — overlay of all four controllers' CAV velocities + applied control trace, head vehicle as dashed reference. Extends <code>_plot_qp_vs_nn</code> to four series.
+- <code>{scenario}_{hdv}_cost_bars.png</code> — bar chart of total cost across controllers.
+- <code>traces/{scenario}_{hdv}_{seed}_{controller}.npz</code> — raw per-step data (positions, velocities, accels, spacings, costs).</p>
+<h3 id="determinism">Determinism<a class="headerlink" href="#determinism" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Trajectory rollout seed: <code>999</code> (matches <code>run_with_state</code> default), so SUMO step-level randomness is the same across controllers.</li>
+<li>HDV-param sample seed: paired with controller — for each (scenario, hdv_config, seed) tuple, the <em>same</em> HDV param sample is used across all four controllers. This makes the comparison apples-to-apples.</li>
+</ul>
+<h3 id="note-on-cost-comparability-with-the-existing-ovm-based-eval">Note on cost comparability with the existing OVM-based eval<a class="headerlink" href="#note-on-cost-comparability-with-the-existing-ovm-based-eval" title="Permanent link">&para;</a></h3>
+<p><code>nnmpc_eval.py</code> runs in OVM-land and produces cost numbers under the OVM dynamics. The new SUMO-based eval will produce <em>different</em> absolute cost numbers because the dynamics differ. <strong>Direct numeric comparison between the OVM-based cost and the SUMO-based cost is not meaningful.</strong> The new eval starts a fresh "SUMO leaderboard" — within that leaderboard, all four controllers are directly comparable.</p>
+<h2 id="risk-register">Risk register<a class="headerlink" href="#risk-register" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Warm-start RL diverges due to immature critic</td>
+<td>Medium</td>
+<td>Critic-only warm-up callback (off by default, enable if needed).</td>
+</tr>
+<tr>
+<td>HDV randomization too wide → CAVs can't avoid collisions</td>
+<td>Medium</td>
+<td>Conservative ranges already chosen (tau ≥ 0.8 s, decel ≥ 2.5). Tighten if collision rate &gt; ~5% during training.</td>
+</tr>
+<tr>
+<td>1M timesteps insufficient for PPO convergence</td>
+<td>Medium</td>
+<td>Watch return curve in the first 100k steps; bump to 2M if return is still rising at 1M.</td>
+</tr>
+<tr>
+<td>SUMO-side determinism: head trajectory <code>setSpeed</code> may be overridden by SUMO safety checks for <code>car0</code></td>
+<td>Low</td>
+<td>Set <code>car0</code>'s speed mode to a permissive value (e.g., 0 or a custom mask) at reset. Verify by recording actual head speeds vs commanded.</td>
+</tr>
+<tr>
+<td>Observation normalization drift: training-time HDVs differ from NNMPC's training distribution, so <code>input_mean/std</code> may not be appropriate</td>
+<td>Medium</td>
+<td>Acceptable for warm-start (we want NNMPC to start "as-is"). For residual, this is also fine since the policy is learning from scratch and will adapt. Don't recompute <code>input_mean/std</code> on the new distribution — that would invalidate warm-start.</td>
+</tr>
+<tr>
+<td>Wall-clock training too long for iteration</td>
+<td>High</td>
+<td>Document explicitly. If needed, reduce <code>total_steps</code>, shorten episodes, or vectorize SUMO (separate plan).</td>
+</tr>
+<tr>
+<td>NNMPC inside residual env: forward pass cost adds to env step time</td>
+<td>Low</td>
+<td>NNMPC is small (~100K params); CPU forward &lt; 1 ms per step. SUMO step dominates.</td>
+</tr>
+<tr>
+<td>Ring length too short for 9 vehicles at <code>s_star=20m</code> (need ≥ 180 m circumference)</td>
+<td>Medium</td>
+<td>Verify ring length via <code>compute_ring_length</code> at first env init. If short, lengthen by editing <code>circle.rou.xml</code>'s <code>repeat</code> count or use a longer ring (<code>circle.net.xml</code>). Document the verified length in the env's docstring.</td>
+</tr>
+<tr>
+<td>Step-length mismatch: existing <code>simulation.sumocfg</code> uses <code>0.1</code> but NNMPC was trained at <code>0.05</code></td>
+<td>Mitigated by design</td>
+<td>New <code>platoon_9.sumocfg</code> uses <code>step-length="0.05"</code>. Verify env's <code>step_length</code> matches at startup; raise if mismatch.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="acceptance-criteria">Acceptance criteria<a class="headerlink" href="#acceptance-criteria" title="Permanent link">&para;</a></h2>
+<p>For the design to be considered successfully implemented:</p>
+<ol>
+<li>Both training runs complete (warm-start and residual), producing saved policies.</li>
+<li>Both training return curves show monotone improvement after the first ~100 episodes (visual inspection).</li>
+<li>Eval grid produces a complete <code>summary.csv</code>, <code>summary.md</code>, and the per-scenario plots.</li>
+<li><strong>At least one of {warm-start, residual} achieves lower total cost than NNMPC</strong> averaged across the <code>hetero_random</code> config (testing goal A+B). If neither beats NNMPC even on average, the experiment is informative but the methods didn't help — that itself is a useful negative result.</li>
+<li>Neither method causes more collisions than NNMPC averaged across all eval grid cells (safety regression check).</li>
+<li>Per-decision latency for RL controllers is within 2× of NNMPC's (runtime claim from paper).</li>
+</ol>
+<h2 id="out-of-scope-follow-ons">Out-of-scope follow-ons<a class="headerlink" href="#out-of-scope-follow-ons" title="Permanent link">&para;</a></h2>
+<p>If A+B succeed, the natural follow-on is reusing this infrastructure for goal C (delay, IDM, time-varying OVM mismatch as targeted training scenarios). That belongs in a separate spec, sharing the env code but extending the perturbation/HDV sampling.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.expand", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
