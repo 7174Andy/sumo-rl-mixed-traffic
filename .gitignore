@@ -16,6 +16,7 @@ uv.lock
 /output/*.pkl
 /output/*.csv
 *.pth
+!/deep_lcc_results/nnmpc.pth
 
 # VS Code settings
 .vscode/
