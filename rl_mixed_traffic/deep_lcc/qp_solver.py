@@ -122,13 +122,12 @@ class CachedDeepLCCSolver:
 
         sol = solvers.qp(self._P, q, self._G, self._h, self._A, b)
 
-        if sol["status"] == "optimal":
-            g_val = np.array(sol["x"]).ravel()
-            u_opt = self._Uf @ g_val
-            y_opt = self._Yf @ g_val
-            return u_opt, y_opt, "optimal"
-        else:
+        if sol["x"] is None:
             return np.zeros(self._N_m), np.zeros(self._N_p), sol["status"]
+        g_val = np.array(sol["x"]).ravel()
+        u_opt = self._Uf @ g_val
+        y_opt = self._Yf @ g_val
+        return u_opt, y_opt, sol["status"]
 
 
 def solve_deep_lcc(
@@ -154,7 +153,18 @@ def solve_deep_lcc(
     Convenience wrapper that builds a CachedDeepLCCSolver and calls it once.
     For repeated solves with the same Hankel matrices, use CachedDeepLCCSolver
     directly to avoid re-canonicalization overhead.
+
+    Note: ``r`` (output reference) is unsupported — DeeP-LCC here tracks the
+    equilibrium, i.e. y_r = 0 in error coordinates. A nonzero ``r`` is
+    rejected loudly rather than silently ignored.
     """
+    if np.any(r):
+        raise NotImplementedError(
+            "Nonzero reference r is unsupported: DeeP-LCC tracks the "
+            "equilibrium (y_r=0 in error coordinates). Pass r=zeros or update "
+            "the QP cost to add the Q@r linear term before using a reference."
+        )
+    del r
     solver = CachedDeepLCCSolver(
         Up,
         Yp,
