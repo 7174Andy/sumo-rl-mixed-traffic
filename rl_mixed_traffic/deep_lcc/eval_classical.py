@@ -13,9 +13,11 @@ Usage:
 
 from __future__ import annotations
 
+import math
 import time
+from dataclasses import replace
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +29,39 @@ from rl_mixed_traffic.deep_lcc.config import (
 )
 from rl_mixed_traffic.deep_lcc.precollect import precollect
 from rl_mixed_traffic.deep_lcc.qp_solver import CachedDeepLCCSolver
+
+
+# ── Canonical per-scenario run config ─────────────────────────────────
+#
+# Both eval_classical.main and nnmpc_eval.eval_closed_loop route their
+# QP/NN runs through scenario_run_kwargs() so the QP baseline is identical
+# across the two drivers (no split-brain numbers in the writeup).
+#
+# brake/sinusoidal keep a *fixed* s_star (update_s_star=False) to stay
+# faithful to soc-ucsd/DeeP-LCC (main_brake_simulation.py uses a fixed
+# equilibrium spacing). Everything else uses the dynamic equilibrium.
+# All scenarios use heterogeneous OVM + AEB off, matching the NNMPC
+# training dataset built by generate_dataset.py.
+class _RunKwargs(TypedDict):
+    update_s_star: bool
+    enable_aeb: bool
+
+
+SCENARIO_RUN_KWARGS: dict[str, _RunKwargs] = {
+    "brake": {"update_s_star": True, "enable_aeb": False},
+    "sinusoidal": {"update_s_star": True, "enable_aeb": False},
+    "NEDC": {"update_s_star": True, "enable_aeb": False},
+}
+_DEFAULT_RUN_KWARGS: _RunKwargs = {"update_s_star": True, "enable_aeb": False}
+
+
+def scenario_run_kwargs(name: str) -> _RunKwargs:
+    """run_with_state kwargs for a scenario (see SCENARIO_RUN_KWARGS)."""
+    cfg = SCENARIO_RUN_KWARGS.get(name, _DEFAULT_RUN_KWARGS)
+    return {
+        "update_s_star": cfg["update_s_star"],
+        "enable_aeb": cfg["enable_aeb"],
+    }
 
 
 # ── Scenario builders ─────────────────────────────────────────────────
@@ -267,15 +302,109 @@ def make_stop_and_go(
     return head_vel
 
 
+def make_two_bump(
+    total_time: float,
+    tstep: float,
+    v_star: float,
+    settle_time: float = 5.0,
+    v1: float = 17.0,
+    v2: float = 23.0,
+    accel: float = 2.0,
+    hold1: float = 20.0,
+) -> np.ndarray:
+    """Two upward bumps in head velocity: v_star -> v1 -> v2.
+
+    Phases (defaults, v_star=15): settle at 15 -> ramp to 17 -> hold 17 ->
+    ramp to 23 -> hold 23 until the end.  The first plateau (17) sits at the
+    edge of the [13, 17] training region; the second (23) is far out-of-region,
+    probing whether a region-restricted NN diverges.
+
+    Returns absolute head vehicle velocity (m/s).
+    """
+    total_steps = int(total_time / tstep)
+    head_vel = np.full(total_steps, v_star)
+
+    ramp1_dur = abs(v1 - v_star) / accel
+    ramp2_dur = abs(v2 - v1) / accel
+    ramp1_start = settle_time
+    hold1_start = ramp1_start + ramp1_dur
+    ramp2_start = hold1_start + hold1
+    hold2_start = ramp2_start + ramp2_dur
+
+    for k in range(total_steps):
+        t = k * tstep
+        if t < ramp1_start:
+            v = v_star
+        elif t < hold1_start:
+            v = v_star + accel * (t - ramp1_start)
+        elif t < ramp2_start:
+            v = v1
+        elif t < hold2_start:
+            v = v1 + accel * (t - ramp2_start)
+        else:
+            v = v2
+        head_vel[k] = v
+    return head_vel
+
+
 def make_nedc(tstep: float) -> np.ndarray:
     """NEDC head vehicle trajectory from reference .mat file (native length)."""
+    del tstep  # unused: trajectory length comes from the .mat file
     mat_path = Path("deep_lcc_dataset/nedc_reference.mat")
-    if mat_path.exists():
-        from scipy.io import loadmat
-        data = loadmat(str(mat_path))
-        return data["S"][:, 0, 1].ravel()
-    # Fallback: use the helper at a default 400s length
-    return _make_nedc_perturbation(int(400.0 / tstep), tstep)
+    if not mat_path.exists():
+        raise FileNotFoundError(
+            f"NEDC reference trajectory not found at {mat_path}. "
+            "This file is required for the NEDC scenario."
+        )
+    from scipy.io import loadmat
+    data = loadmat(str(mat_path))
+    return data["S"][:, 0, 1].ravel()
+
+
+def make_nedc_scenario(ovm_config: OVMConfig) -> tuple[np.ndarray, float, float]:
+    """Paper-faithful NEDC scenario: head trajectory + NEDC equilibrium.
+
+    The reference (main_nedc_simulation.py) sets the equilibrium to the NEDC
+    cruise speed and pre-stabilizes the platoon there before the cycle plays,
+    so the head never accelerates from 15. Our saved nedc_reference.mat carries
+    a spurious leading 15.0 sample (the reference's S[0,:,1]=v_star=15 init);
+    returning it raw with config.v_star=15 produces a one-step 15 -> ~19.4 jump.
+
+    Strips that pre-roll and returns the NEDC equilibrium so the scenario can
+    initialize the platoon at the cruise speed (no startup velocity jump).
+
+    Returns:
+        (head_vel, v_star, s_star) where v_star is the NEDC cruise speed and
+        s_star is the OVM-policy equilibrium spacing at that v_star.
+    """
+    mat_path = Path("deep_lcc_dataset/nedc_reference.mat")
+    if not mat_path.exists():
+        raise FileNotFoundError(
+            f"NEDC reference trajectory not found at {mat_path}. "
+            "This file is required for the NEDC scenario."
+        )
+    from scipy.io import loadmat
+
+    data = loadmat(str(mat_path))
+    head = data["S"][:, 0, 1].ravel()
+    v_star = float(np.ravel(data["v_star"])[0])
+
+    # Drop leading pre-roll samples until the head is at the NEDC cruise speed.
+    start = int(np.argmax(np.isclose(head, v_star, atol=1e-3)))
+    head = head[start:]
+
+    # OVM-type equilibrium spacing policy at v_star (matches run_with_state).
+    pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
+    if isinstance(ovm_config.s_go, list):
+        s_go_cav = float(ovm_config.s_go[int(pos_cav[0])])
+    else:
+        s_go_cav = float(ovm_config.s_go)
+    v_ratio = float(np.clip(v_star / ovm_config.v_max * 2, 0.0, 2.0))
+    s_star = (
+        math.acos(1.0 - v_ratio) / math.pi * (s_go_cav - ovm_config.s_st)
+        + ovm_config.s_st
+    )
+    return head, v_star, s_star
 
 
 # ── Performance metrics ───────────────────────────────────────────────
@@ -372,6 +501,7 @@ def run_with_state(
     noise_seed: int = 42,
     enable_aeb: bool = True,
     update_s_star: bool = True,
+    fixed_equilibrium: bool = False,
     collect_dataset: bool = False,
     ovm_resampler: Callable[[float], OVMConfig] | None = None,
     comm_delay_ms: float = 0.0,
@@ -383,6 +513,9 @@ def run_with_state(
     Args:
         controller_fn: Callable(uini, yini, eini) → cav_accel (m_ctr,).
             If None, uses the QP solver (builds Hankel matrices + solver internally).
+        fixed_equilibrium: If True, hold v_star/s_star at the config values for
+            the whole run instead of re-estimating them from the running mean of
+            past head velocities (deviation coords relative to a fixed point).
         collect_dataset: If True, also returns a dict with lists of
             (uini, yini, eini, u_opt) pairs collected at each control step.
 
@@ -426,10 +559,8 @@ def run_with_state(
         )
 
         def controller_fn(uini, yini, eini):
-            u_opt, _, status = solver(uini, yini, eini)
-            if status in ("optimal", "optimal_inaccurate"):
-                return u_opt[:m_ctr]
-            return np.zeros(m_ctr)
+            u_opt, _, _ = solver(uini, yini, eini)
+            return u_opt[:m_ctr]
 
     v_star = config.v_star
     s_star = config.s_star
@@ -471,22 +602,36 @@ def run_with_state(
             # k_eff is the "perceived present" from the controller's perspective.
             k_eff = k - delay_steps
 
-            # Update equilibrium from past T_ini head velocities (not including k_eff)
-            v_star = float(np.mean(S[k_eff - T_ini : k_eff, 0, 1]))
-            if update_s_star:
-                v_ratio = float(np.clip(v_star / ovm_config.v_max * 2, 0.0, 2.0))
-                s_star = (
-                    math.acos(1.0 - v_ratio) / math.pi
-                    * (ovm_config.s_go - ovm_config.s_st)
-                    + ovm_config.s_st
-                )
+            # When fixed_equilibrium, v_star/s_star stay at the config values
+            # (set before the loop) and the deviation coordinates are taken
+            # relative to that single fixed operating point.
+            if not fixed_equilibrium:
+                # Update equilibrium from past T_ini head velocities (not including k_eff)
+                v_star = float(np.mean(S[k_eff - T_ini : k_eff, 0, 1]))
+                if update_s_star:
+                    # s_go may be heterogeneous (per-vehicle list); CAVs use the
+                    # nominal value, so take the first CAV's s_go for the
+                    # equilibrium-spacing policy.
+                    if isinstance(ovm_config.s_go, list):
+                        s_go_cav = float(ovm_config.s_go[int(pos_cav[0])])
+                    else:
+                        s_go_cav = float(ovm_config.s_go)
+                    v_ratio = float(np.clip(v_star / ovm_config.v_max * 2, 0.0, 2.0))
+                    s_star = (
+                        math.acos(1.0 - v_ratio) / math.pi
+                        * (s_go_cav - ovm_config.s_st)
+                        + ovm_config.s_st
+                    )
 
-            # Re-compute past T_ini-1 measurements with updated equilibrium
-            for k_past in range(k_eff - T_ini + 1, k_eff):
-                y_hist[:, k_past] = measure_mixed_traffic(
-                    S[k_past, 1:, 1], S[k_past, :, 0], ID,
-                    v_star, s_star, config.measure_type,
-                )
+                # Re-compute the full past T_ini-sample window with the
+                # updated equilibrium so every yini sample and its matching
+                # eini sample share one operating point (the oldest sample
+                # was previously skipped -> eini[0]/yini[0] inconsistent).
+                for k_past in range(k_eff - T_ini, k_eff):
+                    y_hist[:, k_past] = measure_mixed_traffic(
+                        S[k_past, 1:, 1], S[k_past, :, 0], ID,
+                        v_star, s_star, config.measure_type,
+                    )
 
             # Past data ending at k_eff-1 (delayed window)
             uini = u_hist[:, k_eff - T_ini : k_eff].flatten(order="F")
@@ -619,7 +764,10 @@ def plot_scenario(
 def main() -> None:
     config = DeepLCCConfig()
     config.acel_max = 3.0
-    ovm_config = OVMConfig()
+    # Heterogeneous HDV params (hdv_ovm_2.mat) for ALL scenarios — NEDC
+    # previously used homogeneous OVMConfig(), an unintended plant mismatch
+    # vs. brake/sinusoidal.
+    ovm_config = get_heterogeneous_ovm_config()
 
     n_vehicle = ovm_config.n_vehicle
     pos_cav = np.where(np.array(ovm_config.ID) == 1)[0]
@@ -648,7 +796,11 @@ def main() -> None:
     print("Scenario 1: EXTREME BRAKING")
     print("─" * 60)
     print("  Head: 5s settle → -5 m/s² for 2s → 5s hold → +2 m/s² for 5s → cruise")
-    print("  (matches reference brake_amp=10, fixed s_star=20, heterogeneous HDVs)")
+    print(
+        f"  (brake trajectory matches reference brake_amp=10; heterogeneous "
+        f"HDVs; run cfg {scenario_run_kwargs('brake')} — dynamic s_star & "
+        f"AEB-off diverge from soc-ucsd brake sim's fixed s_star + CAV-AEB)"
+    )
     brake_steps = int(30.0 / config.Tstep)
     brake_head = make_extreme_brake(brake_steps, config.Tstep, config.v_star)
     print(f"  Steps: {brake_steps}, duration: {brake_steps * config.Tstep}s")
@@ -658,14 +810,14 @@ def main() -> None:
 
     t0 = time.time()
     cost, vels, state, _ = run_with_state(
-        config, brake_ovm, Q, R, brake_head, update_s_star=False
+        config, brake_ovm, Q, R, brake_head, **scenario_run_kwargs("brake")
     )
     elapsed = time.time() - t0
     print(f"  Done in {elapsed:.1f}s")
 
     metrics = compute_metrics(vels, brake_head, config, full_state=state)
     metrics["total_cost"] = cost
-    print(f"\n  Performance metrics:")
+    print("\n  Performance metrics:")
     for k, v in metrics.items():
         if isinstance(v, float):
             print(f"    {k:25s} {v:12.3f}")
@@ -679,7 +831,9 @@ def main() -> None:
     print("Scenario 2: SINUSOIDAL PERTURBATION")
     print("─" * 60)
     print("  Head: 5s settle → sine wave (amp=2 m/s, period=10s)")
-    print("  (heterogeneous HDVs, fixed s_star)")
+    print(
+        f"  (heterogeneous HDVs; run cfg {scenario_run_kwargs('sinusoidal')})"
+    )
     sine_steps = int(40.0 / config.Tstep)
     sine_head = make_sinusoidal(
         sine_steps, config.Tstep, config.v_star, amplitude=2.0
@@ -690,14 +844,14 @@ def main() -> None:
 
     t0 = time.time()
     cost, vels, state, _ = run_with_state(
-        config, sine_ovm, Q, R, sine_head, update_s_star=False
+        config, sine_ovm, Q, R, sine_head, **scenario_run_kwargs("sinusoidal")
     )
     elapsed = time.time() - t0
     print(f"  Done in {elapsed:.1f}s")
 
     metrics = compute_metrics(vels, sine_head, config, full_state=state)
     metrics["total_cost"] = cost
-    print(f"\n  Performance metrics:")
+    print("\n  Performance metrics:")
     for k, v in metrics.items():
         if isinstance(v, float):
             print(f"    {k:25s} {v:12.3f}")
@@ -710,24 +864,30 @@ def main() -> None:
     print("─" * 60)
     print("Scenario 3: NEDC (from reference .mat)")
     print("─" * 60)
-    nedc_head = make_nedc(config.Tstep)  # length determined by .mat file
+    nedc_head, nedc_v_star, nedc_s_star = make_nedc_scenario(ovm_config)
+    nedc_config = replace(config, v_star=nedc_v_star, s_star=nedc_s_star)
     nedc_steps = len(nedc_head)
-    print(f"  Steps: {nedc_steps}, duration: {nedc_steps * config.Tstep}s")
+    print(
+        f"  Steps: {nedc_steps}, duration: {nedc_steps * config.Tstep}s, "
+        f"equilibrium v_star={nedc_v_star:.3f} s_star={nedc_s_star:.3f}"
+    )
 
     t0 = time.time()
-    cost, vels, state, _ = run_with_state(config, ovm_config, Q, R, nedc_head)
+    cost, vels, state, _ = run_with_state(
+        nedc_config, ovm_config, Q, R, nedc_head, **scenario_run_kwargs("NEDC")
+    )
     elapsed = time.time() - t0
     print(f"  Done in {elapsed:.1f}s")
 
-    metrics = compute_metrics(vels, nedc_head, config, full_state=state)
+    metrics = compute_metrics(vels, nedc_head, nedc_config, full_state=state)
     metrics["total_cost"] = cost
-    print(f"\n  Performance metrics:")
+    print("\n  Performance metrics:")
     for k, v in metrics.items():
         if isinstance(v, float):
             print(f"    {k:25s} {v:12.3f}")
         else:
             print(f"    {k:25s} {v}")
-    plot_scenario("nedc", vels, state, config)
+    plot_scenario("nedc", vels, state, nedc_config)
     print()
 
     print("=" * 60)

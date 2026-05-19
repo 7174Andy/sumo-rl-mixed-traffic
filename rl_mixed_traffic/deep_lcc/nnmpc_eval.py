@@ -9,6 +9,7 @@ Usage:
 """
 
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -21,14 +22,13 @@ from rl_mixed_traffic.deep_lcc.config import (
 )
 from rl_mixed_traffic.deep_lcc.eval_classical import (
     compute_metrics,
-    make_aggressive_sine,
     make_extreme_brake,
-    make_nedc,
+    make_nedc_scenario,
     make_sinusoidal,
     make_stop_and_go,
     make_varying_sine,
-    plot_scenario,
     run_with_state,
+    scenario_run_kwargs,
 )
 from rl_mixed_traffic.deep_lcc.nnmpc_config import NNMPCConfig
 from rl_mixed_traffic.deep_lcc.nnmpc_network import NNMPCNetwork
@@ -72,7 +72,15 @@ def nn_predict(
 
 
 def eval_offline(config: NNMPCConfig) -> None:
-    """Compare NN predictions against QP solutions on held-out data."""
+    """Compare NN predictions against QP solutions on held-out data.
+
+    Valid only for the full-dataset model (the val split here is recomputed
+    from the *unfiltered* dataset with the same seed-42 shuffle that
+    nnmpc_train.load_dataset uses). For a region- or sample_mask-trained
+    model the training-time shuffle runs over the *filtered* rows, so this
+    val split would not match that model's true validation set — use the
+    closed-loop comparison for those models instead.
+    """
     device = torch.device(config.device)
     model, input_mean, input_std = load_model(config.model_path, device)
 
@@ -137,16 +145,20 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
     eval_steps = int(30.0 / config.Tstep)
     sine_steps = int(40.0 / config.Tstep)
 
+    nedc_head, nedc_v_star, nedc_s_star = make_nedc_scenario(ovm_config)
+    nedc_config = replace(config, v_star=nedc_v_star, s_star=nedc_s_star)
+
     scenarios = {
         "brake": make_extreme_brake(eval_steps, config.Tstep, config.v_star),
         "sinusoidal": make_sinusoidal(
             sine_steps, config.Tstep, config.v_star, amplitude=2.0
         ),
-        "NEDC": make_nedc(config.Tstep),
+        "NEDC": nedc_head,
         "varying_sine": make_varying_sine(200.0, config.Tstep, config.v_star),
-        "aggressive_sine": make_aggressive_sine(200.0, config.Tstep, config.v_star),
         "stop_and_go": make_stop_and_go(200.0, config.Tstep, config.v_star),
     }
+    # NEDC runs at the NEDC cruise equilibrium (paper-faithful); others at v_star.
+    scen_configs = {"NEDC": nedc_config}
 
     # Optional filter: SCENARIOS=varying_sine,brake uv run ...
     scen_filter = os.environ.get("SCENARIOS")
@@ -167,11 +179,13 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
 
     rows = []
     for name, head_vel in scenarios.items():
+        cfg = scen_configs.get(name, config)
+
         # QP controller (default when controller_fn=None)
         print(f"\n--- {name} (QP) ---")
         qp_cost, qp_vel, qp_S, _ = run_with_state(
-            config, ovm_config, Q, R, head_vel,
-            enable_aeb=False, update_s_star=False,
+            cfg, ovm_config, Q, R, head_vel,
+            **scenario_run_kwargs(name),
         )
 
         # NN controller
@@ -180,9 +194,9 @@ def eval_closed_loop(nnmpc_config: NNMPCConfig) -> None:
 
         print(f"--- {name} (NN) ---")
         nn_cost, nn_vel, nn_S, _ = run_with_state(
-            config, ovm_config, Q, R, head_vel,
+            cfg, ovm_config, Q, R, head_vel,
             controller_fn=nn_controller,
-            enable_aeb=False, update_s_star=False,
+            **scenario_run_kwargs(name),
         )
 
         # Extract applied CAV accelerations (u traces) for both controllers
